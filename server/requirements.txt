@@ -1,0 +1,13 @@
+langchain==0.1.16
+langchain-community==0.0.33
+langchain-core==0.1.44
+langchain-text-splitters==0.0.1
+langcodes==3.3.0
+langserve==0.1.0
+langsmith==0.1.47
+sentence-transformers==2.6.1
+transformers==4.41.0
+bitsandbytes==0.43.1
+torch==2.0.1
+flask
+python-dotenv==1.0.1
