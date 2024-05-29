@@ -1,0 +1,31 @@
+@import views.html.helper._
+@import play.api.mvc.RequestHeader
+@(files: Seq[String])(implicit request: RequestHeader)
+
+@main() {
+      <div class="row" style="margin: 20px;">
+          <div class="offset-md-1 col-md-10">
+              <form action="/upload" method="post" enctype="multipart/form-data">
+                  <div class="mb-3">
+                      <label for="formFile" class="form-label">Upload a new document</label>
+                      <input class="form-control" type="file" id="formFile" name="file">
+                  </div>
+                  <button type="submit" class="btn btn-primary">Upload</button>
+              </form>
+          </div>
+      </div>
+
+    <div class="row">
+        <div class="offset-md-1 col-md-10">
+            <table class="table" style="margin: 20px;">
+                @for(fileGroup <- files.grouped(6)){
+                <tr>
+                    @for(file <- fileGroup){
+                    <td><a href="data/@file" style="color: white;">@file</a></td>
+                    }
+                </tr>
+                }
+            </table>
+        </div>
+    </div>
+}

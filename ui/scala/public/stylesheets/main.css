@@ -1,0 +1,112 @@
+body, html {
+    height: 100%;
+    background: #121212;
+    color: #e0e0e0;
+    font-family: 'Arial', sans-serif;
+}
+.container {
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.card {
+    background-color: #1e1e1e;
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+.card-title {
+    font-size: 28px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+.form-control {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #e0e0e0;
+    border: none;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+}
+.btn-primary {
+    background-image: linear-gradient(to right, #f6d365, #fda085);
+    border: none;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+    outline: none; /* Remove focus border */
+}
+
+.btn-primary:hover {
+    background-image: linear-gradient(to right, #f8e3a3, #f9d56e);
+}
+
+.btn-primary:focus {
+    box-shadow: 0 0 0 0.2rem rgba(253, 185, 155, 0.5);
+}
+.card {
+    cursor: pointer;
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+#loader {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 20px;
+    color: #333;
+}
+.article {
+    border: 1px solid #334;
+    border-radius: 5px;
+    padding: 25px;
+}
+.label-agent, .label-human {
+    overflow: hidden;
+    margin: 0;
+    color: #343434;
+    font-family: Roboto;
+    font-weight: 300;
+    margin: 15px;
+}
+.label-agent {
+    background: #f9d56e;
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
+    margin-right: 25px;
+}
+.label-human {
+    background: #ffffff;
+    border: 1px solid #bebebe;
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
+    text-align: right;
+    float: right;
+    margin-left: 25px;
+}
+.clearfix {
+    clear: both;
+}
+.chatinput {
+    position: fixed;
+    bottom: 50px;
+}
+#dialogue {
+  overflow-y: auto;
+  margin-bottom: 150px;
+  height: 800px;
+}
+.message-row {
+  display: block;
+  margin-bottom: 20px;
+}

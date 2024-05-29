@@ -1,0 +1,108 @@
+@import views.html.helper._
+@import play.api.mvc.RequestHeader
+@()(implicit request: RequestHeader)
+
+@main() {
+<div id="mainContainer" class="container">
+  <div class="card" id="queryCard">
+    <div class="card-body" style="text-align: center; width: 800px;">
+      <h3 class="card-title" style="padding-bottom: 50px;">
+        What are you looking for?
+      </h3>
+
+      <div class="input-group mb-3">
+          <input type="text" id="query" class="form-control" placeholder="Enter your query on your own documents..." name="query">
+          <button class="btn btn-primary" type="submit" id="submitBtn">
+            Go!
+          </button>
+      </div>
+    </div>
+  </div>
+  <div id="loader" style="display: none; background: rgba(255, 255, 255, 0);">
+    <img src="@routes.Assets.versioned("images/typing.gif")">
+  </div>
+</div>
+<div class="col-md-10 offset-md-1">
+  <div class="row">
+    <div id="dialogue" class="input-group mb-10" style="display: none;"></div>
+  </div>
+</div>
+<div class="offset-md-1 col-md-10 chatinput" id="chatinputcontainer">
+  <div id="inputbar" class="input-group" style="display: none">
+    <input type="text" id="query" class="form-control" placeholder="" name="query">
+    <button class="btn btn-primary" type="submit" id="submitBtn2">
+      Go!
+    </button>
+  </div>
+</div>
+
+<script>
+    var chathistory = '';
+
+    $.ajaxSetup({
+        beforeSend: function(xhr) {
+            xhr.setRequestHeader('Csrf-Token','@helper.CSRF.getToken.value');
+        }
+    });
+
+    function replaceLinks(messageText) {
+        var regex = /data\/(\d+\.pdf)/g;
+        var newText = messageText.replace(regex, function(match, filename) {
+            return '<a href="' + match + '">' + filename + '</a>';
+        });
+        return newText;
+    }
+
+    function addMessage(message, isHuman) {
+        var dialogue = $("#dialogue");
+        var row = $('<div>').addClass('message-row');
+        var container = $('<div>').addClass(isHuman ? 'label-human' : 'label-agent');
+        var label = $('<label>').html(replaceLinks(message));
+        $(container).append(label);
+        $(row).append(container);
+        $(dialogue).append(row);
+        dialogue.scrollTop(dialogue[0].scrollHeight);
+    }
+
+    function handleChat() {
+        $('button[type="submit"]', this).prop('disabled', true);
+        $("#mainContainer").hide();
+        var query = $("#query").val();
+
+        addMessage(query, true);
+        $(dialogue).show();
+
+        $.ajax({
+            type: "POST",
+            url: "@controllers.routes.HomeController.search",
+            data: JSON.stringify({
+              query: query,
+              history: chathistory
+            }),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function(data){
+                $("#mainContainer").remove();
+                addMessage(data['reply'], false);
+                chathistory = data['history'];
+                $("#inputbar").show();
+                $("#query").val('');
+            },
+            error: function(errMsg) {
+                addMessage('Something went wrong, please try again...', false);
+            }
+        });
+    }
+
+    $(document).ready(function() {
+        $('#submitBtn').on('click', function() {
+            handleChat();
+        });
+
+        $('#submitBtn2').on('click', function() {
+            handleChat();
+        });
+    });
+</script>
+
+}
