@@ -15,16 +15,20 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from langchain.prompts import PromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
-from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_community.llms import HuggingFacePipeline
 from langchain_community.vectorstores import FAISS
 from langchain_community.retrievers import BM25Retriever
+from langchain_community.document_loaders import PyPDFDirectoryLoader
+from langchain_community.document_loaders import JSONLoader
+from langchain_community.document_loaders import DirectoryLoader
 
 # Make documents look a bit better than default
 def formatDocuments(docs):
-    return "\n\n".join([
-        f"Content: {doc.page_content}\Document name: {doc.metadata['source']}, page {doc.metadata['page']}" for doc in docs
-    ])
+    doc_strings = []
+    for doc in docs:
+        metadata_string = ", ".join([f"{md}: {doc.metadata['md']}" for md in doc.metadata])
+        doc_strings.append(f"Content: {doc.page_content}\nMetadata: {metadata_string}")
+    return "\n\n".join(doc_strings)
 
 class RAGHelper:
     def __init__(self, logger):
@@ -104,11 +108,28 @@ class RAGHelper:
             {"question": RunnablePassthrough()} |
             rag_llm_chain
         )
-    
+
     # Loads the data and chunks it into an ensemble retriever
     def loadData(self):
-        loader = PyPDFDirectoryLoader(os.getenv('data_directory'))
-        docs = loader.load()
+        # Load PDF files if need be
+        docs = []
+        data_dir = os.getenv('data_directory')
+        if "pdf" in os.getenv("file_types"):
+            loader = PyPDFDirectoryLoader(data_dir)
+            docs = docs + loader.load()
+        # Load JSON
+        if "json" in os.getenv("file_types"):
+            loader_kwargs = {
+                'jq_schema': os.getenv("json_schema"),
+                'text_content': os.getenv("json_text_content")
+            }
+            loader = DirectoryLoader(
+                path=data_dir,
+                glob=f"**/*.json",
+                loader_cls=JSONLoader,
+                loader_kwargs=loader_kwargs,
+            )
+            docs = docs + loader.load()
 
         #if os.getenv('splitter') == 'RecursiveCharacterTextSplitter':
         self.text_splitter = RecursiveCharacterTextSplitter(

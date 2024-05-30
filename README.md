@@ -24,7 +24,7 @@ RAG Me Up uses a `.env` file for configuration, see `.env.template`. The followi
 - `force_cpu` When set to True, forces RAG Me Up to run fully on CPU (not recommended)
 
 ## Data configuration
-- `data_directory` The directory that contains your (initial) documents to load into the vector store. For now, only `PDF` files are supported
+- `data_directory` The directory that contains your (initial) documents to load into the vector store. For now, only `PDF` and `JSON` files are supported
 - `vector_store_path` RAG Me Up caches your vector store on disk if possible to make loading a next time faster. This is the location where the vector store is stored. Remove this file to force a reload of all your documents
 
 ## LLM parameters
