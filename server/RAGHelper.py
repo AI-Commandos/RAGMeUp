@@ -114,6 +114,7 @@ class RAGHelper:
         # Load PDF files if need be
         docs = []
         data_dir = os.getenv('data_directory')
+        file_types = os.getenv("file_types").split(",")
         if "pdf" in os.getenv("file_types"):
             loader = PyPDFDirectoryLoader(data_dir)
             docs = docs + loader.load()
