@@ -125,9 +125,12 @@ class RAGHelper:
             docs = docs + loader.load()
         # Load JSON
         if "json" in file_types:
+            text_content = True
+            if os.getenv("json_text_content").lower() == 'false':
+                text_content = False
             loader_kwargs = {
                 'jq_schema': os.getenv("json_schema"),
-                'text_content': os.getenv("json_text_content")
+                'text_content': text_content
             }
             loader = DirectoryLoader(
                 path=data_dir,

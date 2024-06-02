@@ -14,3 +14,5 @@ python-dotenv==1.0.1
 docx2txt==0.8
 unstructured==0.14.3
 unstructured-client==0.22.0
+XlsxWriter==3.2.0
+python-pptx==0.6.23
