@@ -18,9 +18,14 @@ from langchain.schema.runnable import RunnablePassthrough
 from langchain_community.llms import HuggingFacePipeline
 from langchain_community.vectorstores import FAISS
 from langchain_community.retrievers import BM25Retriever
+
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_community.document_loaders import JSONLoader
 from langchain_community.document_loaders import DirectoryLoader
+from langchain_community.document_loaders import Docx2txtLoader
+from langchain_community.document_loaders import UnstructuredExcelLoader
+from langchain_community.document_loaders import UnstructuredPowerPointLoader
 
 # Make documents look a bit better than default
 def formatDocuments(docs):
@@ -115,20 +120,44 @@ class RAGHelper:
         docs = []
         data_dir = os.getenv('data_directory')
         file_types = os.getenv("file_types").split(",")
-        if "pdf" in os.getenv("file_types"):
+        if "pdf" in file_types:
             loader = PyPDFDirectoryLoader(data_dir)
             docs = docs + loader.load()
         # Load JSON
-        if "json" in os.getenv("file_types"):
+        if "json" in file_types:
             loader_kwargs = {
                 'jq_schema': os.getenv("json_schema"),
                 'text_content': os.getenv("json_text_content")
             }
             loader = DirectoryLoader(
                 path=data_dir,
-                glob=f"**/*.json",
+                glob="*.json",
                 loader_cls=JSONLoader,
                 loader_kwargs=loader_kwargs,
+            )
+            docs = docs + loader.load()
+        # Load MS Word
+        if "docx" in file_types:
+            loader = DirectoryLoader(
+                path=data_dir,
+                glob="*.docx",
+                loader_cls=Docx2txtLoader,
+            )
+            docs = docs + loader.load()
+        # Load MS Excel
+        if "xslx" in file_types:
+            loader = DirectoryLoader(
+                path=data_dir,
+                glob="*.xslx",
+                loader_cls=UnstructuredExcelLoader,
+            )
+            docs = docs + loader.load()
+        # Load MS PPT
+        if "pptx" in file_types:
+            loader = DirectoryLoader(
+                path=data_dir,
+                glob="*.pptx",
+                loader_cls=UnstructuredPowerPointLoader,
             )
             docs = docs + loader.load()
 
@@ -233,7 +262,43 @@ class RAGHelper:
         return reply
 
     def addDocument(self, filename):
-        new_chunks = self.text_splitter.split_documents(filename)
+        if filename.lower().endswith() == 'pdf':
+            doc = PyPDFLoader(filename).load()
+        if filename.lower().endswith() == 'json':
+            doc = JSONLoader(
+                file_path = filename,
+                jq_schema = os.getenv("json_schema"),
+                text_content = os.getenv("json_text_content"),
+            ).load()
+        if filename.lower().endswith() == 'docx':
+            doc = Docx2txtLoader(filename).load()
+        if filename.lower().endswith() == 'xslx':
+            doc = UnstructuredExcelLoader(filename).load()
+        if filename.lower().endswith() == 'pptx':
+            doc = UnstructuredPowerPointLoader(filename).load()
+
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=int(os.getenv('chunk_size')),
+            chunk_overlap=int(os.getenv('chunk_overlap')),
+            length_function=len,
+            keep_separator=False,
+            is_separator_regex=True,
+            separators=[
+                "\n \n",
+                "\n\n",
+                "\n",
+                " ",
+                ".",
+                ",",
+                "\u200b",  # Zero-width space
+                "\uff0c",  # Fullwidth comma
+                "\u3001",  # Ideographic comma
+                "\uff0e",  # Fullwidth full stop
+                "\u3002",  # Ideographic full stop
+                "",
+            ],
+        )
+        new_chunks = self.text_splitter.split_documents(doc)
 
         # Add to FAISS
         self.db.add_documents(new_chunks)
