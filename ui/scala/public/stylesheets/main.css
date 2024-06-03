@@ -3,6 +3,7 @@ body, html {
     background: #121212;
     color: #e0e0e0;
     font-family: 'Arial', sans-serif;
+    overflow: hidden;
 }
 .container {
     height: 100%;
@@ -90,8 +91,6 @@ body, html {
     border: 1px solid #bebebe;
     border-radius: 16px;
     padding: 1.25rem 1.5rem;
-    text-align: right;
-    float: right;
     margin-left: 25px;
 }
 .clearfix {
@@ -102,11 +101,16 @@ body, html {
     bottom: 50px;
 }
 #dialogue {
-  overflow-y: auto;
+  overflow: hidden;
   margin-bottom: 150px;
-  height: 800px;
+  height: 700px;
 }
 .message-row {
   display: block;
   margin-bottom: 20px;
+}
+.doclist {
+  padding: 10px;
+  font-size: 0.9em;
+  color: #777;
 }

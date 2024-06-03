@@ -1,6 +1,6 @@
 @import views.html.helper._
 @import play.api.mvc.RequestHeader
-@()(implicit request: RequestHeader)
+@(config: play.api.Configuration)(implicit request: RequestHeader)
 
 @main() {
 <div id="mainContainer" class="container">
@@ -22,9 +22,9 @@
     <img src="@routes.Assets.versioned("images/typing.gif")">
   </div>
 </div>
-<div class="col-md-10 offset-md-1">
-  <div class="row">
-    <div id="dialogue" class="input-group mb-10" style="display: none;"></div>
+<div class="row">
+  <div class="col-md-10 offset-md-1">
+    <div id="dialogue" style="display: none;"></div>
   </div>
 </div>
 <div class="offset-md-1 col-md-10 chatinput" id="chatinputcontainer">
@@ -38,6 +38,7 @@
 
 <script>
     var chathistory = '';
+    var documents = [];
 
     $.ajaxSetup({
         beforeSend: function(xhr) {
@@ -45,21 +46,23 @@
         }
     });
 
-    function replaceLinks(messageText) {
-        var regex = /data\/(\d+\.pdf)/g;
-        var newText = messageText.replace(regex, function(match, filename) {
-            return '<a href="' + match + '">' + filename + '</a>';
-        });
-        return newText;
-    }
-
-    function addMessage(message, isHuman) {
+    function addMessage(message, isHuman, documents) {
         var dialogue = $("#dialogue");
-        var row = $('<div>').addClass('message-row');
+        var row = $('<div>').addClass('row');
+        var col = $('<div>').addClass('col-md-10 offset-md-1');
         var container = $('<div>').addClass(isHuman ? 'label-human' : 'label-agent');
-        var label = $('<label>').html(replaceLinks(message));
+
+        var label = $('<label>').html(message);
         $(container).append(label);
-        $(row).append(container);
+
+        if (documents.length > 0) {
+          var doclist = $('<div>').html("The following documents were used creating this answer: " + documents.join(" -- "));
+          $(doclist).addClass('doclist');
+          $(container).append(doclist);
+        }
+
+        $(col).append(container);
+        $(row).append(col);
         $(dialogue).append(row);
         dialogue.scrollTop(dialogue[0].scrollHeight);
     }
@@ -69,7 +72,7 @@
         $("#mainContainer").hide();
         var query = $("#query").val();
 
-        addMessage(query, true);
+        addMessage(query, true, []);
         $(dialogue).show();
 
         $.ajax({
@@ -77,19 +80,21 @@
             url: "@controllers.routes.HomeController.search",
             data: JSON.stringify({
               query: query,
-              history: chathistory
+              history: chathistory,
+              docs: documents
             }),
             contentType: "application/json; charset=utf-8",
             dataType: "json",
             success: function(data){
                 $("#mainContainer").remove();
-                addMessage(data['reply'], false);
+                documents = data['documents'];
+                addMessage(data['reply'], false, documents);
                 chathistory = data['history'];
                 $("#inputbar").show();
                 $("#query").val('');
             },
             error: function(errMsg) {
-                addMessage('Something went wrong, please try again...', false);
+                addMessage('Something went wrong, please try again...', false, []);
             }
         });
     }

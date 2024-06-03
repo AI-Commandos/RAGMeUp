@@ -20,7 +20,7 @@ class HomeController @Inject()(
 ) (implicit ec: ExecutionContext) extends AbstractController(cc) {
 
   def index() = Action { implicit request: Request[AnyContent] =>
-    Ok(views.html.index())
+    Ok(views.html.index(config))
   }
 
   def add() = Action { implicit request: Request[AnyContent] =>
@@ -32,15 +32,16 @@ class HomeController @Inject()(
 
   def search() = Action.async { implicit request: Request[AnyContent] =>
     val json = request.body.asJson.getOrElse(Json.obj()).as[JsObject]
-    println(json)
     val query = (json \ "query").as[String]
     val history = (json \ "history").as[String]
+    val docs = (json \ "docs").as[Seq[String]]
 
     ws
       .url(s"${config.get[String]("server_url")}/chat")
       .post(Json.obj(
         "prompt" -> query,
-        "history" -> history
+        "history" -> history,
+        "docs" -> docs
       ))
       .map(response =>
           Ok(response.json)

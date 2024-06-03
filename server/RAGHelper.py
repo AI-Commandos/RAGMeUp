@@ -31,9 +31,21 @@ from langchain_community.document_loaders import UnstructuredPowerPointLoader
 def formatDocuments(docs):
     doc_strings = []
     for doc in docs:
-        metadata_string = ", ".join([f"{md}: {doc.metadata['md']}" for md in doc.metadata])
+        metadata_string = ", ".join([f"{md}: {doc.metadata[md]}" for md in doc.metadata.keys()])
         doc_strings.append(f"Content: {doc.page_content}\nMetadata: {metadata_string}")
     return "\n\n".join(doc_strings)
+
+def getFilenames(docs):
+    return [doc.metadata['source'] for doc in docs if 'source' in doc.metadata]
+
+# Capture the context of the retriever
+class CaptureContext(RunnablePassthrough):
+    def __init__(self):
+        self.captured_context = None
+    
+    def run(self, input_data):
+        self.captured_context = input_data['context']
+        return input_data
 
 class RAGHelper:
     def __init__(self, logger):
@@ -239,7 +251,7 @@ class RAGHelper:
         else:
             input_variables = ["question"]
 
-        prompt_template = history + '\n' + self.tokenizer.apply_chat_template(thread, tokenize=False)
+        prompt_template = history.replace("{", "(").replace("}", ")") + '\n' + self.tokenizer.apply_chat_template(thread, tokenize=False)
 
         # Create prompt from prompt template
         prompt = PromptTemplate(
@@ -251,7 +263,7 @@ class RAGHelper:
         llm_chain = LLMChain(llm=self.llm, prompt=prompt)
         if fetch_new_documents:
             rag_chain = (
-                {"context": self.ensemble_retriever | formatDocuments, "question": RunnablePassthrough()} |
+                {"docs": self.ensemble_retriever | getFilenames, "context": self.ensemble_retriever | formatDocuments, "question": RunnablePassthrough()} |
                 llm_chain
             )
         else:

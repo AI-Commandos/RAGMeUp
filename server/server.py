@@ -26,9 +26,12 @@ def chat():
     json = request.get_json()
     prompt = json['prompt']
     history = json.get('history', '')
+    docs = json.get('docs', [])
 
     # Get the LLM response
     response = raghelper.handle_user_interaction(prompt, history)
+    if len(docs) == 0 and 'docs' in response:
+        docs = response['docs']
     
     # Break up the response
     term_symbol = raghelper.tokenizer.eos_token
@@ -44,7 +47,7 @@ def chat():
     # Now glue them together
     full_history = previous_chat + prompted
     
-    return jsonify({"reply": reply, "history": full_history}), 200
+    return jsonify({"reply": reply, "history": full_history, "documents": docs}), 200
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0")
