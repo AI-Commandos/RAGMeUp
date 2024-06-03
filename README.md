@@ -3,6 +3,8 @@ RAG Me Up is a generic framework (server + UIs) that enables you do to RAG on yo
 
 RAG Me Up can run on CPU but is best run on any GPU with at least 16GB of vRAM when using the default instruct model.
 
+Combine the power of RAG with the power of fine-tuning - check out our [LLaMa2Lang repository](https://github.com/UnderstandLingBV/LLaMa2Lang) on fine-tuning LLMs which can then be used in RAG Me Up.
+
 # Installation
 ## Server
 ```
