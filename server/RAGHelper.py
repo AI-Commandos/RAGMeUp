@@ -327,7 +327,7 @@ class RAGHelper:
         )
 
         # Update full retriever too
-        retriever = self.db.as_retriever(search_type="mmr", search_kwargs = {'k': 3})
+        retriever = self.db.as_retriever(search_type="mmr", search_kwargs = {'k': int(os.getenv('vector_store_k'))})
         self.ensemble_retriever = EnsembleRetriever(
             retrievers=[bm25_retriever, retriever], weights=[0.5, 0.5]
         )

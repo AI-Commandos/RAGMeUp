@@ -31,6 +31,7 @@ RAG Me Up uses a `.env` file for configuration, see `.env.template`. The followi
 - `json_schema` If you are loading JSON, this should be the schema (using `jq_schema`). For example, use `.` for the root of a JSON object if your data contains JSON objects only and `.[0]` for the first element in each JSON array if your data contains JSON arrays with one JSON object in them
 - `json_text_content` Whether or not the JSON data should be loaded as textual content or as structured content (in case of a JSON object)
 - `vector_store_path` RAG Me Up caches your vector store on disk if possible to make loading a next time faster. This is the location where the vector store is stored. Remove this file to force a reload of all your documents
+- `vector_store_k` The number of documents to retrieve from the vector store
 
 ## LLM parameters
 - `temperature` The chat LLM's temperature. Increase this to create more diverse answers
