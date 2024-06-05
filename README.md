@@ -13,6 +13,9 @@ cd server
 pip install -r requirements.txt
 ```
 
+# Updates
+- **2024-06-05** Upgraded to Langchain v0.2
+
 ## Scala UI
 Make sure you have JDK 17+. Download and install [SBT](https://www.scala-sbt.org/) and run `sbt run` from the `server/scala` directory or alternatively download the [compiled binary](https://github.com/UnderstandLingBV/RAGMeUp/releases/tag/scala-ui) and run `bin/ragemup(.bat)`
 

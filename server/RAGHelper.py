@@ -12,10 +12,10 @@ from transformers import (
 from langchain.chains.llm import LLMChain
 from langchain.retrievers import EnsembleRetriever
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.embeddings.huggingface import HuggingFaceEmbeddings
+from langchain_huggingface.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface.llms import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
-from langchain_community.llms import HuggingFacePipeline
 from langchain_community.vectorstores import FAISS
 from langchain_community.retrievers import BM25Retriever
 
