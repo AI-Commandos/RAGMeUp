@@ -71,6 +71,7 @@
         $('button[type="submit"]', this).prop('disabled', true);
         $("#mainContainer").hide();
         var query = $("#query").val();
+        $("#query").val('');
 
         addMessage(query, true, []);
         $(dialogue).show();
@@ -106,6 +107,15 @@
 
         $('#submitBtn2').on('click', function() {
             handleChat();
+        });
+
+        $('input[id="query"]').each(function() {
+          $(this).on('keydown', function(event) {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              handleChat();
+            }
+          });
         });
     });
 </script>

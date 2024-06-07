@@ -101,7 +101,8 @@ body, html {
     bottom: 50px;
 }
 #dialogue {
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   margin-bottom: 150px;
   height: 700px;
 }

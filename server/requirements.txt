@@ -4,9 +4,6 @@ langchain-core==0.2.4
 langchain-huggingface==0.0.2
 langchain-postgres==0.0.6
 langchain-text-splitters==0.2.1
-langcodes==3.3.0
-langserve==0.1.0
-langsmith==0.1.69
 sentence-transformers==2.6.1
 transformers==4.41.2
 bitsandbytes==0.43.1
@@ -18,3 +15,4 @@ unstructured==0.14.3
 unstructured-client==0.22.0
 XlsxWriter==3.2.0
 python-pptx==0.6.23
+openpyxl==3.1.3
