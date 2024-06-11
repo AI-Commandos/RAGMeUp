@@ -54,4 +54,4 @@ RAG Me Up uses a `.env` file for configuration, see `.env.template`. The followi
 - `chunk_overlap` The chunk overlap
 
 # Funding
-We are actively looking for funding to democratize AI and advance its applications. Contact us at funding@understandling.com if you want to invest.
+We are actively looking for funding to democratize AI and advance its applications. Contact us at info@commandos.ai if you want to invest.
