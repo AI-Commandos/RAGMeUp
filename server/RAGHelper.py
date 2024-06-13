@@ -220,11 +220,15 @@ class RAGHelper:
         )
 
         # Wrap the DB retriever in a multiquery one
-        multiquery_chain = LLMChain(llm=self.llm, prompt=os.getenv("rag_multiquery_prompt"), output_parser=LineListOutputParser())
+        multiquery_prompt = PromptTemplate(
+            input_variables=["question"],
+            template=os.getenv("rag_multiquery_prompt"),
+        )
+        multiquery_chain = LLMChain(llm=self.llm, prompt=multiquery_prompt, output_parser=LineListOutputParser())
         self.multiquery_retriever = MultiQueryRetriever(
             retriever=self.db.as_retriever(
                 search_type="mmr", search_kwargs = {'k': int(os.getenv("vector_store_k"))}
-            ), llm_chain=self.multiquery_chain, parser_key="lines"
+            ), llm_chain=multiquery_chain, parser_key="lines"
         )
 
         # Now combine them to do hybrid retrieval
