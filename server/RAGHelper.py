@@ -18,6 +18,8 @@ from langchain.prompts import PromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
 from langchain_community.vectorstores import FAISS
 from langchain_community.retrievers import BM25Retriever
+from langchain.retrievers.multi_query import MultiQueryRetriever
+from langchain.retrievers.multi_query import LineListOutputParser
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import PyPDFDirectoryLoader
@@ -160,10 +162,10 @@ class RAGHelper:
             )
             docs = docs + loader.load()
         # Load MS Excel
-        if "xslx" in file_types:
+        if "xlsx" in file_types:
             loader = DirectoryLoader(
                 path=data_dir,
-                glob="*.xslx",
+                glob="*.xlsx",
                 loader_cls=UnstructuredExcelLoader,
             )
             docs = docs + loader.load()
@@ -187,8 +189,10 @@ class RAGHelper:
                 "\n \n",
                 "\n\n",
                 "\n",
-                " ",
                 ".",
+                "!",
+                ".",
+                " ",
                 ",",
                 "\u200b",  # Zero-width space
                 "\uff0c",  # Fullwidth comma
@@ -215,9 +219,17 @@ class RAGHelper:
             metadatas=[x.metadata for x in self.chunked_documents]
         )
 
-        retriever = self.db.as_retriever(search_type="mmr", search_kwargs = {'k': 3})
+        # Wrap the DB retriever in a multiquery one
+        multiquery_chain = LLMChain(llm=self.llm, prompt=os.getenv("rag_multiquery_prompt"), output_parser=LineListOutputParser())
+        self.multiquery_retriever = MultiQueryRetriever(
+            retriever=self.db.as_retriever(
+                search_type="mmr", search_kwargs = {'k': int(os.getenv("vector_store_k"))}
+            ), llm_chain=self.multiquery_chain, parser_key="lines"
+        )
+
+        # Now combine them to do hybrid retrieval
         self.ensemble_retriever = EnsembleRetriever(
-            retrievers=[bm25_retriever, retriever], weights=[0.5, 0.5]
+            retrievers=[bm25_retriever, self.multiquery_retriever], weights=[0.5, 0.5]
         )
 
     # Main function to handle user interaction
@@ -287,7 +299,7 @@ class RAGHelper:
             ).load()
         if filename.lower().endswith() == 'docx':
             doc = Docx2txtLoader(filename).load()
-        if filename.lower().endswith() == 'xslx':
+        if filename.lower().endswith() == 'xlsx':
             doc = UnstructuredExcelLoader(filename).load()
         if filename.lower().endswith() == 'pptx':
             doc = UnstructuredPowerPointLoader(filename).load()
@@ -302,8 +314,10 @@ class RAGHelper:
                 "\n \n",
                 "\n\n",
                 "\n",
-                " ",
                 ".",
+                "!",
+                ".",
+                " ",
                 ",",
                 "\u200b",  # Zero-width space
                 "\uff0c",  # Fullwidth comma
@@ -327,7 +341,6 @@ class RAGHelper:
         )
 
         # Update full retriever too
-        retriever = self.db.as_retriever(search_type="mmr", search_kwargs = {'k': int(os.getenv('vector_store_k'))})
         self.ensemble_retriever = EnsembleRetriever(
-            retrievers=[bm25_retriever, retriever], weights=[0.5, 0.5]
+            retrievers=[bm25_retriever, self.multiquery_retriever], weights=[0.5, 0.5]
         )
