@@ -185,7 +185,6 @@ class RAGHelper:
             length_function=len,
             keep_separator=False,
             is_separator_regex=True,
-            show_progress=True,
             separators=[
                 "\n \n",
                 "\n\n",
@@ -313,7 +312,6 @@ class RAGHelper:
             length_function=len,
             keep_separator=False,
             is_separator_regex=True,
-            show_progress=True,
             separators=[
                 "\n \n",
                 "\n\n",
