@@ -128,6 +128,43 @@ class RAGHelper:
             rag_llm_chain
         )
 
+        # Also create the rewrite loop LLM chain, if need be
+        self.rewrite_ask_chain = None
+        self.rewrite_chain = None
+        if os.getenv("use_rewrite_loop"):
+            # First the chain to ask the LLM if a rewrite would be required
+            rewrite_ask_thread = [{
+                'role': 'system', 'content': os.getenv('rewrite_query_instruction')
+            }, {
+                'role': 'user', 'content': os.getenv('rewrite_query_question')
+            }]
+            rewrite_ask_prompt_template = self.tokenizer.apply_chat_template(rewrite_ask_thread, tokenize=False)
+            rewrite_ask_prompt = PromptTemplate(
+                input_variables=["context", "question"],
+                template=rewrite_ask_prompt_template,
+            )
+            rewrite_ask_llm_chain = LLMChain(llm=self.llm, prompt=rewrite_ask_prompt)
+            self.rewrite_ask_chain = (
+                {"context": self.ensemble_retriever | formatDocuments, "question": RunnablePassthrough()} |
+                rewrite_ask_llm_chain
+            )
+
+            # Next the chain to ask the LLM for the actual rewrite(s)
+            # First ask the LLM if a rewrite would be required
+            rewrite_thread = [{
+                'role': 'user', 'content': os.getenv('rewrite_query_question')
+            }]
+            rewrite_prompt_template = self.tokenizer.apply_chat_template(rewrite_thread, tokenize=False)
+            rewrite_prompt = PromptTemplate(
+                input_variables=["question"],
+                template=rewrite_prompt_template,
+            )
+            rewrite_llm_chain = LLMChain(llm=self.llm, prompt=rewrite_prompt)
+            self.rewrite_chain = (
+                {"question": RunnablePassthrough()} |
+                rewrite_llm_chain
+            )
+
     # Loads the data and chunks it into an ensemble retriever
     def loadData(self):
         # Load PDF files if need be
@@ -216,23 +253,35 @@ class RAGHelper:
             [x.page_content for x in self.chunked_documents],
             metadatas=[x.metadata for x in self.chunked_documents]
         )
-
-        # Wrap the DB retriever in a multiquery one
-        multiquery_prompt = PromptTemplate(
-            input_variables=["question"],
-            template=os.getenv("rag_multiquery_prompt"),
-        )
-        multiquery_chain = LLMChain(llm=self.llm, prompt=multiquery_prompt, output_parser=LineListOutputParser())
-        self.multiquery_retriever = MultiQueryRetriever(
-            retriever=self.db.as_retriever(
-                search_type="mmr", search_kwargs = {'k': int(os.getenv("vector_store_k"))}
-            ), llm_chain=multiquery_chain, parser_key="lines"
+        # Set up the vector retriever
+        retriever=self.db.as_retriever(
+            search_type="mmr", search_kwargs = {'k': int(os.getenv("vector_store_k"))}
         )
 
         # Now combine them to do hybrid retrieval
         self.ensemble_retriever = EnsembleRetriever(
-            retrievers=[bm25_retriever, self.multiquery_retriever], weights=[0.5, 0.5]
+            retrievers=[bm25_retriever, retriever], weights=[0.5, 0.5]
         )
+
+    def handle_rewrite(self, user_query):
+        # Check if we even need to rewrite or not
+        if os.getenv("use_rewrite_loop"):
+            # Ask the LLM if we need to rewrite
+            response = self.rewrite_ask_chain.invoke(user_query)
+            if response['text'].lower().endswith('yes'):
+                # Start the rewriting into different alternatives
+                response = self.rewrite_chain.invoke(user_query)
+                # Take out the alternatives
+                term_symbol = self.tokenizer.eos_token
+                end_string = f"{term_symbol}assistant\n\n"
+                reply = response['text'][response['text'].find(end_string)+len(end_string):]
+                # Show be split by newlines
+                return reply
+            else:
+                # We do not need to rewrite
+                return user_query
+        else:
+            return user_query
 
     # Main function to handle user interaction
     def handle_user_interaction(self, user_query, history):
@@ -276,6 +325,8 @@ class RAGHelper:
         # Create llm chain
         llm_chain = LLMChain(llm=self.llm, prompt=prompt)
         if fetch_new_documents:
+            # Rewrite the question if needed
+            user_query = self.handle_rewrite(user_query)
             rag_chain = (
                 {"docs": self.ensemble_retriever | getFilenames, "context": self.ensemble_retriever | formatDocuments, "question": RunnablePassthrough()} |
                 llm_chain
@@ -341,6 +392,7 @@ class RAGHelper:
         )
 
         # Update full retriever too
+        retriever = self.db.as_retriever(search_type="mmr", search_kwargs = {'k': int(os.getenv('vector_store_k'))})
         self.ensemble_retriever = EnsembleRetriever(
-            retrievers=[bm25_retriever, self.multiquery_retriever], weights=[0.5, 0.5]
+            retrievers=[bm25_retriever, retriever], weights=[0.5, 0.5]
         )
