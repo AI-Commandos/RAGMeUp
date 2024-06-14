@@ -12,6 +12,7 @@ git clone https://github.com/UnderstandLingBV/RAGMeUp.git
 cd server
 pip install -r requirements.txt
 ```
+Then run the server using `python server.py` from the server subfolder.
 
 # Updates
 - **2024-06-05** Upgraded to Langchain v0.2
