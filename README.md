@@ -5,6 +5,9 @@ RAG Me Up can run on CPU but is best run on any GPU with at least 16GB of vRAM w
 
 Combine the power of RAG with the power of fine-tuning - check out our [LLaMa2Lang repository](https://github.com/UnderstandLingBV/LLaMa2Lang) on fine-tuning LLMs which can then be used in RAG Me Up.
 
+# Updates
+- **2024-06-05** Upgraded to Langchain v0.2
+
 # Installation
 ## Server
 ```
@@ -13,9 +16,6 @@ cd server
 pip install -r requirements.txt
 ```
 Then run the server using `python server.py` from the server subfolder.
-
-# Updates
-- **2024-06-05** Upgraded to Langchain v0.2
 
 ## Scala UI
 Make sure you have JDK 17+. Download and install [SBT](https://www.scala-sbt.org/) and run `sbt run` from the `server/scala` directory or alternatively download the [compiled binary](https://github.com/UnderstandLingBV/RAGMeUp/releases/tag/scala-ui) and run `bin/ragemup(.bat)`
