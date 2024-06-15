@@ -16,10 +16,10 @@ from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_huggingface.llms import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
-from langchain_community.vectorstores import FAISS
+from langchain_community.vectorstores import Milvus
 from langchain_community.retrievers import BM25Retriever
-from langchain.retrievers.multi_query import MultiQueryRetriever
-from langchain.retrievers.multi_query import LineListOutputParser
+from langchain.retrievers.document_compressors import FlashrankRerank
+from langchain.retrievers import ContextualCompressionRetriever
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import PyPDFDirectoryLoader
@@ -28,6 +28,7 @@ from langchain_community.document_loaders import DirectoryLoader
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders import UnstructuredExcelLoader
 from langchain_community.document_loaders import UnstructuredPowerPointLoader
+from langchain_community.document_loaders.csv_loader import CSVLoader
 
 # Make documents look a bit better than default
 def formatDocuments(docs):
@@ -144,15 +145,17 @@ class RAGHelper:
                 template=rewrite_ask_prompt_template,
             )
             rewrite_ask_llm_chain = LLMChain(llm=self.llm, prompt=rewrite_ask_prompt)
+            context_retriever = self.ensemble_retriever
+            if os.geteven("rerank"):
+                context_retriever = self.rerank_retriever
             self.rewrite_ask_chain = (
-                {"context": self.ensemble_retriever | formatDocuments, "question": RunnablePassthrough()} |
+                {"context": context_retriever | formatDocuments, "question": RunnablePassthrough()} |
                 rewrite_ask_llm_chain
             )
 
             # Next the chain to ask the LLM for the actual rewrite(s)
-            # First ask the LLM if a rewrite would be required
             rewrite_thread = [{
-                'role': 'user', 'content': os.getenv('rewrite_query_question')
+                'role': 'user', 'content': os.getenv('rewrite_query_prompt')
             }]
             rewrite_prompt_template = self.tokenizer.apply_chat_template(rewrite_thread, tokenize=False)
             rewrite_prompt = PromptTemplate(
@@ -188,6 +191,14 @@ class RAGHelper:
                 glob="*.json",
                 loader_cls=JSONLoader,
                 loader_kwargs=loader_kwargs,
+            )
+            docs = docs + loader.load()
+        # Load CSV
+        if "csv" in file_types:
+            loader = DirectoryLoader(
+                path=data_dir,
+                glob="*.csv",
+                loader_cls=CSVLoader,
             )
             docs = docs + loader.load()
         # Load MS Word
@@ -243,11 +254,17 @@ class RAGHelper:
 
         vector_store_path = os.getenv('vector_store_path')
         if os.path.exists(vector_store_path):
-            self.db = FAISS.load_local(vector_store_path, self.embeddings, allow_dangerous_deserialization=True)
+            self.db = Milvus.from_documents(
+                [], self.embeddings,
+                connection_args={"uri": vector_store_path},
+            )
         else:
-            # Load chunked documents into the FAISS index
-            self.db = FAISS.from_documents(self.chunked_documents, self.embeddings)
-            self.db.save_local(vector_store_path)
+            # Load chunked documents into the Milvus DB
+            self.db = Milvus.from_documents(
+                self.chunked_documents, self.embeddings,
+                drop_old=True,
+                connection_args={"uri": vector_store_path},
+            )
 
         # Now the BM25 retriever
         bm25_retriever = BM25Retriever.from_texts(
@@ -263,13 +280,20 @@ class RAGHelper:
         self.ensemble_retriever = EnsembleRetriever(
             retrievers=[bm25_retriever, retriever], weights=[0.5, 0.5]
         )
+        # Set up the reranker
+        self.rerank_retriever = None
+        if os.getenv("rerank"):
+            compressor = FlashrankRerank()
+            self.rerank_retriever = ContextualCompressionRetriever(
+                base_compressor=compressor, base_retriever=self.ensemble_retriever
+            )
 
     def handle_rewrite(self, user_query):
         # Check if we even need to rewrite or not
         if os.getenv("use_rewrite_loop"):
             # Ask the LLM if we need to rewrite
             response = self.rewrite_ask_chain.invoke(user_query)
-            if response['text'].lower().endswith('yes'):
+            if response['text'].lower().endswith('yes') or response['text'].lower().endswith('ja'):
                 # Start the rewriting into different alternatives
                 response = self.rewrite_chain.invoke(user_query)
                 # Take out the alternatives
@@ -291,7 +315,7 @@ class RAGHelper:
         else:
             # Prompt for LLM
             response = self.rag_fetch_new_chain.invoke(user_query)
-            if response['text'].lower().endswith('yes'):
+            if response['text'].lower().endswith('yes') or response['text'].lower().endswith('ja'):
                 fetch_new_documents = True
             else:
                 fetch_new_documents = False
@@ -328,8 +352,11 @@ class RAGHelper:
         if fetch_new_documents:
             # Rewrite the question if needed
             user_query = self.handle_rewrite(user_query)
+            context_retriever = self.ensemble_retriever
+            if os.getenv("rerank"):
+                context_retriever = self.rerank_retriever
             rag_chain = (
-                {"docs": self.ensemble_retriever | getFilenames, "context": self.ensemble_retriever | formatDocuments, "question": RunnablePassthrough()} |
+                {"docs": context_retriever | getFilenames, "context": context_retriever | formatDocuments, "question": RunnablePassthrough()} |
                 llm_chain
             )
         else:
@@ -382,9 +409,8 @@ class RAGHelper:
         )
         new_chunks = self.text_splitter.split_documents(doc)
 
-        # Add to FAISS
+        # Add to
         self.db.add_documents(new_chunks)
-        self.db.save_local(os.getenv('vector_store_path'))
 
         # Add to BM25
         self.chunked_documents = [x.page_content for x in self.chunked_documents] + [x.page_content for x in new_chunks]
@@ -398,3 +424,9 @@ class RAGHelper:
         self.ensemble_retriever = EnsembleRetriever(
             retrievers=[bm25_retriever, retriever], weights=[0.5, 0.5]
         )
+
+        if os.getenv("rerank"):
+            compressor = FlashrankRerank()
+            self.rerank_retriever = ContextualCompressionRetriever(
+                base_compressor=compressor, base_retriever=self.ensemble_retriever
+            )
