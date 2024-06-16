@@ -16,7 +16,7 @@ from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_huggingface.llms import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
-from langchain_community.vectorstores import FAISS
+from langchain_milvus.vectorstores import Milvus
 from langchain_community.retrievers import BM25Retriever
 from langchain.retrievers.document_compressors import FlashrankRerank
 from langchain.retrievers import ContextualCompressionRetriever
@@ -254,11 +254,17 @@ class RAGHelper:
 
         vector_store_path = os.getenv('vector_store_path')
         if os.path.exists(vector_store_path):
-            self.db = FAISS.load_local(vector_store_path, self.embeddings, allow_dangerous_deserialization=True)
+            self.db = Milvus.from_documents(
+                [], self.embeddings,
+                connection_args={"uri": vector_store_path},
+            )
         else:
-            # Load chunked documents into the FAISS index
-            self.db = FAISS.from_documents(self.chunked_documents, self.embeddings)
-            self.db.save_local(vector_store_path)
+            # Load chunked documents into the Milvus index
+            self.db = Milvus.from_documents(
+                self.chunked_documents, self.embeddings,
+                drop_old=True,
+                connection_args={"uri": vector_store_path},
+            )
 
         # Now the BM25 retriever
         bm25_retriever = BM25Retriever.from_texts(
