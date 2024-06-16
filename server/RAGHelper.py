@@ -16,7 +16,7 @@ from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_huggingface.llms import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
-from langchain_community.vectorstores import Milvus
+from langchain_community.vectorstores import FAISS
 from langchain_community.retrievers import BM25Retriever
 from langchain.retrievers.document_compressors import FlashrankRerank
 from langchain.retrievers import ContextualCompressionRetriever
@@ -146,7 +146,7 @@ class RAGHelper:
             )
             rewrite_ask_llm_chain = LLMChain(llm=self.llm, prompt=rewrite_ask_prompt)
             context_retriever = self.ensemble_retriever
-            if os.geteven("rerank"):
+            if os.getenv("rerank"):
                 context_retriever = self.rerank_retriever
             self.rewrite_ask_chain = (
                 {"context": context_retriever | formatDocuments, "question": RunnablePassthrough()} |
@@ -254,17 +254,11 @@ class RAGHelper:
 
         vector_store_path = os.getenv('vector_store_path')
         if os.path.exists(vector_store_path):
-            self.db = Milvus.from_documents(
-                [], self.embeddings,
-                connection_args={"uri": vector_store_path},
-            )
+            self.db = FAISS.load_local(vector_store_path, self.embeddings, allow_dangerous_deserialization=True)
         else:
-            # Load chunked documents into the Milvus DB
-            self.db = Milvus.from_documents(
-                self.chunked_documents, self.embeddings,
-                drop_old=True,
-                connection_args={"uri": vector_store_path},
-            )
+            # Load chunked documents into the FAISS index
+            self.db = FAISS.from_documents(self.chunked_documents, self.embeddings)
+            self.db.save_local(vector_store_path)
 
         # Now the BM25 retriever
         bm25_retriever = BM25Retriever.from_texts(
