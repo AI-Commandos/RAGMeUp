@@ -283,7 +283,7 @@ class RAGHelper:
         # Set up the reranker
         self.rerank_retriever = None
         if os.getenv("rerank"):
-            compressor = FlashrankRerank()
+            compressor = FlashrankRerank(top_n=int(os.getenv("rerank_k")))
             self.rerank_retriever = ContextualCompressionRetriever(
                 base_compressor=compressor, base_retriever=self.ensemble_retriever
             )
@@ -426,7 +426,7 @@ class RAGHelper:
         )
 
         if os.getenv("rerank"):
-            compressor = FlashrankRerank()
+            compressor = FlashrankRerank(top_n=int(os.getenv("rerank_k")))
             self.rerank_retriever = ContextualCompressionRetriever(
                 base_compressor=compressor, base_retriever=self.ensemble_retriever
             )
