@@ -1,5 +1,6 @@
 import os
 import torch
+from tqdm import tqdm
 
 from transformers import BitsAndBytesConfig
 from transformers import (
@@ -261,10 +262,15 @@ class RAGHelper:
         else:
             # Load chunked documents into the Milvus index
             self.db = Milvus.from_documents(
-                self.chunked_documents, self.embeddings,
+                [], self.embeddings,
                 drop_old=True,
                 connection_args={"uri": vector_store_path},
             )
+            # Add the documents 1 by 1 so we can track progress
+            with tqdm(total=len(self.chunked_documents), desc="Vectorizing documents") as pbar:
+                for d in self.chunked_documents:
+                    self.db.add_documents([d])
+                    pbar.update(1)
 
         # Now the BM25 retriever
         bm25_retriever = BM25Retriever.from_texts(
