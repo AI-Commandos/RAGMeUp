@@ -304,6 +304,8 @@ class RAGHelper:
                 response = self.rewrite_chain.invoke(user_query)
                 # Take out the alternatives
                 term_symbol = self.tokenizer.eos_token
+                if os.getenv("llm_eos_token") != "None":
+                    term_symbol = os.getenv("llm_eos_token")
                 end_string = f"{term_symbol}assistant\n\n"
                 reply = response['text'][response['text'].find(end_string)+len(end_string):]
                 # Show be split by newlines
