@@ -19,7 +19,11 @@
     </div>
   </div>
   <div id="loader" style="display: none; background: rgba(255, 255, 255, 0);">
-    <img src="@routes.Assets.versioned("images/typing.gif")">
+    <div class="typing">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
   </div>
 </div>
 <div class="row">
@@ -56,9 +60,23 @@
         $(container).append(label);
 
         if (documents.length > 0) {
-          var doclist = $('<div>').html("The following documents were used creating this answer: " + documents.join(" -- "));
+          var doclist = $('<div class="col-md-6">');
+          var docstr = "The following documents were used creating this answer";
+          var doccontent = $('<div class="col-md-6 doccontent">');
+          for (let doc of documents) {
+            console.log(doc);
+            var doclink = $('<a class="doclink" href="#">').html(doc['s']);
+            $(doclink).on('click', function() {
+              $(doccontent).html(doc['c']);
+            });
+            doclist.append(doclink);
+          }
           $(doclist).addClass('doclist');
-          $(container).append(doclist);
+          var docrow = $('<div class="row">');
+          $(docrow).append(doclist);
+          $(docrow).append(doccontent);
+
+          $(container).append(docrow);
         }
 
         $(col).append(container);
@@ -74,6 +92,7 @@
         $("#query").val('');
 
         addMessage(query, true, []);
+        $("#loader").show();
         $(dialogue).show();
 
         $.ajax({
@@ -87,6 +106,7 @@
             contentType: "application/json; charset=utf-8",
             dataType: "json",
             success: function(data){
+                $("#loader").hide();
                 $("#mainContainer").remove();
                 documents = data['documents'];
                 addMessage(data['reply'], false, documents);
@@ -95,6 +115,7 @@
                 $("#query").val('');
             },
             error: function(errMsg) {
+                $("#loader").hide();
                 addMessage('Something went wrong, please try again...', false, []);
             },
             timeout: 120000

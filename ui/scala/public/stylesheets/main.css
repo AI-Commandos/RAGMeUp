@@ -115,3 +115,66 @@ body, html {
   font-size: 0.9em;
   color: #777;
 }
+.doclink {
+    display: block;
+    padding-top:1px;
+    padding-bottom: 1px;
+    color: #777;
+    font-size: 0.9em;
+}
+.doclink:hover {
+    color: #666;
+}
+.doclink:active {
+    color: #555;
+}
+.doccontent {
+    color: #777;
+    font-size: 0.9em;
+    padding-top: 5px;
+    padding-bottom: 1px;
+}
+
+$dot-width: 10px;
+$dot-color: #3b5998;
+$speed: 1.5s;
+
+.typing {
+  position: relative;
+
+  span {
+    content: '';
+    animation: blink $speed infinite;
+    animation-fill-mode: both;
+    height: $dot-width;
+    width: $dot-width;
+    background: $dot-color;
+    position: absolute;
+    left:0;
+    top:0;
+    border-radius: 50%;
+
+    &:nth-child(2) {
+      animation-delay: .2s;
+      margin-left: $dot-width * 1.5;
+    }
+
+    &:nth-child(3) {
+      animation-delay: .4s;
+      margin-left: $dot-width * 3;
+    }
+  }
+}
+
+
+@keyframes blink {
+  0% {
+    opacity: .1;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: .1;
+  }
+}

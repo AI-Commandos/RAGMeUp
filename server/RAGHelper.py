@@ -40,7 +40,7 @@ def formatDocuments(docs):
     return "\n\n".join(doc_strings)
 
 def getFilenames(docs):
-    return [doc.metadata['source'] for doc in docs if 'source' in doc.metadata]
+    return [{'s': doc.metadata['source'], 'c': doc.page_content} for doc in docs if 'source' in doc.metadata]
 
 # Capture the context of the retriever
 class CaptureContext(RunnablePassthrough):
