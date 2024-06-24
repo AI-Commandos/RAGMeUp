@@ -18,17 +18,17 @@
       </div>
     </div>
   </div>
-  <div id="loader" style="display: none; background: rgba(255, 255, 255, 0);">
-    <div class="typing">
-      <span></span>
-      <span></span>
-      <span></span>
-    </div>
-  </div>
 </div>
 <div class="row">
   <div class="col-md-10 offset-md-1">
     <div id="dialogue" style="display: none;"></div>
+  </div>
+</div>
+<div id="loader" style="display: none; background: rgba(255, 255, 255, 0);">
+  <div class="typing">
+    <span></span>
+    <span></span>
+    <span></span>
   </div>
 </div>
 <div class="offset-md-1 col-md-10 chatinput" id="chatinputcontainer">
@@ -118,7 +118,7 @@
                 $("#loader").hide();
                 addMessage('Something went wrong, please try again...', false, []);
             },
-            timeout: 120000
+            timeout: 300000
         });
     }
 

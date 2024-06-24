@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import logging
 from dotenv import load_dotenv
 from RAGHelper import RAGHelper
+import os
 
 load_dotenv()
 
@@ -35,6 +36,8 @@ def chat():
     
     # Break up the response
     term_symbol = raghelper.tokenizer.eos_token
+    if os.getenv("llm_eos_token") != "None":
+        term_symbol = os.getenv("llm_eos_token")
     end_string = f"{term_symbol}assistant\n\n"
     previous_chat = response['text'][:response['text'].find(end_string)+len(term_symbol)]
     reply = response['text'][response['text'].find(end_string)+len(end_string):]

@@ -8,8 +8,10 @@ import play.api.libs.json._
 import play.api.mvc._
 import play.api.libs.ws._
 
+import scala.concurrent.duration.{Duration, DurationInt}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters._
+import scala.language.postfixOps
 import scala.util.Try
 
 @Singleton
@@ -38,6 +40,7 @@ class HomeController @Inject()(
 
     ws
       .url(s"${config.get[String]("server_url")}/chat")
+      .withRequestTimeout(5 minutes)
       .post(Json.obj(
         "prompt" -> query,
         "history" -> history,
