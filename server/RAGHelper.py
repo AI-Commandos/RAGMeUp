@@ -10,6 +10,7 @@ from transformers import (
   pipeline,
 )
 
+from langchain_core.documents.base import Document
 from langchain.chains.llm import LLMChain
 from langchain.retrievers import EnsembleRetriever
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -29,7 +30,10 @@ from langchain_community.document_loaders import DirectoryLoader
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders import UnstructuredExcelLoader
 from langchain_community.document_loaders import UnstructuredPowerPointLoader
+from langchain_community.document_loaders.text import TextLoader
 from langchain_community.document_loaders.csv_loader import CSVLoader
+
+from lxml import etree
 
 # Make documents look a bit better than default
 def formatDocuments(docs):
@@ -226,6 +230,23 @@ class RAGHelper:
                 loader_cls=UnstructuredPowerPointLoader,
             )
             docs = docs + loader.load()
+        # Load XML, which is nasty
+        if "xml" in file_types:
+            loader = DirectoryLoader(
+                path=data_dir,
+                glob="*.xml",
+                loader_cls=TextLoader,
+            )
+            xmldocs = loader.load()
+            newdocs = []
+            for index, doc in enumerate(xmldocs):
+                xmltree = etree.fromstring(doc.page_content.encode('utf-8'))
+                elements = xmltree.xpath(os.getenv("xml_xpath"))
+                elements = [etree.tostring(element, pretty_print=True).decode() for element in elements]
+                metadata = doc.metadata
+                metadata['index'] = index
+                newdocs = newdocs + [Document(page_content=doc, metadata=metadata) for doc in elements]
+            docs = docs + newdocs
 
         #if os.getenv('splitter') == 'RecursiveCharacterTextSplitter':
         self.text_splitter = RecursiveCharacterTextSplitter(

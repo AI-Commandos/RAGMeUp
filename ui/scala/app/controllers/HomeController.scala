@@ -36,7 +36,7 @@ class HomeController @Inject()(
     val json = request.body.asJson.getOrElse(Json.obj()).as[JsObject]
     val query = (json \ "query").as[String]
     val history = (json \ "history").as[String]
-    val docs = (json \ "docs").as[Seq[String]]
+    val docs = (json \ "docs").as[Seq[JsObject]]
 
     ws
       .url(s"${config.get[String]("server_url")}/chat")

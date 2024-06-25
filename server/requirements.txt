@@ -20,3 +20,4 @@ tqdm
 langchain-milvus==0.1.1
 milvus-lite==2.4.7
 pymilvus==2.4.3
+lxml==5.1.0
