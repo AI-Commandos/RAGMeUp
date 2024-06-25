@@ -160,3 +160,4 @@ cython_debug/
 #.idea/
 ui/scala/.bsp/
 ui/scala/.idea/
+ui/react-ui/backend/node_modules/
