@@ -1,6 +1,6 @@
-<mxfile host="app.diagrams.net" modified="2024-06-26T08:49:08.938Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0" etag="bIyVDkCtLv2B3-xhg1Ja" version="24.6.3" type="device">
+<mxfile host="app.diagrams.net" modified="2024-06-26T09:02:03.408Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0" etag="GfT_tmP4NktD1qY-g-Cy" version="24.6.3" type="device">
   <diagram name="Page-1" id="7csyN0cyG2ocL0HD3IHv">
-    <mxGraphModel dx="989" dy="1614" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1434" dy="1846" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -166,6 +166,18 @@
         </mxCell>
         <mxCell id="njQcOx4c6HiZkvVS5jOr-83" value="Query" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
           <mxGeometry x="599.75" y="576" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="njQcOx4c6HiZkvVS5jOr-84" value="" style="endArrow=none;dashed=1;html=1;rounded=0;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="20" y="190" as="sourcePoint" />
+            <mxPoint x="820" y="190" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="njQcOx4c6HiZkvVS5jOr-85" value="&lt;b&gt;&lt;font style=&quot;font-size: 20px;&quot;&gt;Indexing&lt;/font&gt;&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=#82b366;fillColor=#d5e8d4;" vertex="1" parent="1">
+          <mxGeometry x="30" y="12" width="110" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="njQcOx4c6HiZkvVS5jOr-86" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;Querying&lt;/b&gt;&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=#82b366;fillColor=#d5e8d4;" vertex="1" parent="1">
+          <mxGeometry x="715" y="443" width="110" height="40" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
