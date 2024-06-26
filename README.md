@@ -6,6 +6,7 @@ RAG Me Up can run on CPU but is best run on any GPU with at least 16GB of vRAM w
 Combine the power of RAG with the power of fine-tuning - check out our [LLaMa2Lang repository](https://github.com/UnderstandLingBV/LLaMa2Lang) on fine-tuning LLMs which can then be used in RAG Me Up.
 
 # Updates
+- **2024-06-26** Updated readme, added more file types, robust self-inflection
 - **2024-06-05** Upgraded to Langchain v0.2
 
 # Installation
@@ -19,6 +20,36 @@ Then run the server using `python server.py` from the server subfolder.
 
 ## Scala UI
 Make sure you have JDK 17+. Download and install [SBT](https://www.scala-sbt.org/) and run `sbt run` from the `server/scala` directory or alternatively download the [compiled binary](https://github.com/UnderstandLingBV/RAGMeUp/releases/tag/scala-ui) and run `bin/ragemup(.bat)`
+
+# How does RAG Me Up work?
+RAG Me Up aims to provide a robust RAG pipeline that is configurable without necessarily writing any code. To achieve this, a couple of strategies are used to make sure that the user query can be accurately answered through the documents provided.
+
+The RAG pipeline is visualized in the image below:
+![RAG pipeline drawing](./ragmeup.drawio.svg)
+
+The following steps are executed. Take note that some steps are optional and can be turned off through configuring the `.env` file.
+
+__Top part - Indexing__
+1. You collect and make your documents available to RAG Me Up.
+2. Using different file type loaders, RAG Me Up will read the contents of your documents. Note that for some document types like JSON and XML, you need to specify additional configuration to tell RAG Me Up what to extract.
+3. Your documents get chunked using a recursive splitter.
+4. The chunks get converted into document (chunk) embeddings using an embedding model. Note that this model is usually a different one than the LLM you intend to use for chat.
+5. RAG Me Up uses a hybrid search strategy, combining dense vectors in the vector database with sparse vectors using BM25. By default, RAG Me Up uses a local [Milvus database](https://milvus.io/).
+
+__Bottom part - Inference__
+1. Inference starts with a user asking a query. This query can either be an initial query or a follow-up query with an associated history and documents retrieved before. Note that both (chat history, documents) need to be passed on by a UI to properly handle follow-up querying.
+2. A check is done if new documents need to be fetched, this can be due to one of two cases:
+    - There is no history given in which case we always need to fetch documents
+    - **[OPTIONAL]** The LLM itself will judge whether or not the question - in isolation - is phrased in such a way that new documents are fetched or whether it is a follow-up question on existing documents. A flag called `fetch_new_documents` is set to indicate whether or not new documents need to be fetched.
+3. Documents are fetched from both the vector database (dense) and the BM25 index (sparse). Only executed if `fetch_new_documents` is set.
+4. **[OPTIONAL]** Reranking is applied to extract the most relevant documents returned by the previous step. Only executed if `fetch_new_documents` is set.
+5. **[OPTIONAL]** The LLM is asked to judge whether or not the documents retrieved contain an accurate answer to the user's query. Only executed if `fetch_new_documents` is set.
+    - If this is not the case, the LLM is used to rewrite the query with the instruction to optimize for distance based similarity search. This is then fed back into step 3. **but only once** to avoid lengthy or infinite loops.
+6. The documents are injected into the prompt with the user query. The documents can come from:
+    - The retrieval and reranking of the document databases, if `fetch_new_documents` is set.
+    - The history passed on with the initial user query, if `fetch_new_documents` is **not** set.
+7. The LLM is asked to answer the query with the given chat history and documents.
+8. The answer, chat history and documents are returned.
 
 # Configuration
 RAG Me Up uses a `.env` file for configuration, see `.env.template`. The following fields can be configured:
