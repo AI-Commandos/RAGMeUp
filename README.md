@@ -56,17 +56,23 @@ RAG Me Up uses a `.env` file for configuration, see `.env.template`. The followi
 
 ## LLM configuration
 - `llm_model` This is the main LLM (instruct or chat) model to use that you will converse with. Default is LLaMa3-8B
+- `llm_eos_token` Not all (finetuned/QLoRA) LLMs always use the same EOS token as their parent (for example with LLaMa3 finetunes). Set this variable to be the proper EOS token or set to `None` to use the model tokenizer's.
 - `embedding_model` The model used to convert your documents' chunks into vectors that will be stored in the vector store
 - `trust_remote_code` Set this to true if your LLM needs to execute remote code
 - `force_cpu` When set to True, forces RAG Me Up to run fully on CPU (not recommended)
 
 ## Data configuration
-- `data_directory` The directory that contains your (initial) documents to load into the vector store. Supported files: `PDF, JSON, DOCX, XSLX, PPTX`
-- `file_types` Comma-separated list of file types to load
+- `data_directory` The directory that contains your (initial) documents to load into the vector store
+- `file_types` Comma-separated list of file types to load. Supported file types: `PDF, JSON, DOCX, XSLX, PPTX, CSV, XML`
 - `json_schema` If you are loading JSON, this should be the schema (using `jq_schema`). For example, use `.` for the root of a JSON object if your data contains JSON objects only and `.[0]` for the first element in each JSON array if your data contains JSON arrays with one JSON object in them
 - `json_text_content` Whether or not the JSON data should be loaded as textual content or as structured content (in case of a JSON object)
+- `xml_xpath` If you are loading XML, this should be the XPath of the documents to load (the tags that contain your text)
+
+## Retrieval configuration
 - `vector_store_path` RAG Me Up caches your vector store on disk if possible to make loading a next time faster. This is the location where the vector store is stored. Remove this file to force a reload of all your documents
 - `vector_store_k` The number of documents to retrieve from the vector store
+- `rerank` Set to either True or False to enable reranking
+- `rerank_k` The number of documents to keep after reranking. Note that if you use reranking, this should be your final target for `k` and `vector_store_k` should be set (significantly) higher. For example, set `vector_store_k` to 10 and `rerank_k` to 3
 
 ## LLM parameters
 - `temperature` The chat LLM's temperature. Increase this to create more diverse answers
@@ -79,6 +85,10 @@ RAG Me Up uses a `.env` file for configuration, see `.env.template`. The followi
 - `rag_question_followup` This is a follow-up question the user is asking. While the context resulting from the prompt will be populated by RAG from the vector store, if chat history is present, this prompt will be used instead of `rag_question_initial`
 - `rag_fetch_new_instruction` RAG Me Up automatically determines whether or not new documents should be fetched from the vector store or whether the user is asking a follow-up question on the already fetched documents by leveraging the same LLM that is used for chat. This environment variable determines the prompt to use to make this decision. Be very sure to instruct your LLM to answer with yes or no only and make sure your LLM is capable enough to follow this instruction
 - `rag_fetch_new_question` The question prompt used in conjunction with `rag_fetch_new_instruction` to decide if new documents should be fetched or not
+- `user_rewrite_loop` Set to either True or False to enable the rewriting of the initial query. Note that a rewrite will always occur at most once
+- `rewrite_query_instruction` This is the instruction of the prompt that is used to ask the LLM to judge whether a rewrite is necessary or not. Make sure you force the LLM to answer with yes or no only
+- `rewrite_query_question` This is the actual query part of the prompt that isued to ask the LLM to judge a rewrite
+- `rewrite_query_prompt` If the rewrite loop is on and the LLM judges a rewrite is required, this is the instruction with question asked to the LLM to rewrite the user query into a phrasing more optimized for RAG. Make sure to instruct your model adequately.
 
 ## Document splitting configuration
 - `splitter` The Langchain document splitter to use. For now, only `RecursiveCharacterTextSplitter` is supported
