@@ -56,7 +56,7 @@
         var col = $('<div>').addClass('col-md-10 offset-md-1');
         var container = $('<div>').addClass(isHuman ? 'label-human' : 'label-agent');
 
-        var label = $('<label>').html(message);
+        var label = $('<label>').html(message.replace("\n", "<br />"));
         $(container).append(label);
 
         if (documents.length > 0) {
