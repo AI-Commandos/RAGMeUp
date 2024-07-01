@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 import logging
 from dotenv import load_dotenv
 import os
-from RAGHelper_openai import RAGHelperOpenAI
+from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper import RAGHelper
 
 load_dotenv()
@@ -12,8 +12,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Instantiate the RAG Helper class
-if os.getenv("use_openai") == "True":
-    raghelper = RAGHelperOpenAI(logger)
+if os.getenv("use_openai") == "True" or os.getenv("use_gemini") == "True" or os.getenv("use_azure") == "True":
+    raghelper = RAGHelperCloud(logger)
 else:
     raghelper = RAGHelper(logger)
 

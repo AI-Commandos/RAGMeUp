@@ -25,3 +25,6 @@ python-dotenv
 rank_bm25
 langchain-openai==0.1.9
 openai==1.35.3
+langchain-google-genai==1.0.7
+google-ai-generativelanguage==0.6.6
+pillow==10.4.0

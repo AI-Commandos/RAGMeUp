@@ -26,6 +26,8 @@ from langchain_community.document_loaders.csv_loader import CSVLoader
 from lxml import etree
 
 from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import AzureChatOpenAI
 
 # Make documents look a bit better than default
 def formatDocuments(docs):
@@ -61,15 +63,23 @@ class CaptureContext(RunnablePassthrough):
         self.captured_context = input_data['context']
         return input_data
 
-class RAGHelperOpenAI:
+class RAGHelperCloud:
     def __init__(self, logger):
-        self.llm = ChatOpenAI(
-            model="gpt-3.5-turbo",
-            temperature=0,
-            max_tokens=None,
-            timeout=None,
-            max_retries=2,
-        )
+        if os.getenv("use_openai") == "True":
+            self.llm = ChatOpenAI(
+                model="gpt-3.5-turbo",
+                temperature=0,
+                max_tokens=None,
+                timeout=None,
+                max_retries=2,
+            )
+        elif os.getenv("use_gemini") == "True":
+            self.llm = ChatGoogleGenerativeAI(model="gemini-pro")
+        elif os.getenv("use_azure") == "True":
+            self.llm = AzureChatOpenAI(
+                openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"],
+                azure_deployment=os.environ["AZURE_OPENAI_CHAT_DEPLOYMENT_NAME"],
+            )
 
         # Set up embedding handling for vector store
         if os.getenv('force_cpu') == "True":
