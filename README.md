@@ -61,6 +61,9 @@ RAG Me Up uses a `.env` file for configuration, see `.env.template`. The followi
 - `trust_remote_code` Set this to true if your LLM needs to execute remote code
 - `force_cpu` When set to True, forces RAG Me Up to run fully on CPU (not recommended)
 
+### Use OpenAI
+If you want to use OpenAI as LLM backend, make sure to set `use_openai` to True and make sure you (externally) set the environment variable `OPENAI_API_KEY` to be your OpenAI API Key.
+
 ## Data configuration
 - `data_directory` The directory that contains your (initial) documents to load into the vector store
 - `file_types` Comma-separated list of file types to load. Supported file types: `PDF, JSON, DOCX, XSLX, PPTX, CSV, XML`
