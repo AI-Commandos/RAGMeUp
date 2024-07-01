@@ -1,26 +1,17 @@
 import os
-import torch
 from tqdm import tqdm
 
-from transformers import BitsAndBytesConfig
-from transformers import (
-  AutoTokenizer, 
-  AutoModelForCausalLM, 
-  BitsAndBytesConfig,
-  pipeline,
-)
-
-from langchain.chains.llm import LLMChain
+from langchain_core.documents.base import Document
 from langchain.retrievers import EnsembleRetriever
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
-from langchain_huggingface.llms import HuggingFacePipeline
-from langchain.prompts import PromptTemplate
+from langchain.prompts import ChatPromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
 from langchain_milvus.vectorstores import Milvus
 from langchain_community.retrievers import BM25Retriever
 from langchain.retrievers.document_compressors import FlashrankRerank
 from langchain.retrievers import ContextualCompressionRetriever
+from langchain_core.output_parsers import StrOutputParser
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import PyPDFDirectoryLoader
@@ -29,7 +20,12 @@ from langchain_community.document_loaders import DirectoryLoader
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders import UnstructuredExcelLoader
 from langchain_community.document_loaders import UnstructuredPowerPointLoader
+from langchain_community.document_loaders.text import TextLoader
 from langchain_community.document_loaders.csv_loader import CSVLoader
+
+from lxml import etree
+
+from langchain_openai import ChatOpenAI
 
 # Make documents look a bit better than default
 def formatDocuments(docs):
@@ -42,6 +38,20 @@ def formatDocuments(docs):
 def getFilenames(docs):
     return [{'s': doc.metadata['source'], 'c': doc.page_content} for doc in docs if 'source' in doc.metadata]
 
+def combine_results(inputs):
+    if "context" in inputs.keys() and "docs" in inputs.keys():
+        return {
+            "answer": inputs["answer"],
+            "docs": inputs["docs"],
+            "context": inputs["context"],
+            "question": inputs["question"]
+        }
+    else:
+        return {
+            "answer": inputs["answer"],
+            "question": inputs["question"]
+        }
+
 # Capture the context of the retriever
 class CaptureContext(RunnablePassthrough):
     def __init__(self):
@@ -51,50 +61,15 @@ class CaptureContext(RunnablePassthrough):
         self.captured_context = input_data['context']
         return input_data
 
-class RAGHelper:
+class RAGHelperOpenAI:
     def __init__(self, logger):
-        # Set up the LLM
-        use_4bit = True
-        bnb_4bit_compute_dtype = "float16"
-        bnb_4bit_quant_type = "nf4"
-
-        use_nested_quant = False
-        compute_dtype = getattr(torch, bnb_4bit_compute_dtype)
-
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=use_4bit,
-            bnb_4bit_quant_type=bnb_4bit_quant_type,
-            bnb_4bit_compute_dtype=compute_dtype,
-            bnb_4bit_use_double_quant=use_nested_quant,
+        self.llm = ChatOpenAI(
+            model="gpt-3.5-turbo",
+            temperature=0,
+            max_tokens=None,
+            timeout=None,
+            max_retries=2,
         )
-
-        if compute_dtype == torch.float16 and use_4bit:
-            major, _ = torch.cuda.get_device_capability()
-            if major >= 8:
-                logger.debug("=" * 80)
-                logger.debug("Your GPU supports bfloat16: accelerate training with bf16=True")
-                logger.debug("=" * 80)
-        
-        llm_model = os.getenv('llm_model')
-        trust_remote_code = os.getenv('trust_remote_code') == "True"
-        self.tokenizer = AutoTokenizer.from_pretrained(llm_model, trust_remote_code=trust_remote_code)
-        model = AutoModelForCausalLM.from_pretrained(
-            llm_model,
-            quantization_config=bnb_config,
-            trust_remote_code=trust_remote_code,
-        )
-
-        text_generation_pipeline = pipeline(
-            model=model,
-            tokenizer=self.tokenizer,
-            task="text-generation",
-            #temperature=float(os.getenv('temperature')),
-            repetition_penalty=float(os.getenv('repetition_penalty')),
-            return_full_text=True,
-            max_new_tokens=int(os.getenv('max_new_tokens')),
-        )
-
-        self.llm = HuggingFacePipeline(pipeline=text_generation_pipeline)
 
         # Set up embedding handling for vector store
         if os.getenv('force_cpu') == "True":
@@ -114,17 +89,12 @@ class RAGHelper:
         self.loadData()
 
         # Create the RAG chain for determining if we need to fetch new documents
-        rag_thread = [{
-            'role': 'system', 'content': os.getenv('rag_fetch_new_instruction')
-        }, {
-            'role': 'user', 'content': os.getenv('rag_fetch_new_question')
-        }]
-        rag_prompt_template = self.tokenizer.apply_chat_template(rag_thread, tokenize=False)
-        rag_prompt = PromptTemplate(
-            input_variables=["question"],
-            template=rag_prompt_template,
-        )
-        rag_llm_chain = LLMChain(llm=self.llm, prompt=rag_prompt)
+        rag_thread = [
+            ('system', os.getenv('rag_fetch_new_instruction')),
+            ('human', os.getenv('rag_fetch_new_question'))
+        ]
+        rag_prompt = ChatPromptTemplate.from_messages(rag_thread)
+        rag_llm_chain = rag_prompt | self.llm
         self.rag_fetch_new_chain = (
             {"question": RunnablePassthrough()} |
             rag_llm_chain
@@ -135,19 +105,14 @@ class RAGHelper:
         self.rewrite_chain = None
         if os.getenv("use_rewrite_loop") == "True":
             # First the chain to ask the LLM if a rewrite would be required
-            rewrite_ask_thread = [{
-                'role': 'system', 'content': os.getenv('rewrite_query_instruction')
-            }, {
-                'role': 'user', 'content': os.getenv('rewrite_query_question')
-            }]
-            rewrite_ask_prompt_template = self.tokenizer.apply_chat_template(rewrite_ask_thread, tokenize=False)
-            rewrite_ask_prompt = PromptTemplate(
-                input_variables=["context", "question"],
-                template=rewrite_ask_prompt_template,
-            )
-            rewrite_ask_llm_chain = LLMChain(llm=self.llm, prompt=rewrite_ask_prompt)
+            rewrite_ask_thread = [
+                ('system', os.getenv('rewrite_query_instruction')),
+                ('human', os.getenv('rewrite_query_question'))
+            ]
+            rewrite_ask_prompt = ChatPromptTemplate.from_messages(rewrite_ask_thread)
+            rewrite_ask_llm_chain = rewrite_ask_prompt | self.llm
             context_retriever = self.ensemble_retriever
-            if os.getenv("rerank"):
+            if os.getenv("rerank") == "True":
                 context_retriever = self.rerank_retriever
             self.rewrite_ask_chain = (
                 {"context": context_retriever | formatDocuments, "question": RunnablePassthrough()} |
@@ -155,15 +120,11 @@ class RAGHelper:
             )
 
             # Next the chain to ask the LLM for the actual rewrite(s)
-            rewrite_thread = [{
-                'role': 'user', 'content': os.getenv('rewrite_query_prompt')
-            }]
-            rewrite_prompt_template = self.tokenizer.apply_chat_template(rewrite_thread, tokenize=False)
-            rewrite_prompt = PromptTemplate(
-                input_variables=["question"],
-                template=rewrite_prompt_template,
-            )
-            rewrite_llm_chain = LLMChain(llm=self.llm, prompt=rewrite_prompt)
+            rewrite_thread = [
+                ('human', os.getenv('rewrite_query_prompt'))
+            ]
+            rewrite_prompt = ChatPromptTemplate.from_messages(rewrite_thread)
+            rewrite_llm_chain = rewrite_prompt | self.llm
             self.rewrite_chain = (
                 {"question": RunnablePassthrough()} |
                 rewrite_llm_chain
@@ -181,7 +142,7 @@ class RAGHelper:
         # Load JSON
         if "json" in file_types:
             text_content = True
-            if os.getenv("json_text_content").lower() == 'false':
+            if os.getenv("json_text_content") == 'False':
                 text_content = False
             loader_kwargs = {
                 'jq_schema': os.getenv("json_schema"),
@@ -305,7 +266,7 @@ class RAGHelper:
         )
         # Set up the reranker
         self.rerank_retriever = None
-        if os.getenv("rerank"):
+        if os.getenv("rerank") == "True":
             compressor = FlashrankRerank(top_n=int(os.getenv("rerank_k")))
             self.rerank_retriever = ContextualCompressionRetriever(
                 base_compressor=compressor, base_retriever=self.ensemble_retriever
@@ -346,48 +307,51 @@ class RAGHelper:
                 fetch_new_documents = False
 
         # Create prompt template based on whether we have history or not
-        thread = [{"role": x["role"], "content": x["content"].replace("{", "(").replace("}", ")")} for x in history]
+        thread = [(x["role"], x["content"].replace("{", "(").replace("}", ")")) for x in history]
         if len(thread) == 0:
-            thread.append({
-                'role': 'system', 'content': os.getenv('rag_instruction')})
-            thread.append({
-                'role': 'user', 'content': os.getenv('rag_question_initial')
-            })
+            thread.append(('system', os.getenv('rag_instruction')))
+            thread.append(('human', os.getenv('rag_question_initial')))
         else:
-            thread.append({
-                'role': 'user', 'content': os.getenv('rag_question_followup')
-            })
-
-        # Determine input variables
-        if fetch_new_documents:
-            input_variables = ["context", "question"]
-        else:
-            input_variables = ["question"]
-
-        prompt_template = self.tokenizer.apply_chat_template(thread, tokenize=False)
+            thread.append(('human', os.getenv('rag_question_followup')))
 
         # Create prompt from prompt template
-        prompt = PromptTemplate(
-            input_variables=input_variables,
-            template=prompt_template,
-        )
+        prompt = ChatPromptTemplate.from_messages(thread)
 
         # Create llm chain
-        llm_chain = LLMChain(llm=self.llm, prompt=prompt)
+        llm_chain = prompt | self.llm
         if fetch_new_documents:
             # Rewrite the question if needed
             user_query = self.handle_rewrite(user_query)
             context_retriever = self.ensemble_retriever
-            if os.getenv("rerank"):
+            if os.getenv("rerank") == "True":
                 context_retriever = self.rerank_retriever
+            
+            retriever_chain = {
+                "docs": context_retriever | getFilenames,
+                "context": context_retriever | formatDocuments,
+                "question": RunnablePassthrough()
+            }
+            llm_chain = prompt | self.llm | StrOutputParser()
             rag_chain = (
-                {"docs": context_retriever | getFilenames, "context": context_retriever | formatDocuments, "question": RunnablePassthrough()} |
-                llm_chain
+                retriever_chain
+                | RunnablePassthrough.assign(
+                    answer=lambda x: llm_chain.invoke(
+                        {"docs": x["docs"], "context": x["context"], "question": x["question"]}
+                    ))
+                | combine_results
             )
         else:
+            retriever_chain = {
+                "question": RunnablePassthrough()
+            }
+            llm_chain = prompt | self.llm | StrOutputParser()
             rag_chain = (
-                {"question": RunnablePassthrough()} |
-                llm_chain
+                retriever_chain
+                | RunnablePassthrough.assign(
+                    answer=lambda x: llm_chain.invoke(
+                        {"question": x["question"]}
+                    ))
+                | combine_results
             )
 
         # Invoke RAG pipeline

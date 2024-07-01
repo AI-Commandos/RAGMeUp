@@ -35,7 +35,7 @@ class HomeController @Inject()(
   def search() = Action.async { implicit request: Request[AnyContent] =>
     val json = request.body.asJson.getOrElse(Json.obj()).as[JsObject]
     val query = (json \ "query").as[String]
-    val history = (json \ "history").as[String]
+    val history = (json \ "history").as[Seq[JsObject]]
     val docs = (json \ "docs").as[Seq[JsObject]]
 
     ws
