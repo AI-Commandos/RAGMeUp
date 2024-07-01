@@ -56,7 +56,10 @@
         var col = $('<div>').addClass('col-md-10 offset-md-1');
         var container = $('<div>').addClass(isHuman ? 'label-human' : 'label-agent');
 
-        var label = $('<label>').html(message.replace("\n", "<br />"));
+        var converter = new showdown.Converter(),
+            text      = message.replace("\n", "<br />"),
+            html      = converter.makeHtml(text);
+        var label = $('<label>').html(html);
         $(container).append(label);
 
         if (documents.length > 0) {
