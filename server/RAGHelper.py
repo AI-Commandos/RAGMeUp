@@ -12,6 +12,7 @@ from transformers import (
 
 from langchain.chains.llm import LLMChain
 from langchain.retrievers import EnsembleRetriever
+from langchain_core.documents.base import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_huggingface.llms import HuggingFacePipeline
@@ -30,6 +31,8 @@ from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders import UnstructuredExcelLoader
 from langchain_community.document_loaders import UnstructuredPowerPointLoader
 from langchain_community.document_loaders.csv_loader import CSVLoader
+
+from lxml import etree
 
 # Make documents look a bit better than default
 def formatDocuments(docs):

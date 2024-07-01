@@ -3,6 +3,7 @@ from tqdm import tqdm
 
 from langchain_core.documents.base import Document
 from langchain.retrievers import EnsembleRetriever
+from langchain_core.documents.base import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain.prompts import ChatPromptTemplate
@@ -287,17 +288,11 @@ class RAGHelperCloud:
         if os.getenv("use_rewrite_loop") == "True":
             # Ask the LLM if we need to rewrite
             response = self.rewrite_ask_chain.invoke(user_query)
-            if response['text'].lower().endswith('yes') or response['text'].lower().endswith('ja'):
+            if response['answer'].lower().endswith('yes') or response['answer'].lower().endswith('ja'):
                 # Start the rewriting into different alternatives
                 response = self.rewrite_chain.invoke(user_query)
-                # Take out the alternatives
-                term_symbol = self.tokenizer.eos_token
-                if os.getenv("llm_eos_token") != "None":
-                    term_symbol = os.getenv("llm_eos_token")
-                end_string = f"{term_symbol}assistant\n\n"
-                reply = response['text'][response['text'].find(end_string)+len(end_string):]
                 # Show be split by newlines
-                return reply
+                return response['answer']
             else:
                 # We do not need to rewrite
                 return user_query
@@ -311,7 +306,7 @@ class RAGHelperCloud:
         else:
             # Prompt for LLM
             response = self.rag_fetch_new_chain.invoke(user_query)
-            if response['text'].lower().endswith('yes') or response['text'].lower().endswith('ja'):
+            if response['answer'].lower().endswith('yes') or response['answer'].lower().endswith('ja'):
                 fetch_new_documents = True
             else:
                 fetch_new_documents = False
