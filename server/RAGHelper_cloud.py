@@ -74,7 +74,7 @@ class RAGHelperCloud:
                 max_retries=2,
             )
         elif os.getenv("use_gemini") == "True":
-            self.llm = ChatGoogleGenerativeAI(model="gemini-pro")
+            self.llm = ChatGoogleGenerativeAI(model="gemini-pro", convert_system_message_to_human=True)
         elif os.getenv("use_azure") == "True":
             self.llm = AzureChatOpenAI(
                 openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"],
