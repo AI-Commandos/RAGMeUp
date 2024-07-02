@@ -1,5 +1,5 @@
 name := """RAGMeUp"""
-organization := "com.understandling"
+organization := "ai.commandos"
 
 version := "1.0"
 
