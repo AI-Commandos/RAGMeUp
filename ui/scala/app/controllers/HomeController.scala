@@ -3,7 +3,7 @@ package controllers
 import javax.inject._
 import play.api._
 
-import java.nio.file.{FileSystems, Files}
+import java.nio.file.{FileSystems, Files, Paths}
 import play.api.libs.json._
 import play.api.mvc._
 import play.api.libs.ws._
@@ -49,5 +49,33 @@ class HomeController @Inject()(
       .map(response =>
           Ok(response.json)
       )
+  }
+
+  def download(file: String) = Action { implicit request: Request[AnyContent] =>
+    val filePath = new java.io.File(s"${config.get[String]("data_folder")}/$file")
+
+    if (filePath.exists && filePath.isFile) {
+      Ok.sendFile(
+        content = filePath,
+        fileName = _ => Some(file),
+        inline = false
+      )
+    } else {
+      NotFound(s"File '$file' not found.")
+    }
+  }
+
+  def upload = Action(parse.multipartFormData) { implicit request =>
+    request.body.file("file").map { file =>
+      val filename = Paths.get(file.filename).getFileName
+      val dataFolder = config.get[String]("data_folder")
+      val filePath = new java.io.File(s"$dataFolder/$filename")
+
+      file.ref.copyTo(filePath)
+
+      Redirect(routes.HomeController.add()).flashing("success" -> "Added CV to the database.")
+    }.getOrElse {
+      Redirect(routes.HomeController.add()).flashing("error" -> "Adding CV to database failed.")
+    }
   }
 }

@@ -12,7 +12,6 @@ from transformers import (
 
 from langchain.chains.llm import LLMChain
 from langchain.retrievers import EnsembleRetriever
-from langchain_core.documents.base import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_huggingface.llms import HuggingFacePipeline
@@ -33,6 +32,8 @@ from langchain_community.document_loaders import UnstructuredPowerPointLoader
 from langchain_community.document_loaders.csv_loader import CSVLoader
 
 from lxml import etree
+
+import pickle
 
 # Make documents look a bit better than default
 def formatDocuments(docs):
@@ -398,20 +399,32 @@ class RAGHelper:
         return (thread, reply)
 
     def addDocument(self, filename):
-        if filename.lower().endswith() == 'pdf':
-            doc = PyPDFLoader(filename).load()
-        if filename.lower().endswith() == 'json':
-            doc = JSONLoader(
+        if filename.lower().endswith('pdf'):
+            docs = PyPDFLoader(filename).load()
+        if filename.lower().endswith('json'):
+            docs = JSONLoader(
                 file_path = filename,
                 jq_schema = os.getenv("json_schema"),
                 text_content = os.getenv("json_text_content") == "True",
             ).load()
-        if filename.lower().endswith() == 'docx':
-            doc = Docx2txtLoader(filename).load()
-        if filename.lower().endswith() == 'xlsx':
-            doc = UnstructuredExcelLoader(filename).load()
-        if filename.lower().endswith() == 'pptx':
-            doc = UnstructuredPowerPointLoader(filename).load()
+        if filename.lower().endswith('csv'):
+            docs = CSVLoader(filename).load()
+        if filename.lower().endswith('docx'):
+            docs = Docx2txtLoader(filename).load()
+        if filename.lower().endswith('xlsx'):
+            docs = UnstructuredExcelLoader(filename).load()
+        if filename.lower().endswith('pptx'):
+            docs = UnstructuredPowerPointLoader(filename).load()
+
+        # Skills and personality are global and don't work on chunks, so do them first
+        new_docs = []
+        for doc in docs:
+            # Get the skills by using the LLM and attach to the doc
+            skills = self.parseCV(doc)
+            doc.metadata['skills'] = skills
+            # Also get the personality
+            doc.metadata['personality'] = self.personality_predictor.predict(doc)
+            new_docs.append(doc)
 
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=int(os.getenv('chunk_size')),
@@ -435,13 +448,17 @@ class RAGHelper:
                 "",
             ],
         )
-        new_chunks = self.text_splitter.split_documents(doc)
+        new_chunks = self.text_splitter.split_documents(new_docs)
 
-        # Add to
+        self.chunked_documents = self.chunked_documents + new_chunks
+        # Store these too, for our sparse DB
+        with open(f"{os.getenv('vector_store_path')}_sparse.pickle", 'wb') as f:
+            pickle.dump(self.chunked_documents, f)
+
+        # Add to vector DB
         self.db.add_documents(new_chunks)
 
         # Add to BM25
-        self.chunked_documents = [x.page_content for x in self.chunked_documents] + [x.page_content for x in new_chunks]
         bm25_retriever = BM25Retriever.from_texts(
             [x.page_content for x in self.chunked_documents],
             metadatas=[x.metadata for x in self.chunked_documents]

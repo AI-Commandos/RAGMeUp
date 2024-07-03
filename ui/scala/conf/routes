@@ -7,7 +7,8 @@
 GET     /                           controllers.HomeController.index()
 GET     /add                        controllers.HomeController.add()
 POST    /search                     controllers.HomeController.search()
-#GET     /download                   controllers.HomeController.download()
+GET     /download/:file             controllers.HomeController.download(file)
+POST    /upload                     controllers.HomeController.upload()
 
 # Map static resources from the /public folder to the /assets URL path
 GET     /webjars/*file              controllers.Assets.at(path="/public/lib", file)
