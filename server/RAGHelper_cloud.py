@@ -289,11 +289,25 @@ class RAGHelperCloud:
         if os.getenv("use_rewrite_loop") == "True":
             # Ask the LLM if we need to rewrite
             response = self.rewrite_ask_chain.invoke(user_query)
-            if response['answer'].lower().endswith('yes') or response['answer'].lower().endswith('ja'):
+            if hasattr(response, 'content'):
+                response = response.content
+            elif hasattr(response, 'answer'):
+                response = response.answer
+            elif 'answer' in response:
+                response = response["answer"]
+            if response.lower().endswith('yes') or response.lower().endswith('ja'):
                 # Start the rewriting into different alternatives
                 response = self.rewrite_chain.invoke(user_query)
+
+                if hasattr(response, 'content'):
+                    response = response.content
+                elif hasattr(response, 'answer'):
+                    response = response.answer
+                elif 'answer' in response:
+                    response = response["answer"]
+
                 # Show be split by newlines
-                return response['answer']
+                return response
             else:
                 # We do not need to rewrite
                 return user_query
