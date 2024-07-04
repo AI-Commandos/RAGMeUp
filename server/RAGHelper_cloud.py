@@ -29,6 +29,7 @@ from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import AzureChatOpenAI
 
+import re
 import pickle
 
 # Make documents look a bit better than default
@@ -313,6 +314,7 @@ class RAGHelperCloud:
                 response = response.answer
             elif 'answer' in response:
                 response = response["answer"]
+            response = re.sub(r'\W+ ', '', response)
             if response.lower().endswith('yes') or response.lower().endswith('ja'):
                 # Start the rewriting into different alternatives
                 response = self.rewrite_chain.invoke(user_query)
@@ -339,7 +341,14 @@ class RAGHelperCloud:
         else:
             # Prompt for LLM
             response = self.rag_fetch_new_chain.invoke(user_query)
-            if response['answer'].lower().endswith('yes') or response['answer'].lower().endswith('ja'):
+            if hasattr(response, 'content'):
+                response = response.content
+            elif hasattr(response, 'answer'):
+                response = response.answer
+            elif 'answer' in response:
+                response = response["answer"]
+            response = re.sub(r'\W+ ', '', response)
+            if response.lower().endswith('yes') or response.lower().endswith('ja'):
                 fetch_new_documents = True
             else:
                 fetch_new_documents = False
