@@ -35,7 +35,7 @@ def chat():
 
     # Get the LLM response
     (new_history, response) = raghelper.handle_user_interaction(prompt, history)
-    if len(docs) == 0 and 'docs' in response:
+    if len(docs) == 0 or 'docs' in response:
         docs = response['docs']
 
     # Break up the response for OS LLMs

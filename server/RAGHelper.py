@@ -355,6 +355,8 @@ class RAGHelper:
 
         # Create prompt template based on whether we have history or not
         thread = [{"role": x["role"], "content": x["content"].replace("{", "(").replace("}", ")")} for x in history]
+        if fetch_new_documents:
+            thread = []
         if len(thread) == 0:
             thread.append({
                 'role': 'system', 'content': os.getenv('rag_instruction')})
