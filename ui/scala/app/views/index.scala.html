@@ -68,9 +68,12 @@
             if ('attention' in doc) {
               linktext += ' (attribution: ' + String(Math.round(doc['attention'] * 100000) / 100000) + ')';
             }
-            if ('pk' in doc) {
-              linktext += ' (pk: ' + String(doc['pk']) + ')';
+            if ('similarity' in doc) {
+              linktext += ' (similarity: ' + String(Math.round(doc['similarity'] * 100000) / 100000) + ')';
             }
+            //if ('pk' in doc) {
+              //linktext += ' (pk: ' + String(doc['pk']) + ')';
+            //}
 
             var doclink = $('<a class="doclink" href="#">').html(linktext);
             $(doclink).on('click', function() {
