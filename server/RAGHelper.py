@@ -48,17 +48,11 @@ def formatDocuments(docs):
 def getFilenames(docs):
     return [{'s': doc.metadata['source'], 'c': doc.page_content} for doc in docs if 'source' in doc.metadata]
 
-# Capture the context of the retriever
-class CaptureContext(RunnablePassthrough):
-    def __init__(self):
-        self.captured_context = None
-    
-    def run(self, input_data):
-        self.captured_context = input_data['context']
-        return input_data
-
 class RAGHelper:
     def __init__(self, logger):
+        llm_model = os.getenv('llm_model')
+        trust_remote_code = os.getenv('trust_remote_code') == "True"
+        
         # Quantization doesn't work on CPU
         if not(os.getenv('force_cpu') == "True"):
             # Set up the LLM
@@ -83,25 +77,21 @@ class RAGHelper:
                     logger.debug("Your GPU supports bfloat16: accelerate training with bf16=True")
                     logger.debug("=" * 80)
             
-            llm_model = os.getenv('llm_model')
-            trust_remote_code = os.getenv('trust_remote_code') == "True"
             self.tokenizer = AutoTokenizer.from_pretrained(llm_model, trust_remote_code=trust_remote_code)
-            model = AutoModelForCausalLM.from_pretrained(
+            self.model = AutoModelForCausalLM.from_pretrained(
                 llm_model,
                 quantization_config=bnb_config,
-                trust_remote_code=trust_remote_code,
+                trust_remote_code=trust_remote_code
             )
         else:
-            llm_model = os.getenv('llm_model')
-            trust_remote_code = os.getenv('trust_remote_code') == "True"
             self.tokenizer = AutoTokenizer.from_pretrained(llm_model, trust_remote_code=trust_remote_code)
-            model = AutoModelForCausalLM.from_pretrained(
+            self.model = AutoModelForCausalLM.from_pretrained(
                 llm_model,
-                trust_remote_code=trust_remote_code,
+                trust_remote_code=trust_remote_code
             )
 
         text_generation_pipeline = pipeline(
-            model=model,
+            model=self.model,
             tokenizer=self.tokenizer,
             task="text-generation",
             #temperature=float(os.getenv('temperature')),
@@ -337,10 +327,7 @@ class RAGHelper:
                 # Start the rewriting into different alternatives
                 response = self.rewrite_chain.invoke(user_query)
                 # Take out the alternatives
-                term_symbol = self.tokenizer.eos_token
-                if os.getenv("llm_eos_token") != "None":
-                    term_symbol = os.getenv("llm_eos_token")
-                end_string = f"{term_symbol}assistant\n\n"
+                end_string = end_string = os.getenv("llm_assistant_token")
                 reply = response['text'][response['text'].find(end_string)+len(end_string):]
                 # Show be split by newlines
                 return reply
@@ -412,6 +399,16 @@ class RAGHelper:
 
         # Invoke RAG pipeline
         reply = rag_chain.invoke(user_query)
+
+        # See if we need to attribute attention or not
+        if os.getenv("attribute_sources") == "True":
+            end_string = os.getenv("llm_assistant_token")
+            answer = reply['text'][reply['text'].find(end_string)+len(end_string):]
+            split_char = "<|docsep|>"
+            context = split_char.join([x['c'] for x in reply['docs']])
+            attention_scores = self.compute_attention(answer, context, split_char)
+            reply['docs']  = [{**d, 'attention': f} for d, f in zip(reply['docs'], attention_scores)]
+
         return (thread, reply)
 
     def addDocument(self, filename):
@@ -491,3 +488,34 @@ class RAGHelper:
             self.rerank_retriever = ContextualCompressionRetriever(
                 base_compressor=compressor, base_retriever=self.ensemble_retriever
             )
+    
+    def compute_attention(self, query, context, split_char="|"):
+        # Encode the query and context
+        query_tokens = self.tokenizer.encode(query, return_tensors="pt")
+        context_tokens = self.tokenizer.encode(context, return_tensors="pt")
+
+        # Concatenate query and context
+        input_ids = torch.cat([query_tokens, context_tokens], dim=1)
+        # Create attention mask
+        attention_mask = torch.ones_like(input_ids)
+
+        # Compute the attention
+        with torch.no_grad():
+            output = self.model(input_ids=input_ids, attention_mask=attention_mask, output_attentions=True)
+        # Use the last layer's attention
+        attentions = output.attentions[-1]
+
+        # Extract the attention weights for each document
+        doc_attentions = []
+        context_parts = context.split(split_char)
+        query_length = query_tokens.size(1)
+        start = query_length
+
+        for part in context_parts:
+            part_tokens = self.tokenizer.encode(part, add_special_tokens=False)
+            end = start + len(part_tokens)
+            doc_attention = attentions[0, :, :, start:end].mean().item()
+            doc_attentions.append(doc_attention)
+            start = end
+
+        return doc_attentions

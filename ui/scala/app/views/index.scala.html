@@ -63,8 +63,12 @@
           var docstr = "The following documents were used creating this answer";
           var doccontent = $('<div class="col-md-6 doccontent">');
           for (let doc of documents) {
-            console.log(doc);
-            var doclink = $('<a class="doclink" href="#">').html(doc['s']);
+            var linktext = doc['s'];
+            if ('attention' in doc) {
+              linktext += ' (' + String(Math.round(doc['attention'] * 10000) / 10000) + ')'
+            }
+
+            var doclink = $('<a class="doclink" href="#">').html(linktext);
             $(doclink).on('click', function() {
               $(doccontent).html(doc['c']);
             });

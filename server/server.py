@@ -40,10 +40,7 @@ def chat():
 
     # Break up the response for OS LLMs
     if isinstance(raghelper, RAGHelper):
-        term_symbol = raghelper.tokenizer.eos_token
-        if os.getenv("llm_eos_token") != "None":
-            term_symbol = os.getenv("llm_eos_token")
-        end_string = f"{term_symbol}assistant\n\n"
+        end_string = os.getenv("llm_assistant_token")
         reply = response['text'][response['text'].find(end_string)+len(end_string):]
 
         # Get history
