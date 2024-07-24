@@ -65,7 +65,7 @@
           for (let doc of documents) {
             var linktext = doc['s'];
             if ('attention' in doc) {
-              linktext += ' (' + String(Math.round(doc['attention'] * 10000) / 10000) + ')'
+              linktext += ' (' + String(Math.round(doc['attention'] * 100000) / 100000) + ')'
             }
 
             var doclink = $('<a class="doclink" href="#">').html(linktext);

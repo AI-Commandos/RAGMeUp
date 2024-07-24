@@ -404,9 +404,13 @@ class RAGHelper:
         if os.getenv("attribute_sources") == "True":
             end_string = os.getenv("llm_assistant_token")
             answer = reply['text'][reply['text'].find(end_string)+len(end_string):]
-            split_char = "<|docsep|>"
-            context = split_char.join([x['c'] for x in reply['docs']])
-            attention_scores = self.compute_attention(answer, context, split_char)
+
+            # Add the user question and the answer to our thread for getting attention
+            new_history = [{"role": msg["role"], "content": msg["content"].format_map(reply)} for msg in thread]
+            new_history.append({"role": "assistant", "content": answer})
+
+            # Now compute the attention scores and add them to the docs
+            attention_scores = self.compute_attention(self.tokenizer.apply_chat_template(new_history, tokenize=False), user_query, reply['context'].split("\n\n"), answer)
             reply['docs']  = [{**d, 'attention': f} for d, f in zip(reply['docs'], attention_scores)]
 
         return (thread, reply)
@@ -489,33 +493,51 @@ class RAGHelper:
                 base_compressor=compressor, base_retriever=self.ensemble_retriever
             )
     
-    def compute_attention(self, query, context, split_char="|"):
-        # Encode the query and context
-        query_tokens = self.tokenizer.encode(query, return_tensors="pt")
-        context_tokens = self.tokenizer.encode(context, return_tensors="pt")
-
-        # Concatenate query and context
-        input_ids = torch.cat([query_tokens, context_tokens], dim=1)
-        # Create attention mask
-        attention_mask = torch.ones_like(input_ids)
+    def compute_attention(self, thread, query, context, answer):
+        # Encode the full thread
+        thread_tokens = self.tokenizer.encode(thread, return_tensors="pt", add_special_tokens=False)
 
         # Compute the attention
         with torch.no_grad():
-            output = self.model(input_ids=input_ids, attention_mask=attention_mask, output_attentions=True)
+            output = self.model(input_ids=thread_tokens, output_attentions=True)
+        
         # Use the last layer's attention
         attentions = output.attentions[-1]
+        # Tokenize query, context parts, and answer
+        query_tokens = self.tokenizer.encode(query, add_special_tokens=False)
+        answer_tokens = self.tokenizer.encode(answer, add_special_tokens=False)
+
+        # Find the start and end positions of query, context parts, and answer in the thread tokens
+        query_start, query_end = self.find_sublist_positions(thread_tokens[0].tolist(), query_tokens)
+        answer_start, answer_end = self.find_sublist_positions(thread_tokens[0].tolist(), answer_tokens)
+        
+        context_offsets = []
+        for part in context:
+            part_tokens = self.tokenizer.encode(part, add_special_tokens=False)
+            context_offsets.append(self.find_sublist_positions(thread_tokens[0].tolist(), part_tokens))
 
         # Extract the attention weights for each document
         doc_attentions = []
-        context_parts = context.split(split_char)
-        query_length = query_tokens.size(1)
-        start = query_length
-
-        for part in context_parts:
-            part_tokens = self.tokenizer.encode(part, add_special_tokens=False)
-            end = start + len(part_tokens)
-            doc_attention = attentions[0, :, :, start:end].mean().item()
+        for start, end in context_offsets:
+            # Focus on the attention from the answer to this document part
+            answer_to_doc_attention = attentions[0, :, answer_start:answer_end, start:end].mean().item()
+            
+            # Also consider the attention from the query to this document part
+            query_to_doc_attention = attentions[0, :, query_start:query_end, start:end].mean().item()
+            
+            # Combine these attention scores
+            doc_attention = (answer_to_doc_attention * 0.7 + query_to_doc_attention * 0.3)
+            
             doc_attentions.append(doc_attention)
-            start = end
 
         return doc_attentions
+
+    def find_sublist_positions(self, thread_tokens, part_tokens):
+        len_thread = len(thread_tokens)
+        len_part = len(part_tokens)
+
+        for i in range(len_thread - len_part + 1):
+            if thread_tokens[i:i + len_part] == part_tokens:
+                return i, i + len_part - 1
+        
+        raise ValueError("Sublist not found")
