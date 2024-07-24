@@ -59,36 +59,46 @@ class CaptureContext(RunnablePassthrough):
 
 class RAGHelper:
     def __init__(self, logger):
-        # Set up the LLM
-        use_4bit = True
-        bnb_4bit_compute_dtype = "float16"
-        bnb_4bit_quant_type = "nf4"
+        # Quantization doesn't work on CPU
+        if not(os.getenv('force_cpu') == "True"):
+            # Set up the LLM
+            use_4bit = True
+            bnb_4bit_compute_dtype = "float16"
+            bnb_4bit_quant_type = "nf4"
 
-        use_nested_quant = False
-        compute_dtype = getattr(torch, bnb_4bit_compute_dtype)
+            use_nested_quant = False
+            compute_dtype = getattr(torch, bnb_4bit_compute_dtype)
 
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=use_4bit,
-            bnb_4bit_quant_type=bnb_4bit_quant_type,
-            bnb_4bit_compute_dtype=compute_dtype,
-            bnb_4bit_use_double_quant=use_nested_quant,
-        )
+            bnb_config = BitsAndBytesConfig(
+                load_in_4bit=use_4bit,
+                bnb_4bit_quant_type=bnb_4bit_quant_type,
+                bnb_4bit_compute_dtype=compute_dtype,
+                bnb_4bit_use_double_quant=use_nested_quant,
+            )
 
-        if compute_dtype == torch.float16 and use_4bit:
-            major, _ = torch.cuda.get_device_capability()
-            if major >= 8:
-                logger.debug("=" * 80)
-                logger.debug("Your GPU supports bfloat16: accelerate training with bf16=True")
-                logger.debug("=" * 80)
-        
-        llm_model = os.getenv('llm_model')
-        trust_remote_code = os.getenv('trust_remote_code') == "True"
-        self.tokenizer = AutoTokenizer.from_pretrained(llm_model, trust_remote_code=trust_remote_code)
-        model = AutoModelForCausalLM.from_pretrained(
-            llm_model,
-            quantization_config=bnb_config,
-            trust_remote_code=trust_remote_code,
-        )
+            if compute_dtype == torch.float16 and use_4bit:
+                major, _ = torch.cuda.get_device_capability()
+                if major >= 8:
+                    logger.debug("=" * 80)
+                    logger.debug("Your GPU supports bfloat16: accelerate training with bf16=True")
+                    logger.debug("=" * 80)
+            
+            llm_model = os.getenv('llm_model')
+            trust_remote_code = os.getenv('trust_remote_code') == "True"
+            self.tokenizer = AutoTokenizer.from_pretrained(llm_model, trust_remote_code=trust_remote_code)
+            model = AutoModelForCausalLM.from_pretrained(
+                llm_model,
+                quantization_config=bnb_config,
+                trust_remote_code=trust_remote_code,
+            )
+        else:
+            llm_model = os.getenv('llm_model')
+            trust_remote_code = os.getenv('trust_remote_code') == "True"
+            self.tokenizer = AutoTokenizer.from_pretrained(llm_model, trust_remote_code=trust_remote_code)
+            model = AutoModelForCausalLM.from_pretrained(
+                llm_model,
+                trust_remote_code=trust_remote_code,
+            )
 
         text_generation_pipeline = pipeline(
             model=model,
