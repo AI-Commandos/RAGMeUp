@@ -63,9 +63,13 @@
           var docstr = "The following documents were used creating this answer";
           var doccontent = $('<div class="col-md-6 doccontent">');
           for (let doc of documents) {
+
             var linktext = doc['s'];
             if ('attention' in doc) {
-              linktext += ' (' + String(Math.round(doc['attention'] * 100000) / 100000) + ')'
+              linktext += ' (attribution: ' + String(Math.round(doc['attention'] * 100000) / 100000) + ')';
+            }
+            if ('pk' in doc) {
+              linktext += ' (pk: ' + String(doc['pk']) + ')';
             }
 
             var doclink = $('<a class="doclink" href="#">').html(linktext);
