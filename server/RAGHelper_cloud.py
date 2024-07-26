@@ -56,15 +56,6 @@ def combine_results(inputs):
             "question": inputs["question"]
         }
 
-# Capture the context of the retriever
-class CaptureContext(RunnablePassthrough):
-    def __init__(self):
-        self.captured_context = None
-    
-    def run(self, input_data):
-        self.captured_context = input_data['context']
-        return input_data
-
 class RAGHelperCloud:
     def __init__(self, logger):
         if os.getenv("use_openai") == "True":
@@ -402,8 +393,7 @@ class RAGHelperCloud:
         # See if we need to track provenance
         if fetch_new_documents and os.getenv("provenance_method") in ['rerank', 'attention', 'similarity', 'llm']:
             # Add the user question and the answer to our thread for provenance computation
-            end_string = os.getenv("llm_assistant_token")
-            answer = reply['text'][reply['text'].find(end_string)+len(end_string):]
+            answer = reply['answer']
             context = reply['docs']
             
             # Use the reranker but now on the answer (and potentially query too)
@@ -424,7 +414,7 @@ class RAGHelperCloud:
                 provenance_scores = self.attributor.compute_similarity(user_query, context, answer)
             # See if we need to use LLM-based provenance
             elif os.getenv("provenance_method") == "llm":
-                provenance_scores = compute_llm_provenance_cloud(self.tokenizer, self.model, user_query, context, answer)
+                provenance_scores = compute_llm_provenance_cloud(self.llm, user_query, context, answer)
             
             # Add the provenance scores
             for i, score in enumerate(provenance_scores):
