@@ -65,11 +65,8 @@
           for (let doc of documents) {
 
             var linktext = doc['s'];
-            if ('attention' in doc) {
-              linktext += ' (attribution: ' + String(Math.round(doc['attention'] * 100000) / 100000) + ')';
-            }
-            if ('similarity' in doc) {
-              linktext += ' (similarity: ' + String(Math.round(doc['similarity'] * 100000) / 100000) + ')';
+            if ('provenance' in doc) {
+              linktext += ' (provenance: ' + String(Math.round(doc['provenance'] * 100000) / 100000) + ')';
             }
             //if ('pk' in doc) {
               //linktext += ' (pk: ' + String(doc['pk']) + ')';

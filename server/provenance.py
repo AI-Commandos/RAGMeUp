@@ -1,7 +1,9 @@
 import os
+import re
 import torch
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+from langchain.prompts import ChatPromptTemplate
 
 # This is a clever little function that attempts to compute the attribution of each document retrieved from the RAG store towards the generated answer.
 # The way this function works is by getting the (self-)attention scores of each token towards every other token and then computing, for each document:
@@ -84,12 +86,64 @@ def find_sublist_positions(thread_tokens, part_tokens):
     
     raise ValueError("Sublist not found")
 
+def compute_rerank_provenance(reranker, query, documents, answer):
+    if os.getenv("attribute_include_query") == "True":
+        full_text = query + "\n" + answer
+    else:
+        full_text = answer
+    
+    # Score the documents, this will return the same document list but now with a relevance_score in metadata
+    scored_documents = reranker.compress_documents(documents, full_text)
+    return scored_documents
+
+def compute_llm_provenance(tokenizer, model, query, context, answer):
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
+    tokenizer.eos_token_id = tokenizer.convert_tokens_to_ids(tokenizer.eos_token)
+
+    prompt = os.getenv("provenance_llm_prompt")
+    end_string = "assistant\n\n"
+    device = "cuda"
+    if os.getenv("force_cpu") == "True":
+        device = "cpu"
+
+    # Go over all documents in the context
+    provenance_scores = []
+    for doc in context:
+        # Create the thread to ask the LLM to assign a score to this document for provenance
+        context_thread = [{'role': 'user', 'content': prompt.format_map({"query": query, "context": doc, "answer": answer})}]
+        input_chat = tokenizer.apply_chat_template(context_thread, tokenize=False)
+        inputs = tokenizer(input_chat, return_tensors="pt", padding=True, truncation=True).to(device)
+        input_ids = inputs['input_ids'].to(device)
+        attention_mask = inputs['attention_mask'].to(device)
+        output_ids = model.generate(input_ids=input_ids, attention_mask=attention_mask, max_new_tokens=10)
+        generated_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        answer = generated_text[generated_text.find(end_string)+len(end_string):]
+        score = re.findall("\d+\.?\d*", answer.replace(",", "."))[-1]
+        provenance_scores.append(score)
+    
+    return provenance_scores
+
+def compute_llm_provenance_cloud(llm, query, context, answer):
+    prompt = os.getenv("provenance_llm_prompt")
+    # Go over all documents in the context
+    provenance_scores = []
+    for doc in context:
+        # Create the thread to ask the LLM to assign a score to this document for provenance
+        context_thread = [{'role': 'user', 'content': prompt.format_map({"query": query, "context": doc, "answer": answer})}]
+        input_chat = ChatPromptTemplate.from_messages(context_thread)
+        generated_text = llm.invoke(input_chat)
+        score = re.findall("\d+\.?\d*", generated_text.replace(",", "."))[-1]
+        provenance_scores.append(score)
+    
+    return provenance_scores
+
 class DocumentSimilarityAttribution:
     def __init__(self):
         device = 'cuda'
         if os.getenv('force_cpu') == "True":
             device = 'cpu'
-        self.model = SentenceTransformer(os.getenv('attribute_llm'), device=device)
+        self.model = SentenceTransformer(os.getenv('provenance_similarity_llm'), device=device)
 
     def compute_similarity(self, query, context, answer):
         include_query=True

@@ -56,13 +56,47 @@ RAG Me Up uses a `.env` file for configuration, see `.env.template`. The followi
 
 ## LLM configuration
 - `llm_model` This is the main LLM (instruct or chat) model to use that you will converse with. Default is LLaMa3-8B
-- `llm_eos_token` Not all (finetuned/QLoRA) LLMs always use the same EOS token as their parent (for example with LLaMa3 finetunes). Set this variable to be the proper EOS token or set to `None` to use the model tokenizer's.
+- `llm_assistant_token` This should contain the unique query (sub)string that indicates where in a prompt template the assistant's answer starts
 - `embedding_model` The model used to convert your documents' chunks into vectors that will be stored in the vector store
 - `trust_remote_code` Set this to true if your LLM needs to execute remote code
 - `force_cpu` When set to True, forces RAG Me Up to run fully on CPU (not recommended)
 
 ### Use OpenAI
 If you want to use OpenAI as LLM backend, make sure to set `use_openai` to True and make sure you (externally) set the environment variable `OPENAI_API_KEY` to be your OpenAI API Key.
+
+### Use Gemini
+If you want to use Gemini as LLM backend, make sure to set `use_gemini` to True and make sure you (externally) set the environment variable `GOOGLE_API_KEY` to be your Gemini API Key.
+
+### Use Azure OpenAI
+If you want to use Azure OpenAI as LLM backend, make sure to set `use_azure` to True and make sure you (externally) set the following environment variables:
+- `AZURE_OPENAI_API_KEY`
+- `AZURE_OPENAI_API_VERSION`
+- `AZURE_OPENAI_ENDPOINT`
+- `AZURE_OPENAI_CHAT_DEPLOYMENT_NAME`
+
+## RAG Provenance
+One of the biggest, arguably unsolved, challenges of RAG is to do good provenance attribution: tracking which of the source documents retrieved from your database led to the LLM generating its answer (the most). RAG Me Up implements several ways of achieving this, each with its own pros and cons.
+
+The following environment variables can be set for provenance attribution.
+
+- `provenance_method` Can be one of `rerank, attention, similarity, llm`. If `rerank` is `False` and the value of `provenance_method` is either `rerank` or none of the allowed values, provenance attribution is turned completely off
+- `provenance_similarity_llm` If `provenance_method` is set to `similarity`, this model will be used to compute the similarity scores
+- `provenance_include_query` Set to True or False to include the query itself when attributing provenance
+- `provenance_llm_prompt` If `provenance_method` is set to `llm`, this prompt will be used to let the LLM attribute the provenance of each document in isolation.
+
+The different provenance attribution metrics are described below.
+
+### `provenance_method=rerank` (preferred for closed LLMs)
+This uses the reranker as the provenance method. While the reranking is already used when retrieving documents (if reranking is turned on), this only applies the rerankers cross-attention to the documents and the *query*. For provenance attribution, we use the same reranking to apply cross-attention to the *answer* (and potentially the query too).
+
+### `provenance_method=attention` (preferred for OS LLMs)
+This is probably the most accurate way of tracking provenance but it can only be used with OS LLMs that allow to return the attention weights. The way we track provenance is by looking at the actual attention weights (of the last attention layer in the model) for each token from the answer to the document and vice versa, optionally we do the same for the query if `provenance_include_query=True`.
+
+### `provenance_method=similarity`
+This method uses a sentence transformer (LM) to get dense vectors for each document as well as for the answer (and potentially query). We then use a cosine similarity to get the similarity of the document vectors to the answer (+ query).
+
+### `provenance_method=llm`
+The LLM that is used to generate messages is now also used to attribute the provenance of each document in isolation. We use the `provenance_llm_prompt` as the prompt to ask the LLM to perform this task. Note that the outcome of this provenance method is highly influenced by the prompt and the strength of the model. As a good practice, make sure you force the LLM to return numbers on a relatively small scale (eg. score from 1 to 3). Using something like a percentage for each document will likely result in random outcomes.
 
 ## Data configuration
 - `data_directory` The directory that contains your (initial) documents to load into the vector store

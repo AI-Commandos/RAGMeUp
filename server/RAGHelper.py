@@ -2,7 +2,7 @@ import os
 import torch
 from tqdm import tqdm
 
-from provenance import (compute_attention, DocumentSimilarityAttribution)
+from provenance import (compute_attention, compute_rerank_provenance, compute_llm_provenance, DocumentSimilarityAttribution)
 
 from transformers import BitsAndBytesConfig
 from transformers import (
@@ -46,9 +46,6 @@ def formatDocuments(docs):
         metadata_string = ", ".join([f"{md}: {doc.metadata[md]}" for md in doc.metadata.keys()])
         doc_strings.append(f"Content: {doc.page_content}\nMetadata: {metadata_string}")
     return "\n\n".join(doc_strings)
-
-def getFilenames(docs):
-    return [{'s': doc.metadata['source'], 'c': doc.page_content, **({'pk': doc.metadata['pk']} if 'pk' in doc.metadata else {})} for doc in docs if 'source' in doc.metadata]
 
 class RAGHelper:
     def __init__(self, logger):
@@ -139,8 +136,8 @@ class RAGHelper:
             rag_llm_chain
         )
 
-        # For attribution
-        if os.getenv("attribute_sources") == "True" and (os.getenv("attribute_method") == "similarity" or os.getenv("attribute_method") == "both"):
+        # For provenance
+        if os.getenv("provenance_method") == "similarity":
             self.attributor = DocumentSimilarityAttribution()
 
         # Also create the rewrite loop LLM chain, if need be
@@ -319,9 +316,9 @@ class RAGHelper:
         # Set up the reranker
         self.rerank_retriever = None
         if os.getenv("rerank"):
-            compressor = FlashrankRerank(top_n=int(os.getenv("rerank_k")))
+            self.compressor = FlashrankRerank(top_n=int(os.getenv("rerank_k")))
             self.rerank_retriever = ContextualCompressionRetriever(
-                base_compressor=compressor, base_retriever=self.ensemble_retriever
+                base_compressor=self.compressor, base_retriever=self.ensemble_retriever
             )
 
     def handle_rewrite(self, user_query):
@@ -395,7 +392,7 @@ class RAGHelper:
             if os.getenv("rerank"):
                 context_retriever = self.rerank_retriever
             rag_chain = (
-                {"docs": context_retriever | getFilenames, "context": context_retriever | formatDocuments, "question": RunnablePassthrough()} |
+                {"docs": context_retriever, "context": context_retriever | formatDocuments, "question": RunnablePassthrough()} |
                 llm_chain
             )
         else:
@@ -407,25 +404,42 @@ class RAGHelper:
         # Invoke RAG pipeline
         reply = rag_chain.invoke(user_query)
 
-        # See if we need to attribute attention or not
-        if os.getenv("attribute_sources") == "True":
-            # Add the user question and the answer to our thread for attribution computation
+        # See if we need to track provenance
+        if fetch_new_documents and os.getenv("provenance_method") in ['rerank', 'attention', 'similarity', 'llm']:
+            # Add the user question and the answer to our thread for provenance computation
             end_string = os.getenv("llm_assistant_token")
             answer = reply['text'][reply['text'].find(end_string)+len(end_string):]
             new_history = [{"role": msg["role"], "content": msg["content"].format_map(reply)} for msg in thread]
             new_history.append({"role": "assistant", "content": answer})
-            context = reply['context'].split("\n\n")
+            context = formatDocuments(reply['docs']).split("\n\n")
 
-            # See if we need to do attention-based attribution
-            if os.getenv("attribute_method") == "attention" or os.getenv("attribute_method") == "both":
+            # Use the reranker but now on the answer (and potentially query too)
+            if os.getenv("provenance_method") == "rerank":
+                if not(os.getenv("rerank") == "True"):
+                    raise ValueError("Provenance attribution is set to rerank but reranking is not enabled. Please choose another provenance method or turn on reranking.")
+                reranked_docs = compute_rerank_provenance(self.compressor, user_query, reply['docs'], answer)
+                
+                # This is a bit of a hassle because reranked_docs is now reordered and we have no definitive key to use because of hybrid search.
+                # Note that we can't just return reranked_docs because the LLM may refer to "doc #1" in the order of the original scoring.
+                provenance_scores = []
+                for doc in reply['docs']:
+                    # Find the document in reranked_docs
+                    reranked_score = [d.metadata['relevance_score'] for d in reranked_docs if d.page_content == doc.page_content][0]
+                    provenance_scores.append(reranked_score)
+            # See if we need to do attention-based provenance
+            elif os.getenv("provenance_method") == "attention":
                 # Now compute the attention scores and add them to the docs
-                attention_scores = compute_attention(self.model, self.tokenizer, self.tokenizer.apply_chat_template(new_history, tokenize=False), user_query, reply['context'].split("\n\n"), answer)
-                reply['docs']  = [{**d, 'attention': f} for d, f in zip(reply['docs'], attention_scores)]
+                provenance_scores = compute_attention(self.model, self.tokenizer, self.tokenizer.apply_chat_template(new_history, tokenize=False), user_query, context, answer)
+            # See if we need to do similarity-base provenance
+            elif os.getenv("provenance_method") == "similarity":
+                provenance_scores = self.attributor.compute_similarity(user_query, context, answer)
+            # See if we need to use LLM-based provenance
+            elif os.getenv("provenance_method") == "llm":
+                provenance_scores = compute_llm_provenance(self.tokenizer, self.model, user_query, context, answer)
             
-            # See if we need to do similarity-base attribution
-            if os.getenv("attribute_method") == "similarity" or os.getenv("attribute_method") == "both":
-                similarities = self.attributor.compute_similarity(user_query, context, answer)
-                reply['docs']  = [{**d, 'similarity': f} for d, f in zip(reply['docs'], similarities)]
+            # Add the provenance scores
+            for i, score in enumerate(provenance_scores):
+                reply['docs'][i].metadata['provenance'] = score
 
         return (thread, reply)
 
@@ -502,7 +516,7 @@ class RAGHelper:
         )
 
         if os.getenv("rerank") == "True":
-            compressor = FlashrankRerank(top_n=int(os.getenv("rerank_k")))
+            self.compressor = FlashrankRerank(top_n=int(os.getenv("rerank_k")))
             self.rerank_retriever = ContextualCompressionRetriever(
-                base_compressor=compressor, base_retriever=self.ensemble_retriever
+                base_compressor=self.compressor, base_retriever=self.ensemble_retriever
             )

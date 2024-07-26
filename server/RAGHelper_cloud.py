@@ -1,6 +1,8 @@
 import os
 from tqdm import tqdm
 
+from provenance import (compute_llm_provenance_cloud, compute_rerank_provenance, DocumentSimilarityAttribution)
+
 from langchain_core.documents.base import Document
 from langchain.retrievers import EnsembleRetriever
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -39,9 +41,6 @@ def formatDocuments(docs):
         metadata_string = ", ".join([f"{md}: {doc.metadata[md]}" for md in doc.metadata.keys()])
         doc_strings.append(f"Content: {doc.page_content}\nMetadata: {metadata_string}")
     return "\n\n".join(doc_strings)
-
-def getFilenames(docs):
-    return [{'s': doc.metadata['source'], 'c': doc.page_content} for doc in docs if 'source' in doc.metadata]
 
 def combine_results(inputs):
     if "context" in inputs.keys() and "docs" in inputs.keys():
@@ -112,6 +111,10 @@ class RAGHelperCloud:
             {"question": RunnablePassthrough()} |
             rag_llm_chain
         )
+
+        # For provenance
+        if os.getenv("provenance_method") == "similarity":
+            self.attributor = DocumentSimilarityAttribution()
 
         # Also create the rewrite loop LLM chain, if need be
         self.rewrite_ask_chain = None
@@ -222,16 +225,6 @@ class RAGHelperCloud:
                     metadata['index'] = index
                     newdocs = newdocs + [Document(page_content=doc, metadata=metadata) for doc in elements]
                 docs = docs + newdocs
-
-            newdocs = []
-            for index, doc in enumerate(xmldocs):
-                xmltree = etree.fromstring(doc.page_content.encode('utf-8'))
-                elements = xmltree.xpath(os.getenv("xml_xpath"))
-                elements = [etree.tostring(element, pretty_print=True).decode() for element in elements]
-                metadata = doc.metadata
-                metadata['index'] = index
-                newdocs = newdocs + [Document(page_content=doc, metadata=metadata) for doc in elements]
-            docs = docs + newdocs
 
             #if os.getenv('splitter') == 'RecursiveCharacterTextSplitter':
             self.text_splitter = RecursiveCharacterTextSplitter(
@@ -376,7 +369,7 @@ class RAGHelperCloud:
                 context_retriever = self.rerank_retriever
             
             retriever_chain = {
-                "docs": context_retriever | getFilenames,
+                "docs": context_retriever,
                 "context": context_retriever | formatDocuments,
                 "question": RunnablePassthrough()
             }
@@ -405,6 +398,38 @@ class RAGHelperCloud:
 
         # Invoke RAG pipeline
         reply = rag_chain.invoke(user_query)
+
+        # See if we need to track provenance
+        if fetch_new_documents and os.getenv("provenance_method") in ['rerank', 'attention', 'similarity', 'llm']:
+            # Add the user question and the answer to our thread for provenance computation
+            end_string = os.getenv("llm_assistant_token")
+            answer = reply['text'][reply['text'].find(end_string)+len(end_string):]
+            context = reply['docs']
+            
+            # Use the reranker but now on the answer (and potentially query too)
+            if os.getenv("provenance_method") == "rerank":
+                if not(os.getenv("rerank") == "True"):
+                    raise ValueError("Provenance attribution is set to rerank but reranking is not enabled. Please choose another provenance method or turn on reranking.")
+                reranked_docs = compute_rerank_provenance(self.compressor, user_query, reply['docs'], answer)
+                
+                # This is a bit of a hassle because reranked_docs is now reordered and we have no definitive key to use because of hybrid search.
+                # Note that we can't just return reranked_docs because the LLM may refer to "doc #1" in the order of the original scoring.
+                provenance_scores = []
+                for doc in context:
+                    # Find the document in reranked_docs
+                    reranked_score = [d.metadata['relevance_score'] for d in reranked_docs if d.page_content == doc.page_content][0]
+                    provenance_scores.append(reranked_score)
+            # See if we need to do similarity-base provenance
+            elif os.getenv("provenance_method") == "similarity":
+                provenance_scores = self.attributor.compute_similarity(user_query, context, answer)
+            # See if we need to use LLM-based provenance
+            elif os.getenv("provenance_method") == "llm":
+                provenance_scores = compute_llm_provenance_cloud(self.tokenizer, self.model, user_query, context, answer)
+            
+            # Add the provenance scores
+            for i, score in enumerate(provenance_scores):
+                reply['docs'][i].metadata['provenance'] = score
+
         return (thread, reply)
 
     def addDocument(self, filename):

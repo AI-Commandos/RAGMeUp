@@ -52,7 +52,15 @@ def chat():
         new_history.append({"role": "assistant", "content": response['answer']})
         reply = response['answer']
     
-    return jsonify({"reply": reply, "history": new_history, "documents": docs}), 200
+    # Make sure we format the docs properly
+    new_docs = [{
+        's': doc.metadata['source'],
+        'c': doc.page_content,
+        **({'pk': doc.metadata['pk']} if 'pk' in doc.metadata else {}),
+        **({'provenance': float(doc.metadata['provenance'])} if 'provenance' in doc.metadata else {})
+    } for doc in docs if 'source' in doc.metadata]
+    
+    return jsonify({"reply": reply, "history": new_history, "documents": new_docs}), 200
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0")
