@@ -43,8 +43,13 @@ def compute_attention(model, tokenizer, thread, query, context, answer):
         part_tokens = tokenizer.encode(part, add_special_tokens=False)
         context_offsets.append(find_sublist_positions(thread_tokens[0].tolist(), part_tokens))
     
-    # Get the total sum of the self-attentions for the given input
-    total_attention_sum = attentions[0].sum().item()
+    # We sum the total attention seen but only from documents/query/answer to each other and themselves, excluding meta-characters and instruction prompt
+    total_attention_sum = 0
+    # Add the query/answer self- and cross-attentions to the total sum
+    total_attention_sum += attentions[0, :, query_start:query_end, query_start:query_end].sum().item()
+    total_attention_sum += attentions[0, :, query_start:query_end, answer_start:answer_end].sum().item()
+    total_attention_sum += attentions[0, :, answer_start:answer_end, answer_start:answer_end].sum().item()
+    total_attention_sum += attentions[0, :, answer_start:answer_end, query_start:query_end].sum().item()
 
     # Extract the attention weights for each document
     doc_attentions = []
@@ -71,10 +76,11 @@ def compute_attention(model, tokenizer, thread, query, context, answer):
                 answer_to_doc_attention +
                 doc_to_answer_attention
             )
-        normalized_attention = doc_attention_sum / total_attention_sum if total_attention_sum > 0 else 0
-        doc_attentions.append(normalized_attention)
+        
+        total_attention_sum += doc_attention_sum
+        doc_attentions.append(doc_attention_sum)
 
-    return doc_attentions
+    return [score / total_attention_sum for score in doc_attentions]
 
 def find_sublist_positions(thread_tokens, part_tokens):
     len_thread = len(thread_tokens)
@@ -111,11 +117,16 @@ def compute_llm_provenance(tokenizer, model, query, context, answer):
     provenance_scores = []
     for doc in context:
         # Create the thread to ask the LLM to assign a score to this document for provenance
-        context_thread = [{'role': 'user', 'content': prompt.format_map({"query": query, "context": doc, "answer": answer})}]
+        new_doc = doc
+        # Replace brackets for format_map to work
+        new_doc.page_content = new_doc.page_content.replace("{", "{{").replace("}", "}}")
+        context_thread = [{'role': 'user', 'content': prompt.format_map({"query": query, "context": new_doc, "answer": answer})}]
+        # Tokenize the thread containing our document
         input_chat = tokenizer.apply_chat_template(context_thread, tokenize=False)
         inputs = tokenizer(input_chat, return_tensors="pt", padding=True, truncation=True).to(device)
         input_ids = inputs['input_ids'].to(device)
         attention_mask = inputs['attention_mask'].to(device)
+        # Generate the output from the LLM and parse it as number/score
         output_ids = model.generate(input_ids=input_ids, attention_mask=attention_mask, max_new_tokens=10)
         generated_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
         answer = generated_text[generated_text.find(end_string)+len(end_string):]
@@ -130,9 +141,16 @@ def compute_llm_provenance_cloud(llm, query, context, answer):
     provenance_scores = []
     for doc in context:
         # Create the thread to ask the LLM to assign a score to this document for provenance
-        context_thread = [{'role': 'user', 'content': prompt.format_map({"query": query, "context": doc, "answer": answer})}]
-        input_chat = ChatPromptTemplate.from_messages(context_thread)
+        new_doc = doc
+        new_doc.page_content = new_doc.page_content.replace("{", "{{").replace("}", "}}")
+        input_chat = [('human', prompt.format_map({"query": query, "context": new_doc, "answer": answer}))]
         generated_text = llm.invoke(input_chat)
+        if hasattr(generated_text, 'content'):
+            generated_text = generated_text.content
+        elif hasattr(generated_text, 'answer'):
+            generated_text = generated_text.answer
+        elif 'answer' in generated_text:
+            generated_text = generated_text["answer"]
         score = re.findall("\d+\.?\d*", generated_text.replace(",", "."))[-1]
         provenance_scores.append(score)
     
