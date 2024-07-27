@@ -1,6 +1,7 @@
 import os
 import re
 import torch
+import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from langchain.prompts import ChatPromptTemplate
@@ -44,43 +45,30 @@ def compute_attention(model, tokenizer, thread, query, context, answer):
         context_offsets.append(find_sublist_positions(thread_tokens[0].tolist(), part_tokens))
     
     # We sum the total attention seen but only from documents/query/answer to each other and themselves, excluding meta-characters and instruction prompt
-    total_attention_sum = 0
+    total_attention = []
     # Add the query/answer self- and cross-attentions to the total sum
-    total_attention_sum += attentions[0, :, query_start:query_end, query_start:query_end].sum().item()
-    total_attention_sum += attentions[0, :, query_start:query_end, answer_start:answer_end].sum().item()
-    total_attention_sum += attentions[0, :, answer_start:answer_end, answer_start:answer_end].sum().item()
-    total_attention_sum += attentions[0, :, answer_start:answer_end, query_start:query_end].sum().item()
+    total_attention.append(attentions[0, :, query_start:query_end, query_start:query_end].mean().item())
+    total_attention.append(attentions[0, :, query_start:query_end, answer_start:answer_end].mean().item())
+    total_attention.append(attentions[0, :, answer_start:answer_end, answer_start:answer_end].mean().item())
+    total_attention.append(attentions[0, :, answer_start:answer_end, query_start:query_end].mean().item())
 
     # Extract the attention weights for each document
     doc_attentions = []
     for start, end in context_offsets:
-        query_to_doc_attention = 0
-        
         # Focus on the attention from the answer to this document part
-        answer_to_doc_attention = attentions[0, :, answer_start:answer_end, start:end].sum().item()
-        doc_to_answer_attention = attentions[0, :, start:end, answer_start:answer_end].sum().item()
+        doc_attention = []
+        doc_attention.append(attentions[0, :, answer_start:answer_end, start:end].mean().item())
+        doc_attention.append(attentions[0, :, start:end, answer_start:answer_end].mean().item())
         if include_query:
             # Also consider the attention from the query to this document part
-            query_to_doc_attention = attentions[0, :, query_start:query_end, start:end].sum().item()
-            doc_to_query_attention = attentions[0, :, start:end, query_start:query_end].sum().item()
+            doc_attention.append(attentions[0, :, query_start:query_end, start:end].mean().item())
+            doc_attention.append(attentions[0, :, start:end, query_start:query_end].mean().item())
         
-            # Combine these attention scores and divide them by the total of all the attention scores to get a normalized score
-            doc_attention_sum = (
-                query_to_doc_attention +
-                answer_to_doc_attention +
-                doc_to_query_attention +
-                doc_to_answer_attention
-            )
-        else:
-            doc_attention_sum = (
-                answer_to_doc_attention +
-                doc_to_answer_attention
-            )
-        
-        total_attention_sum += doc_attention_sum
-        doc_attentions.append(doc_attention_sum)
+        total_attention += doc_attention
+        doc_attentions.append(np.mean(doc_attention))
 
-    return [score / total_attention_sum for score in doc_attentions]
+    mean_total_attention = np.mean(total_attention)
+    return [score / mean_total_attention for score in doc_attentions]
 
 def find_sublist_positions(thread_tokens, part_tokens):
     len_thread = len(thread_tokens)
