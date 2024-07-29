@@ -124,7 +124,7 @@ The LLM that is used to generate messages is now also used to attribute the prov
 - `rag_fetch_new_question` The question prompt used in conjunction with `rag_fetch_new_instruction` to decide if new documents should be fetched or not
 - `user_rewrite_loop` Set to either True or False to enable the rewriting of the initial query. Note that a rewrite will always occur at most once
 - `rewrite_query_instruction` This is the instruction of the prompt that is used to ask the LLM to judge whether a rewrite is necessary or not. Make sure you force the LLM to answer with yes or no only
-- `rewrite_query_question` This is the actual query part of the prompt that isued to ask the LLM to judge a rewrite
+- `rewrite_query_question` This is the actual query part of the prompt that issued to ask the LLM to judge a rewrite
 - `rewrite_query_prompt` If the rewrite loop is on and the LLM judges a rewrite is required, this is the instruction with question asked to the LLM to rewrite the user query into a phrasing more optimized for RAG. Make sure to instruct your model adequately.
 
 ## Document splitting configuration
