@@ -46,23 +46,40 @@ def compute_attention(model, tokenizer, thread, query, context, answer):
     
     # We sum the total attention seen but only from documents/query/answer to each other and themselves, excluding meta-characters and instruction prompt
     total_attention = []
-    # Add the query/answer self- and cross-attentions to the total sum
-    total_attention.append(attentions[0, :, query_start:query_end, query_start:query_end].mean().item())
-    total_attention.append(attentions[0, :, query_start:query_end, answer_start:answer_end].mean().item())
-    total_attention.append(attentions[0, :, answer_start:answer_end, answer_start:answer_end].mean().item())
-    total_attention.append(attentions[0, :, answer_start:answer_end, query_start:query_end].mean().item())
+    # Add the query/answer self- and cross-attentions to the total sum, make sure we only keep actual (positive) attention. Some models don't always
+    # pay attention to all tokens and in those cases extremely long texts will diminish any attention paid.
+    query_to_query = attentions[0, :, query_start:query_end, query_start:query_end].mean().item()
+    if query_to_query > 0:
+        total_attention.append(query_to_query)
+    query_to_answer = attentions[0, :, query_start:query_end, answer_start:answer_end].mean().item()
+    if query_to_answer > 0:
+        total_attention.append(query_to_answer)
+    answer_to_answer = attentions[0, :, answer_start:answer_end, answer_start:answer_end].mean().item()
+    if answer_to_answer > 0:
+        total_attention.append(answer_to_answer)
+    answer_to_query = attentions[0, :, answer_start:answer_end, query_start:query_end].mean().item()
+    if answer_to_query > 0:
+        total_attention.append(answer_to_query)
 
     # Extract the attention weights for each document
     doc_attentions = []
     for start, end in context_offsets:
         # Focus on the attention from the answer to this document part
         doc_attention = []
-        doc_attention.append(attentions[0, :, answer_start:answer_end, start:end].mean().item())
-        doc_attention.append(attentions[0, :, start:end, answer_start:answer_end].mean().item())
+        answer_to_doc = attentions[0, :, answer_start:answer_end, start:end].mean().item()
+        if answer_to_doc > 0:
+            doc_attention.append(answer_to_doc)
+        doc_to_answer = attentions[0, :, start:end, answer_start:answer_end].mean().item()
+        if doc_to_answer > 0:
+            doc_attention.append(doc_to_answer)
         if include_query:
             # Also consider the attention from the query to this document part
-            doc_attention.append(attentions[0, :, query_start:query_end, start:end].mean().item())
-            doc_attention.append(attentions[0, :, start:end, query_start:query_end].mean().item())
+            query_to_doc = attentions[0, :, query_start:query_end, start:end].mean().item()
+            if query_to_doc > 0:
+                doc_attention.append(query_to_doc)
+            doc_to_query = attentions[0, :, start:end, query_start:query_end].mean().item()
+            if doc_to_query > 0:
+                doc_attention.append(doc_to_query)
         
         total_attention += doc_attention
         doc_attentions.append(np.mean(doc_attention))
