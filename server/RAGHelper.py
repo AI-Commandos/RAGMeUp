@@ -16,6 +16,7 @@ from langchain_core.documents.base import Document
 from langchain.chains.llm import LLMChain
 from langchain.retrievers import EnsembleRetriever
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_experimental.text_splitter import SemanticChunker
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_huggingface.llms import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
@@ -42,10 +43,10 @@ import pickle
 # Make documents look a bit better than default
 def formatDocuments(docs):
     doc_strings = []
-    for doc in docs:
+    for i, doc in enumerate(docs):
         metadata_string = ", ".join([f"{md}: {doc.metadata[md]}" for md in doc.metadata.keys()])
-        doc_strings.append(f"Content: {doc.page_content}\nMetadata: {metadata_string}")
-    return "\n\n".join(doc_strings)
+        doc_strings.append(f"Document {i} content: {doc.page_content}\nDocument {i} metadata: {metadata_string}")
+    return "\n\n<NEWDOC>\n\n".join(doc_strings)
 
 class RAGHelper:
     def __init__(self, logger):
@@ -181,104 +182,117 @@ class RAGHelper:
 
     # Loads the data and chunks it into an ensemble retriever
     def loadData(self):
-        # Load PDF files if need be
-        docs = []
-        data_dir = os.getenv('data_directory')
-        file_types = os.getenv("file_types").split(",")
-        if "pdf" in file_types:
-            loader = PyPDFDirectoryLoader(data_dir)
-            docs = docs + loader.load()
-        # Load JSON
-        if "json" in file_types:
-            text_content = True
-            if os.getenv("json_text_content").lower() == 'false':
-                text_content = False
-            loader_kwargs = {
-                'jq_schema': os.getenv("json_schema"),
-                'text_content': text_content
-            }
-            loader = DirectoryLoader(
-                path=data_dir,
-                glob="*.json",
-                loader_cls=JSONLoader,
-                loader_kwargs=loader_kwargs,
-            )
-            docs = docs + loader.load()
-        # Load CSV
-        if "csv" in file_types:
-            loader = DirectoryLoader(
-                path=data_dir,
-                glob="*.csv",
-                loader_cls=CSVLoader,
-            )
-            docs = docs + loader.load()
-        # Load MS Word
-        if "docx" in file_types:
-            loader = DirectoryLoader(
-                path=data_dir,
-                glob="*.docx",
-                loader_cls=Docx2txtLoader,
-            )
-            docs = docs + loader.load()
-        # Load MS Excel
-        if "xlsx" in file_types:
-            loader = DirectoryLoader(
-                path=data_dir,
-                glob="*.xlsx",
-                loader_cls=UnstructuredExcelLoader,
-            )
-            docs = docs + loader.load()
-        # Load MS PPT
-        if "pptx" in file_types:
-            loader = DirectoryLoader(
-                path=data_dir,
-                glob="*.pptx",
-                loader_cls=UnstructuredPowerPointLoader,
-            )
-            docs = docs + loader.load()
-        # Load XML, which is nasty
-        if "xml" in file_types:
-            loader = DirectoryLoader(
-                path=data_dir,
-                glob="*.xml",
-                loader_cls=TextLoader,
-            )
-            xmldocs = loader.load()
-            newdocs = []
-            for index, doc in enumerate(xmldocs):
-                xmltree = etree.fromstring(doc.page_content.encode('utf-8'))
-                elements = xmltree.xpath(os.getenv("xml_xpath"))
-                elements = [etree.tostring(element, pretty_print=True).decode() for element in elements]
-                metadata = doc.metadata
-                metadata['index'] = index
-                newdocs = newdocs + [Document(page_content=doc, metadata=metadata) for doc in elements]
-            docs = docs + newdocs
+        sparse_db_path = f"{os.getenv('vector_store_path')}_sparse.pickle"
+        if os.path.exists(sparse_db_path):
+            with open(sparse_db_path, 'rb') as f:
+                self.chunked_documents = pickle.load(f)
+        else:
+            # Load PDF files if need be
+            docs = []
+            data_dir = os.getenv('data_directory')
+            file_types = os.getenv("file_types").split(",")
+            if "pdf" in file_types:
+                loader = PyPDFDirectoryLoader(data_dir)
+                docs = docs + loader.load()
+            # Load JSON
+            if "json" in file_types:
+                text_content = True
+                if os.getenv("json_text_content").lower() == 'false':
+                    text_content = False
+                loader_kwargs = {
+                    'jq_schema': os.getenv("json_schema"),
+                    'text_content': text_content
+                }
+                loader = DirectoryLoader(
+                    path=data_dir,
+                    glob="*.json",
+                    loader_cls=JSONLoader,
+                    loader_kwargs=loader_kwargs,
+                )
+                docs = docs + loader.load()
+            # Load CSV
+            if "csv" in file_types:
+                loader = DirectoryLoader(
+                    path=data_dir,
+                    glob="*.csv",
+                    loader_cls=CSVLoader,
+                )
+                docs = docs + loader.load()
+            # Load MS Word
+            if "docx" in file_types:
+                loader = DirectoryLoader(
+                    path=data_dir,
+                    glob="*.docx",
+                    loader_cls=Docx2txtLoader,
+                )
+                docs = docs + loader.load()
+            # Load MS Excel
+            if "xlsx" in file_types:
+                loader = DirectoryLoader(
+                    path=data_dir,
+                    glob="*.xlsx",
+                    loader_cls=UnstructuredExcelLoader,
+                )
+                docs = docs + loader.load()
+            # Load MS PPT
+            if "pptx" in file_types:
+                loader = DirectoryLoader(
+                    path=data_dir,
+                    glob="*.pptx",
+                    loader_cls=UnstructuredPowerPointLoader,
+                )
+                docs = docs + loader.load()
+            # Load XML, which is nasty
+            if "xml" in file_types:
+                loader = DirectoryLoader(
+                    path=data_dir,
+                    glob="*.xml",
+                    loader_cls=TextLoader,
+                )
+                xmldocs = loader.load()
+                newdocs = []
+                for index, doc in enumerate(xmldocs):
+                    xmltree = etree.fromstring(doc.page_content.encode('utf-8'))
+                    elements = xmltree.xpath(os.getenv("xml_xpath"))
+                    elements = [etree.tostring(element, pretty_print=True).decode() for element in elements]
+                    metadata = doc.metadata
+                    metadata['index'] = index
+                    newdocs = newdocs + [Document(page_content=doc, metadata=metadata) for doc in elements]
+                docs = docs + newdocs
 
-        #if os.getenv('splitter') == 'RecursiveCharacterTextSplitter':
-        self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=int(os.getenv('chunk_size')),
-            chunk_overlap=int(os.getenv('chunk_overlap')),
-            length_function=len,
-            keep_separator=True,
-            separators=[
-                "\n \n",
-                "\n\n",
-                "\n",
-                ".",
-                "!",
-                "?",
-                " ",
-                ",",
-                "\u200b",  # Zero-width space
-                "\uff0c",  # Fullwidth comma
-                "\u3001",  # Ideographic comma
-                "\uff0e",  # Fullwidth full stop
-                "\u3002",  # Ideographic full stop
-                "",
-            ],
-        )
+            if os.getenv('splitter') == 'RecursiveCharacterTextSplitter':
+                self.text_splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=int(os.getenv('chunk_size')),
+                    chunk_overlap=int(os.getenv('chunk_overlap')),
+                    length_function=len,
+                    keep_separator=True,
+                    separators=[
+                        "\n \n",
+                        "\n\n",
+                        "\n",
+                        ".",
+                        "!",
+                        "?",
+                        " ",
+                        ",",
+                        "\u200b",  # Zero-width space
+                        "\uff0c",  # Fullwidth comma
+                        "\u3001",  # Ideographic comma
+                        "\uff0e",  # Fullwidth full stop
+                        "\u3002",  # Ideographic full stop
+                        "",
+                    ],
+                )
+            elif os.getenv('splitter') == 'SemanticChunker':
+                self.text_splitter = SemanticChunker(
+                    self.embeddings, breakpoint_threshold_type=os.getenv('breakpoint_threshold_type')
+                )
+            
+            self.chunked_documents = self.text_splitter.split_documents(docs)
 
-        self.chunked_documents = self.text_splitter.split_documents(docs)
+            # Store these too, for our sparse DB
+            with open(sparse_db_path, 'wb') as f:
+                pickle.dump(self.chunked_documents, f)
 
         vector_store_path = os.getenv('vector_store_path')
         if os.path.exists(vector_store_path):
@@ -304,6 +318,7 @@ class RAGHelper:
             [x.page_content for x in self.chunked_documents],
             metadatas=[x.metadata for x in self.chunked_documents]
         )
+
         # Set up the vector retriever
         retriever=self.db.as_retriever(
             search_type="mmr", search_kwargs = {'k': int(os.getenv("vector_store_k"))}
@@ -411,7 +426,7 @@ class RAGHelper:
             answer = reply['text'][reply['text'].find(end_string)+len(end_string):]
             new_history = [{"role": msg["role"], "content": msg["content"].format_map(reply)} for msg in thread]
             new_history.append({"role": "assistant", "content": answer})
-            context = formatDocuments(reply['docs']).split("\n\n")
+            context = formatDocuments(reply['docs']).split("\n\n<NEWDOC>\n\n")
 
             # Use the reranker but now on the answer (and potentially query too)
             if os.getenv("provenance_method") == "rerank":
@@ -471,28 +486,34 @@ class RAGHelper:
             doc.metadata['personality'] = self.personality_predictor.predict(doc)
             new_docs.append(doc)
 
-        self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=int(os.getenv('chunk_size')),
-            chunk_overlap=int(os.getenv('chunk_overlap')),
-            length_function=len,
-            keep_separator=True,
-            separators=[
-                "\n \n",
-                "\n\n",
-                "\n",
-                ".",
-                "!",
-                "?",
-                " ",
-                ",",
-                "\u200b",  # Zero-width space
-                "\uff0c",  # Fullwidth comma
-                "\u3001",  # Ideographic comma
-                "\uff0e",  # Fullwidth full stop
-                "\u3002",  # Ideographic full stop
-                "",
-            ],
-        )
+        if os.getenv('splitter') == 'RecursiveCharacterTextSplitter':
+            self.text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=int(os.getenv('chunk_size')),
+                chunk_overlap=int(os.getenv('chunk_overlap')),
+                length_function=len,
+                keep_separator=True,
+                separators=[
+                    "\n \n",
+                    "\n\n",
+                    "\n",
+                    ".",
+                    "!",
+                    "?",
+                    " ",
+                    ",",
+                    "\u200b",  # Zero-width space
+                    "\uff0c",  # Fullwidth comma
+                    "\u3001",  # Ideographic comma
+                    "\uff0e",  # Fullwidth full stop
+                    "\u3002",  # Ideographic full stop
+                    "",
+                ],
+            )
+        elif os.getenv('splitter') == 'SemanticChunker':
+            self.text_splitter = SemanticChunker(
+                self.embeddings, breakpoint_threshold_type=os.getenv('breakpoint_threshold_type')
+            )
+
         new_chunks = self.text_splitter.split_documents(new_docs)
 
         self.chunked_documents = self.chunked_documents + new_chunks

@@ -6,6 +6,7 @@ from provenance import (compute_llm_provenance_cloud, compute_rerank_provenance,
 from langchain_core.documents.base import Document
 from langchain.retrievers import EnsembleRetriever
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_experimental.text_splitter import SemanticChunker
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain.prompts import ChatPromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
@@ -37,10 +38,10 @@ import pickle
 # Make documents look a bit better than default
 def formatDocuments(docs):
     doc_strings = []
-    for doc in docs:
+    for i, doc in enumerate(docs):
         metadata_string = ", ".join([f"{md}: {doc.metadata[md]}" for md in doc.metadata.keys()])
-        doc_strings.append(f"Content: {doc.page_content}\nMetadata: {metadata_string}")
-    return "\n\n".join(doc_strings)
+        doc_strings.append(f"Document {i} content: {doc.page_content}\nDocument {i} metadata: {metadata_string}")
+    return "\n\n<NEWDOC>\n\n".join(doc_strings)
 
 def combine_results(inputs):
     if "context" in inputs.keys() and "docs" in inputs.keys():
@@ -217,33 +218,38 @@ class RAGHelperCloud:
                     newdocs = newdocs + [Document(page_content=doc, metadata=metadata) for doc in elements]
                 docs = docs + newdocs
 
-            #if os.getenv('splitter') == 'RecursiveCharacterTextSplitter':
-            self.text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=int(os.getenv('chunk_size')),
-                chunk_overlap=int(os.getenv('chunk_overlap')),
-                length_function=len,
-                keep_separator=True,
-                separators=[
-                    "\n \n",
-                    "\n\n",
-                    "\n",
-                    ".",
-                    "!",
-                    "?",
-                    " ",
-                    ",",
-                    "\u200b",  # Zero-width space
-                    "\uff0c",  # Fullwidth comma
-                    "\u3001",  # Ideographic comma
-                    "\uff0e",  # Fullwidth full stop
-                    "\u3002",  # Ideographic full stop
-                    "",
-                ],
-            )
+            if os.getenv('splitter') == 'RecursiveCharacterTextSplitter':
+                self.text_splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=int(os.getenv('chunk_size')),
+                    chunk_overlap=int(os.getenv('chunk_overlap')),
+                    length_function=len,
+                    keep_separator=True,
+                    separators=[
+                        "\n \n",
+                        "\n\n",
+                        "\n",
+                        ".",
+                        "!",
+                        "?",
+                        " ",
+                        ",",
+                        "\u200b",  # Zero-width space
+                        "\uff0c",  # Fullwidth comma
+                        "\u3001",  # Ideographic comma
+                        "\uff0e",  # Fullwidth full stop
+                        "\u3002",  # Ideographic full stop
+                        "",
+                    ],
+                )
+            elif os.getenv('splitter') == 'SemanticChunker':
+                self.text_splitter = SemanticChunker(
+                    self.embeddings, breakpoint_threshold_type=os.getenv('breakpoint_threshold_type')
+                )
 
             self.chunked_documents = self.text_splitter.split_documents(docs)
+
             # Store these too, for our sparse DB
-            with open(f"{os.getenv('vector_store_path')}_sparse.pickle", 'wb') as f:
+            with open(sparse_db_path, 'wb') as f:
                 pickle.dump(self.chunked_documents, f)
 
         vector_store_path = os.getenv('vector_store_path')
@@ -450,28 +456,34 @@ class RAGHelperCloud:
             doc.metadata['personality'] = self.personality_predictor.predict(doc)
             new_docs.append(doc)
 
-        self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=int(os.getenv('chunk_size')),
-            chunk_overlap=int(os.getenv('chunk_overlap')),
-            length_function=len,
-            keep_separator=True,
-            separators=[
-                "\n \n",
-                "\n\n",
-                "\n",
-                ".",
-                "!",
-                "?",
-                " ",
-                ",",
-                "\u200b",  # Zero-width space
-                "\uff0c",  # Fullwidth comma
-                "\u3001",  # Ideographic comma
-                "\uff0e",  # Fullwidth full stop
-                "\u3002",  # Ideographic full stop
-                "",
-            ],
-        )
+        if os.getenv('splitter') == 'RecursiveCharacterTextSplitter':
+            self.text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=int(os.getenv('chunk_size')),
+                chunk_overlap=int(os.getenv('chunk_overlap')),
+                length_function=len,
+                keep_separator=True,
+                separators=[
+                    "\n \n",
+                    "\n\n",
+                    "\n",
+                    ".",
+                    "!",
+                    "?",
+                    " ",
+                    ",",
+                    "\u200b",  # Zero-width space
+                    "\uff0c",  # Fullwidth comma
+                    "\u3001",  # Ideographic comma
+                    "\uff0e",  # Fullwidth full stop
+                    "\u3002",  # Ideographic full stop
+                    "",
+                ],
+            )
+        elif os.getenv('splitter') == 'SemanticChunker':
+            self.text_splitter = SemanticChunker(
+                self.embeddings, breakpoint_threshold_type=os.getenv('breakpoint_threshold_type')
+            )
+
         new_chunks = self.text_splitter.split_documents(new_docs)
 
         self.chunked_documents = self.chunked_documents + new_chunks

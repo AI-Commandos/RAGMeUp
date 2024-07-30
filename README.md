@@ -124,13 +124,14 @@ The LLM that is used to generate messages is now also used to attribute the prov
 - `rag_fetch_new_question` The question prompt used in conjunction with `rag_fetch_new_instruction` to decide if new documents should be fetched or not
 - `user_rewrite_loop` Set to either True or False to enable the rewriting of the initial query. Note that a rewrite will always occur at most once
 - `rewrite_query_instruction` This is the instruction of the prompt that is used to ask the LLM to judge whether a rewrite is necessary or not. Make sure you force the LLM to answer with yes or no only
-- `rewrite_query_question` This is the actual query part of the prompt that issued to ask the LLM to judge a rewrite
+- `rewrite_query_question` This is the actual query part of the prompt that isued to ask the LLM to judge a rewrite
 - `rewrite_query_prompt` If the rewrite loop is on and the LLM judges a rewrite is required, this is the instruction with question asked to the LLM to rewrite the user query into a phrasing more optimized for RAG. Make sure to instruct your model adequately.
 
 ## Document splitting configuration
-- `splitter` The Langchain document splitter to use. For now, only `RecursiveCharacterTextSplitter` is supported
-- `chunk_size` The chunk size to use when splitting up documents
-- `chunk_overlap` The chunk overlap
+- `splitter` The Langchain document splitter to use. Supported splitters are `RecursiveCharacterTextSplitter` and `SemanticChunker`.
+- `chunk_size` The chunk size to use when splitting up documents for `RecursiveCharacterTextSplitter`
+- `chunk_overlap` The chunk overlap for `RecursiveCharacterTextSplitter`
+- `breakpoint_threshold_type` Sets the breakpoint threshold type when using the `SemanticChunker` ([see here](https://python.langchain.com/v0.2/docs/how_to/semantic-chunker/)). Can be one of: percentile, standard_deviation, interquartile, gradient
 
 # Funding
 We are actively looking for funding to democratize AI and advance its applications. Contact us at info@commandos.ai if you want to invest.
