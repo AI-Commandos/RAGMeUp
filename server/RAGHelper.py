@@ -284,8 +284,17 @@ class RAGHelper:
                     ],
                 )
             elif os.getenv('splitter') == 'SemanticChunker':
+                breakpoint_threshold_amount=None
+                number_of_chunks=None
+                if os.getenv('breakpoint_threshold_amount') != 'None':
+                    breakpoint_threshold_amount=float(os.getenv('breakpoint_threshold_amount'))
+                if os.getenv('number_of_chunks') != 'None':
+                    number_of_chunks=int(os.getenv('number_of_chunks'))
                 self.text_splitter = SemanticChunker(
-                    self.embeddings, breakpoint_threshold_type=os.getenv('breakpoint_threshold_type')
+                    self.embeddings,
+                    breakpoint_threshold_type=os.getenv('breakpoint_threshold_type'),
+                    breakpoint_threshold_amount=breakpoint_threshold_amount,
+                    number_of_chunks=number_of_chunks
                 )
             
             self.chunked_documents = self.text_splitter.split_documents(docs)
@@ -510,8 +519,17 @@ class RAGHelper:
                 ],
             )
         elif os.getenv('splitter') == 'SemanticChunker':
+            breakpoint_threshold_amount=None
+            number_of_chunks=None
+            if os.getenv('breakpoint_threshold_amount') != 'None':
+                breakpoint_threshold_amount=float(os.getenv('breakpoint_threshold_amount'))
+            if os.getenv('number_of_chunks') != 'None':
+                number_of_chunks=int(os.getenv('number_of_chunks'))
             self.text_splitter = SemanticChunker(
-                self.embeddings, breakpoint_threshold_type=os.getenv('breakpoint_threshold_type')
+                self.embeddings,
+                breakpoint_threshold_type=os.getenv('breakpoint_threshold_type'),
+                breakpoint_threshold_amount=breakpoint_threshold_amount,
+                number_of_chunks=number_of_chunks
             )
 
         new_chunks = self.text_splitter.split_documents(new_docs)

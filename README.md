@@ -132,6 +132,8 @@ The LLM that is used to generate messages is now also used to attribute the prov
 - `chunk_size` The chunk size to use when splitting up documents for `RecursiveCharacterTextSplitter`
 - `chunk_overlap` The chunk overlap for `RecursiveCharacterTextSplitter`
 - `breakpoint_threshold_type` Sets the breakpoint threshold type when using the `SemanticChunker` ([see here](https://python.langchain.com/v0.2/docs/how_to/semantic-chunker/)). Can be one of: percentile, standard_deviation, interquartile, gradient
+- `breakpoint_threshold_amount` The amount to use for the threshold type, in float. Set to `None` to leave default
+- `number_of_chunks` The number of chunks to use for the threshold type, in int. Set to `None` to leave default
 
 # Funding
 We are actively looking for funding to democratize AI and advance its applications. Contact us at info@commandos.ai if you want to invest.
