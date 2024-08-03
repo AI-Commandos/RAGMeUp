@@ -6,6 +6,7 @@ RAG Me Up can run on CPU but is best run on any GPU with at least 16GB of vRAM w
 Combine the power of RAG with the power of fine-tuning - check out our [LLaMa2Lang repository](https://github.com/UnderstandLingBV/LLaMa2Lang) on fine-tuning LLMs which can then be used in RAG Me Up.
 
 # Updates
+- **2024-07-30** Added multiple provenance attribution methods.
 - **2024-06-26** Updated readme, added more file types, robust self-inflection
 - **2024-06-05** Upgraded to Langchain v0.2
 
