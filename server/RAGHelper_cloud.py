@@ -61,14 +61,14 @@ class RAGHelperCloud:
     def __init__(self, logger):
         if os.getenv("use_openai") == "True":
             self.llm = ChatOpenAI(
-                model="gpt-3.5-turbo",
+                model=os.getenv("openai_model_name"),
                 temperature=0,
                 max_tokens=None,
                 timeout=None,
                 max_retries=2,
             )
         elif os.getenv("use_gemini") == "True":
-            self.llm = ChatGoogleGenerativeAI(model="gemini-pro", convert_system_message_to_human=True)
+            self.llm = ChatGoogleGenerativeAI(model=os.getenv("gemini_model_name"), convert_system_message_to_human=True)
         elif os.getenv("use_azure") == "True":
             self.llm = AzureChatOpenAI(
                 openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"],
