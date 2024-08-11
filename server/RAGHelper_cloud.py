@@ -297,9 +297,9 @@ class RAGHelperCloud:
         # Set up the reranker
         self.rerank_retriever = None
         if os.getenv("rerank") == "True":
-            compressor = FlashrankRerank(top_n=int(os.getenv("rerank_k")))
+            self.compressor = FlashrankRerank(top_n=int(os.getenv("rerank_k")))
             self.rerank_retriever = ContextualCompressionRetriever(
-                base_compressor=compressor, base_retriever=self.ensemble_retriever
+                base_compressor=self.compressor, base_retriever=self.ensemble_retriever
             )
 
     def handle_rewrite(self, user_query):
