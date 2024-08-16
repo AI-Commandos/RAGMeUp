@@ -1,7 +1,7 @@
 langchain==0.2.11
 langchain-community==0.2.10
-langchain-core==0.2.24
-langchain_experimental==0.0.6
+langchain-core==0.2.29
+langchain_experimental==0.0.64
 langchain-huggingface==0.0.3
 langchain-postgres==0.0.9
 langchain-text-splitters==0.2.1
