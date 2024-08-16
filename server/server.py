@@ -31,7 +31,8 @@ def chat():
     json = request.get_json()
     prompt = json['prompt']
     history = json.get('history', [])
-    docs = json.get('docs', [])
+    original_docs = json.get('docs', [])
+    docs = original_docs
 
     # Get the LLM response
     (new_history, response) = raghelper.handle_user_interaction(prompt, history)
@@ -53,12 +54,15 @@ def chat():
         reply = response['answer']
     
     # Make sure we format the docs properly
-    new_docs = [{
-        's': doc.metadata['source'],
-        'c': doc.page_content,
-        **({'pk': doc.metadata['pk']} if 'pk' in doc.metadata else {}),
-        **({'provenance': float(doc.metadata['provenance'])} if 'provenance' in doc.metadata else {})
-    } for doc in docs if 'source' in doc.metadata]
+    if len(original_docs) > 0:
+        new_docs = [{
+            's': doc.metadata['source'],
+            'c': doc.page_content,
+            **({'pk': doc.metadata['pk']} if 'pk' in doc.metadata else {}),
+            **({'provenance': float(doc.metadata['provenance'])} if 'provenance' in doc.metadata else {})
+        } for doc in docs if 'source' in doc.metadata]
+    else:
+        new_docs = docs
     
     return jsonify({"reply": reply, "history": new_history, "documents": new_docs}), 200
 
