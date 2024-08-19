@@ -54,7 +54,7 @@ def chat():
         reply = response['answer']
     
     # Make sure we format the docs properly
-    if len(original_docs) > 0:
+    if len(original_docs) > 0 or 'docs' in response:
         new_docs = [{
             's': doc.metadata['source'],
             'c': doc.page_content,
@@ -63,7 +63,7 @@ def chat():
         } for doc in docs if 'source' in doc.metadata]
     else:
         new_docs = docs
-    
+
     return jsonify({"reply": reply, "history": new_history, "documents": new_docs}), 200
 
 if __name__ == "__main__":
