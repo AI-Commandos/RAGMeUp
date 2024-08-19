@@ -134,7 +134,7 @@ def compute_llm_provenance(tokenizer, model, query, context, answer):
         # Generate the output from the LLM and parse it as number/score
         output_ids = model.generate(input_ids=input_ids, attention_mask=attention_mask, max_new_tokens=10)
         generated_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
-        answer = generated_text[generated_text.find(end_string)+len(end_string):]
+        answer = generated_text[generated_text.rindex(end_string)+len(end_string):]
         score = re.findall("\d+\.?\d*", answer.replace(",", "."))[-1]
         provenance_scores.append(score)
     

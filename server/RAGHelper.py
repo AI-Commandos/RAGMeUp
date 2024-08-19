@@ -356,7 +356,7 @@ class RAGHelper:
                 response = self.rewrite_chain.invoke(user_query)
                 # Take out the alternatives
                 end_string = end_string = os.getenv("llm_assistant_token")
-                reply = response['text'][response['text'].find(end_string)+len(end_string):]
+                reply = response['text'][response['text'].rindex(end_string)+len(end_string):]
                 # Show be split by newlines
                 return reply
             else:
@@ -432,7 +432,7 @@ class RAGHelper:
         if fetch_new_documents and os.getenv("provenance_method") in ['rerank', 'attention', 'similarity', 'llm']:
             # Add the user question and the answer to our thread for provenance computation
             end_string = os.getenv("llm_assistant_token")
-            answer = reply['text'][reply['text'].find(end_string)+len(end_string):]
+            answer = reply['text'][reply['text'].rindex(end_string)+len(end_string):]
             new_history = [{"role": msg["role"], "content": msg["content"].format_map(reply)} for msg in thread]
             new_history.append({"role": "assistant", "content": answer})
             context = formatDocuments(reply['docs']).split("\n\n<NEWDOC>\n\n")

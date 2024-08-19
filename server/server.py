@@ -42,7 +42,7 @@ def chat():
     # Break up the response for OS LLMs
     if isinstance(raghelper, RAGHelper):
         end_string = os.getenv("llm_assistant_token")
-        reply = response['text'][response['text'].find(end_string)+len(end_string):]
+        reply = response['text'][response['text'].rindex(end_string)+len(end_string):]
 
         # Get history
         new_history = [{"role": msg["role"], "content": msg["content"].format_map(response)} for msg in new_history]
