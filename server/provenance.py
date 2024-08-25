@@ -26,7 +26,7 @@ def compute_attention(model, tokenizer, thread, query, context, answer):
 
     # Compute the attention
     with torch.no_grad():
-        output = model(input_ids=thread_tokens, output_attentions=True)
+        output = model(input_ids=thread_tokens, output_attentions=True, attn_implementation="eager")
     
     # Use the last layer's attention
     attentions = output.attentions[-1]
