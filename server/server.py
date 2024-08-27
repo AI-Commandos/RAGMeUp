@@ -54,7 +54,7 @@ def chat():
         reply = response['answer']
     
     # Make sure we format the docs properly
-    if len(original_docs) > 0 or 'docs' in response:
+    if len(original_docs) == 0 or 'docs' in response:
         new_docs = [{
             's': doc.metadata['source'],
             'c': doc.page_content,
