@@ -2,6 +2,7 @@ import os
 from tqdm import tqdm
 
 from provenance import (compute_llm_provenance_cloud, compute_rerank_provenance, DocumentSimilarityAttribution)
+from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
 
 from langchain_core.documents.base import Document
 from langchain.retrievers import EnsembleRetriever
@@ -12,9 +13,10 @@ from langchain.prompts import ChatPromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
 from langchain_milvus.vectorstores import Milvus
 from langchain_community.retrievers import BM25Retriever
-from langchain.retrievers.document_compressors import FlashrankRerank
 from langchain.retrievers import ContextualCompressionRetriever
+from langchain.retrievers.document_compressors import FlashrankRerank
 from langchain_core.output_parsers import StrOutputParser
+from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import PyPDFDirectoryLoader
@@ -297,7 +299,14 @@ class RAGHelperCloud:
         # Set up the reranker
         self.rerank_retriever = None
         if os.getenv("rerank") == "True":
-            self.compressor = FlashrankRerank(top_n=int(os.getenv("rerank_k")))
+            if os.getenv("rerank_model") == "flashrank":
+                self.compressor = FlashrankRerank(top_n=int(os.getenv("rerank_k")))
+            else:
+                self.compressor = ScoredCrossEncoderReranker(
+                    model=HuggingFaceCrossEncoder(model_name=os.getenv("rerank_model")),
+                    top_n=int(os.getenv("rerank_k"))
+                )
+
             self.rerank_retriever = ContextualCompressionRetriever(
                 base_compressor=self.compressor, base_retriever=self.ensemble_retriever
             )
@@ -525,7 +534,14 @@ class RAGHelperCloud:
         )
 
         if os.getenv("rerank") == "True":
-            self.compressor = FlashrankRerank(top_n=int(os.getenv("rerank_k")))
+            if os.getenv("rerank_model") == "flashrank":
+                self.compressor = FlashrankRerank(top_n=int(os.getenv("rerank_k")))
+            else:
+                self.compressor = ScoredCrossEncoderReranker(
+                    model=HuggingFaceCrossEncoder(model_name=os.getenv("rerank_model")),
+                    top_n=int(os.getenv("rerank_k"))
+                )
+
             self.rerank_retriever = ContextualCompressionRetriever(
                 base_compressor=self.compressor, base_retriever=self.ensemble_retriever
             )

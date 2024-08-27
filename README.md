@@ -6,7 +6,8 @@ RAG Me Up can run on CPU but is best run on any GPU with at least 16GB of vRAM w
 Combine the power of RAG with the power of fine-tuning - check out our [LLaMa2Lang repository](https://github.com/UnderstandLingBV/LLaMa2Lang) on fine-tuning LLMs which can then be used in RAG Me Up.
 
 # Updates
-- **2024-07-30** Added multiple provenance attribution methods.
+- **2024-07-30** Using cross encoders now so you can specify your own reranking model
+- **2024-07-30** Added multiple provenance attribution methods
 - **2024-06-26** Updated readme, added more file types, robust self-inflection
 - **2024-06-05** Upgraded to Langchain v0.2
 
@@ -111,6 +112,7 @@ The LLM that is used to generate messages is now also used to attribute the prov
 - `vector_store_k` The number of documents to retrieve from the vector store
 - `rerank` Set to either True or False to enable reranking
 - `rerank_k` The number of documents to keep after reranking. Note that if you use reranking, this should be your final target for `k` and `vector_store_k` should be set (significantly) higher. For example, set `vector_store_k` to 10 and `rerank_k` to 3
+- `rerank_model` The cross encoder reranking retrieval model to use. Sensible defaults are `cross-encoder/ms-marco-TinyBERT-L-2-v2` for speed and `colbert-ir/colbertv2.0` for accuracy (`antoinelouis/colbert-xm` for multilingual). Set this value to  `flashrank` to use the FlashrankReranker.
 
 ## LLM parameters
 - `temperature` The chat LLM's temperature. Increase this to create more diverse answers
