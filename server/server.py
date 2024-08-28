@@ -1,9 +1,10 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 import logging
 from dotenv import load_dotenv
 import os
 from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper import RAGHelper
+from pymilvus import Collection, connections
 
 load_dotenv()
 
@@ -65,6 +66,50 @@ def chat():
         new_docs = docs
 
     return jsonify({"reply": reply, "history": new_history, "documents": new_docs}), 200
+
+@app.route("/get_documents", methods=['GET'])
+def get_documents():
+    data_dir = os.getenv('data_directory')
+    file_types = os.getenv("file_types").split(",")
+    files =  [f for f in os.listdir(data_dir) if os.path.isfile(os.path.join(data_dir, f)) and os.path.splitext(f)[1][1:] in file_types]
+    return jsonify(files)
+
+@app.route("/get_document", methods=['POST'])
+def get_document():
+    json = request.get_json()
+    filename = json['filename']
+    data_dir = os.getenv('data_directory')
+    file_path = os.path.join(data_dir, filename)
+
+    if not os.path.exists(file_path):
+        return jsonify({"error": "File not found"}), 404
+    
+    return send_file(file_path, 
+                     mimetype='application/octet-stream',
+                     as_attachment=True,
+                     download_name=filename)
+
+@app.route("/delete", methods=['POST'])
+def delete_document():
+    json = request.get_json()
+    filename = json['filename']
+    data_dir = os.getenv('data_directory')
+    file_path = os.path.join(data_dir, filename)
+
+    # Remove from Milvus
+    connections.connect(uri=os.getenv('vector_store_path'))
+    collection = Collection("LangChainCollection")
+    collection.load()
+    result = collection.delete(f'source == "{file_path}"')
+    collection.release()
+
+    # Remove from disk too
+    os.remove(file_path)
+
+    # BM25 needs to be re-initialized
+    raghelper.loadData()
+
+    return jsonify({"count": result.delete_count})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0")

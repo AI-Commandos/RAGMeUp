@@ -1,8 +1,29 @@
 @import views.html.helper._
 @import play.api.mvc.RequestHeader
-@(files: Seq[String])(implicit request: RequestHeader)
+@(files: Seq[String])(implicit request: RequestHeader, flash: Flash)
 
 @main() {
+@flash.get("success") match {
+    case Some(message) => {
+        <div class="row" style="padding-top: 20px;">
+            <div class="offset-md-1 col-md-10 alert alert-success" role="alert">
+                @message
+            </div>
+        </div>
+    }
+    case None => {}
+}
+@flash.get("error") match {
+    case Some(message) => {
+    <div class="row" style="padding-top: 20px;">
+        <div class="offset-md-1 col-md-10 alert alert-danger" role="alert">
+            @message
+        </div>
+    </div>
+    }
+    case None => {}
+}
+
 <div class="row" style="margin: 20px;">
     <div class="offset-md-1 col-md-10">
         <form action="@controllers.routes.HomeController.upload()" method="post" enctype="multipart/form-data">
@@ -25,11 +46,22 @@
             @for(fileGroup <- files.grouped(6)){
             <tr>
                 @for(file <- fileGroup){
-                <td><a href="@controllers.routes.HomeController.download(file)">@file</a></td>
+                    <td>
+                        <a href="@controllers.routes.HomeController.delete(file)" style="text-decoration: none; color: #ff6e6e; padding-right: 10px;"><i class="fa-solid fa-trash" style="color: #ff6e6e;"></i></a>
+                        <a href="@controllers.routes.HomeController.download(file)" style="text-decoration: none; color: #fcffbf;">@file</a>
+                    </td>
                 }
             </tr>
             }
         </table>
     </div>
 </div>
+
+<script type="text/javascript">
+    $(document).ready(function() {
+        setTimeout(function() {
+            $(".alert").parent().remove();
+        }, 5000);
+    });
+</script>
 }
