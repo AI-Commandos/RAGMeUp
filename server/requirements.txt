@@ -29,3 +29,6 @@ rank_bm25
 openai==1.35.3
 google-ai-generativelanguage==0.6.6
 pillow==10.4.0
+ragas==0.1.15
+jq
+flashrank

@@ -6,6 +6,7 @@ RAG Me Up can run on CPU but is best run on any GPU with at least 16GB of vRAM w
 Combine the power of RAG with the power of fine-tuning - check out our [LLaMa2Lang repository](https://github.com/UnderstandLingBV/LLaMa2Lang) on fine-tuning LLMs which can then be used in RAG Me Up.
 
 # Updates
+- **2024-08-30** Added Ollama compatibility
 - **2024-08-27** Using cross encoders now so you can specify your own reranking model
 - **2024-07-30** Added multiple provenance attribution methods
 - **2024-06-26** Updated readme, added more file types, robust self-inflection
@@ -75,6 +76,9 @@ If you want to use Azure OpenAI as LLM backend, make sure to set `use_azure` to 
 - `AZURE_OPENAI_API_VERSION`
 - `AZURE_OPENAI_ENDPOINT`
 - `AZURE_OPENAI_CHAT_DEPLOYMENT_NAME`
+
+## Use Ollama
+If you want to use Ollama as LLM backend, make sure to install Ollama and set `use_ollama` to True. The model to use should be given in `ollama_model`.
 
 ## RAG Provenance
 One of the biggest, arguably unsolved, challenges of RAG is to do good provenance attribution: tracking which of the source documents retrieved from your database led to the LLM generating its answer (the most). RAG Me Up implements several ways of achieving this, each with its own pros and cons.

@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Instantiate the RAG Helper class
-if os.getenv("use_openai") == "True" or os.getenv("use_gemini") == "True" or os.getenv("use_azure") == "True":
+if os.getenv("use_openai") == "True" or os.getenv("use_gemini") == "True" or os.getenv("use_azure") == "True" or os.getenv("use_ollama") == "True":
     raghelper = RAGHelperCloud(logger)
 else:
     raghelper = RAGHelper(logger)
@@ -64,8 +64,16 @@ def chat():
         } for doc in docs if 'source' in doc.metadata]
     else:
         new_docs = docs
+    
+    # Build the response dict
+    response_dict = {"reply": reply, "history": new_history, "documents": new_docs, "rewritten": False, "question": prompt}
 
-    return jsonify({"reply": reply, "history": new_history, "documents": new_docs}), 200
+    # Check if the rewrite loop has rephrased the question
+    if os.getenv("use_rewrite_loop") == "True" and prompt != response['question']:
+        response_dict["rewritten"] = True
+        response_dict["question"] = response['question']
+
+    return jsonify(response_dict), 200
 
 @app.route("/get_documents", methods=['GET'])
 def get_documents():

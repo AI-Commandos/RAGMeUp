@@ -359,12 +359,13 @@ class RAGHelper:
         if os.getenv("use_rewrite_loop") == "True":
             # Ask the LLM if we need to rewrite
             response = self.rewrite_ask_chain.invoke(user_query)
-            response = re.sub(r'\W+ ', '', response['text'])
-            if response.lower().endswith('yes') or response.lower().endswith('ja'):
+            end_string = os.getenv("llm_assistant_token")
+            reply = response['text'][response['text'].rindex(end_string)+len(end_string):]
+            reply = re.sub(r'\W+ ', '', reply)
+            if reply.lower().startswith('no'):
                 # Start the rewriting into different alternatives
                 response = self.rewrite_chain.invoke(user_query)
                 # Take out the alternatives
-                end_string = end_string = os.getenv("llm_assistant_token")
                 reply = response['text'][response['text'].rindex(end_string)+len(end_string):]
                 # Show be split by newlines
                 return reply
@@ -381,8 +382,10 @@ class RAGHelper:
         else:
             # Prompt for LLM
             response = self.rag_fetch_new_chain.invoke(user_query)
-            response = re.sub(r'\W+ ', '', response['text'])
-            if response.lower().endswith('yes') or response.lower().endswith('ja'):
+            end_string = os.getenv("llm_assistant_token")
+            reply = response['text'][response['text'].rindex(end_string)+len(end_string):]
+            reply = re.sub(r'\W+ ', '', reply)
+            if reply.lower().startswith('yes'):
                 fetch_new_documents = True
             else:
                 fetch_new_documents = False

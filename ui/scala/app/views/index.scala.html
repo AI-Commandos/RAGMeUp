@@ -97,6 +97,7 @@
         $("#mainContainer").hide();
         var query = $("#query").val();
         $("#query").val('');
+        $("#inputbar").hide();
 
         addMessage(query, true, []);
         $("#loader").show();
@@ -104,7 +105,7 @@
 
         $.ajax({
             type: "POST",
-            url: "@controllers.routes.HomeController.search",
+            url: "@controllers.routes.HomeController.search()",
             data: JSON.stringify({
               query: query,
               history: chathistory,
@@ -115,14 +116,22 @@
             success: function(data){
                 $("#loader").hide();
                 $("#mainContainer").remove();
+
+                if (data['rewritten']) {
+                  var msg = '<span style="color: #666; font-style: italic;">Your message has been rewritten by the rewrite loop:</span>\n\n' + data['question'];
+                  addMessage(msg, true, []);
+                }
+
                 documents = data['documents'];
                 addMessage(data['reply'], false, documents);
                 chathistory = data['history'];
+
                 $("#inputbar").show();
                 $("#query").val('');
             },
             error: function(errMsg) {
                 $("#loader").hide();
+                $("#inputbar").show();
                 addMessage('Something went wrong, please try again...', false, []);
             },
             timeout: 300000

@@ -33,6 +33,7 @@ from lxml import etree
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import AzureChatOpenAI
+from langchain_ollama.llms import OllamaLLM
 
 import re
 import pickle
@@ -76,6 +77,8 @@ class RAGHelperCloud:
                 openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"],
                 azure_deployment=os.environ["AZURE_OPENAI_CHAT_DEPLOYMENT_NAME"],
             )
+        elif os.getenv("use_ollama") == "True":
+            self.llm = OllamaLLM(model=os.getenv("ollama_model"))
 
         # Set up embedding handling for vector store
         if os.getenv('force_cpu') == "True":
@@ -323,7 +326,7 @@ class RAGHelperCloud:
             elif 'answer' in response:
                 response = response["answer"]
             response = re.sub(r'\W+ ', '', response)
-            if response.lower().endswith('yes') or response.lower().endswith('ja'):
+            if response.lower().startswith('yes'):
                 # Start the rewriting into different alternatives
                 response = self.rewrite_chain.invoke(user_query)
 
@@ -356,7 +359,7 @@ class RAGHelperCloud:
             elif 'answer' in response:
                 response = response["answer"]
             response = re.sub(r'\W+ ', '', response)
-            if response.lower().endswith('yes') or response.lower().endswith('ja'):
+            if response.lower().startswith('yes'):
                 fetch_new_documents = True
             else:
                 fetch_new_documents = False
