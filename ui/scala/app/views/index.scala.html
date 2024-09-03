@@ -57,8 +57,8 @@
 
     function unicodeToChar(text) {
         return escapeHtmlAttribute(text.replace(/\\u[\dA-F]{4}/gi, function (match) {
-            return String.fromCharCode(parseInt(match.replace(/\\u/g, ''), 16)).replace(/\\n/g, "<br />");
-        }));
+            return String.fromCharCode(parseInt(match.replace(/\\u/g, ''), 16));
+        })).replace(/\\n/g, "<br />");
     }
 
     function addMessage(message, isHuman) {
@@ -112,10 +112,15 @@
               )
           ).append(
               $('<div class="flex-shrink-0">').html(
-                  '<div class="text-dark d-flex align-items-center justify-content-center" style="width: 24px; height: 24px;">' +
+                  '<div data-arrow="right" class="text-dark d-flex align-items-center justify-content-center" style="width: 24px; height: 24px;">' +
                   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 256 256">' +
                       '<path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"></path>' +
+                  '</svg></div>' +
+                  '<div data-arrow="left" class="text-dark d-flex align-items-center justify-content-center hidden" style="width: 24px; height: 24px;">' +
+                  '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 256 256">' +
+                      '<path d="M74.34,133.66l80,80a8,8,0,0,0,11.32-11.32L91.31,128l74.35-74.34a8,8,0,0,0-11.32-11.32l-80,80A8,8,0,0,0,74.34,133.66Z"></path>' +
                   '</svg></div>'
+
               )
           );
 
@@ -143,7 +148,25 @@
 
       $(document).on('click', '.documentcontainerclass', function() {
           let newContent = $(this).data('content');
-          $(this).find('p.doccontenttext').html(newContent);
+
+          let leftArrowDiv = $(this).find('div[data-arrow="left"]');
+          let rightArrowDiv = $(this).find('div[data-arrow="right"]');
+
+          if (leftArrowDiv.is(':visible')) {
+              var newNewContent = newContent.substring(0, 100);
+              if (newContent.length > 100) {
+                  newNewContent += ' ...';
+              }
+              $(this).find('p.doccontenttext').html(newNewContent);
+              $(leftArrowDiv).toggleClass('hidden');
+              $(rightArrowDiv).toggleClass('hidden');
+              $(this).find(">:first-child").toggleClass('documentshown');
+          } else if (rightArrowDiv.is(':visible')) {
+              $(this).find('p.doccontenttext').html(newContent);
+              $(rightArrowDiv).toggleClass('hidden');
+              $(leftArrowDiv).toggleClass('hidden');
+              $(this).find(">:first-child").toggleClass('documentshown');
+          }
       });
     }
 
