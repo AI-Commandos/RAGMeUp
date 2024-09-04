@@ -56,7 +56,17 @@ class RAGHelper:
         trust_remote_code = os.getenv('trust_remote_code') == "True"
         
         # Quantization doesn't work on CPU
-        if not(os.getenv('force_cpu') == "True"):
+        if torch.backends.mps.is_available():
+            # running on MacOS with Metal available
+            self.tokenizer = AutoTokenizer.from_pretrained(llm_model, trust_remote_code=trust_remote_code)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                llm_model,
+                trust_remote_code=trust_remote_code,
+                torch_dtype=torch.float16,  # Use float16 for better performance
+                device_map="auto"
+            )
+            self.model = self.model.to(torch.device("mps"))
+        elif not(os.getenv('force_cpu') == "True"):
             # Set up the LLM
             use_4bit = True
             bnb_4bit_compute_dtype = "float16"
@@ -80,6 +90,7 @@ class RAGHelper:
                     logger.debug("=" * 80)
             
             self.tokenizer = AutoTokenizer.from_pretrained(llm_model, trust_remote_code=trust_remote_code)
+
             self.model = AutoModelForCausalLM.from_pretrained(
                 llm_model,
                 quantization_config=bnb_config,
@@ -106,7 +117,11 @@ class RAGHelper:
         self.llm = HuggingFacePipeline(pipeline=text_generation_pipeline)
 
         # Set up embedding handling for vector store
-        if os.getenv('force_cpu') == "True":
+        if torch.backends.mps.is_available():
+            model_kwargs = {
+                'device': 'mps'
+            }
+        elif os.getenv('force_cpu') == "True":
             model_kwargs = {
                 'device': 'cpu'
             }
