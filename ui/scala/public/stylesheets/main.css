@@ -185,7 +185,7 @@ $speed: 1.5s;
 }
 
 .documentdiv {
-    max-height: 50vh;
+    max-height: 40vh;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: #888 transparent;

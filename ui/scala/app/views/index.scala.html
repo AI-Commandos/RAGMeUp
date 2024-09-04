@@ -101,10 +101,10 @@
               content += ' ...';
           }
 
-          var doccontentholder = $('<p class="doccontenttext text-muted mb-0" style="font-size: 0.875rem; font-weight: 400; line-height: 1.5;">').html(content);
+          var doccontentholder = $('<p class="doccontenttext text-muted mb-0" style="font-size: 0.875rem; font-weight: 400; line-height: 1.5; padding: 0px 10px 0px 10px;">').html(content);
 
           // Create the document link container
-          var doclink = $('<div class="d-flex align-items-center gap-3 bg-light px-3 py-2 justify-content-between" style="min-height: 72px;">').append(
+          var doclink = $('<div class="d-flex align-items-center gap-3 bg-light px-3 py-2 justify-content-between" style="min-height: 72px; border-radius:20px; margin: 4px !important; box-shadow: 0 1px 1px rgba(0,0,0,0.3);">').append(
               $('<div class="d-flex align-items-center gap-3">').append(
                   $('<div class="d-flex flex-column justify-content-center">').append(
                       $('<p class="text-dark mb-1" style="font-size: 1rem; font-weight: 500; line-height: 1.5;">').html(linktext)
