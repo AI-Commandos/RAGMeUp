@@ -32,8 +32,7 @@ ragas_use_n_documents = int(os.getenv("vector_store_k"))
 if os.getenv("rerank"):
     ragas_use_n_documents = int(os.getenv("rerank_k"))
 end_string = os.getenv("llm_assistant_token")
-ragas_sample_size = int(os.getenv("ragas_sample_size = int(os.getenv("llm_assistant_token"))
-"))
+ragas_sample_size = int(os.getenv("ragas_sample_size"))
 ragas_qa_pairs = int(os.getenv("ragas_qa_pairs"))
 
 # Set up the documents and get a sample
