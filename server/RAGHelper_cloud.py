@@ -413,6 +413,10 @@ class RAGHelperCloud:
                     ))
                 | combine_results
             )
+        
+        # Check if we need to apply Re2 to mention the question twice
+        if os.getenv("use_re2") == "True":
+            user_query = f"{user_query}\n{os.getenv("re2_prompt")}{user_query}"
 
         # Invoke RAG pipeline
         reply = rag_chain.invoke(user_query)
