@@ -4,16 +4,14 @@ import javax.inject._
 import play.api._
 import play.api.http.HttpEntity
 
-import java.nio.file.{FileSystems, Files, Paths}
+import java.nio.file.Paths
 import play.api.libs.json._
 import play.api.mvc._
 import play.api.libs.ws._
 
-import scala.concurrent.duration.{Duration, DurationInt}
-import scala.concurrent.{ExecutionContext, Future}
-import scala.jdk.CollectionConverters._
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
-import scala.util.Try
 
 @Singleton
 class HomeController @Inject()(
