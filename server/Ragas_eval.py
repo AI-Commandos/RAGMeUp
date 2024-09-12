@@ -11,6 +11,7 @@ from RAGHelper import formatDocuments
 from datasets import Dataset
 
 from langchain.prompts import PromptTemplate
+from langchain.prompts import ChatPromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
 
 from ragas import evaluate
@@ -23,8 +24,10 @@ os.environ["use_rewrite_loop"] = "False"
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+use_cloud = False
 if os.getenv("use_openai") == "True" or os.getenv("use_gemini") == "True" or os.getenv("use_azure") == "True":
     raghelper = RAGHelperCloud(logger)
+    use_cloud = True
 else:
     raghelper = RAGHelper(logger)
 
@@ -40,27 +43,43 @@ documents = raghelper.chunked_documents
 document_sample = sample(documents, ragas_sample_size)
 
 # Prepare template for generating questions
-thread = [
-    {'role': 'system', 'content': os.getenv("ragas_question_instruction")},
-    {'role': 'user', 'content': os.getenv("ragas_question_query")}
-]
-prompt_template = raghelper.tokenizer.apply_chat_template(thread, tokenize=False)
-prompt = PromptTemplate(
-    input_variables=["context"],
-    template=prompt_template,
-)
+if use_cloud:
+    thread = [
+        ('system', os.getenv('ragas_question_instruction')),
+        ('human', os.getenv('ragas_question_query'))
+    ]
+    prompt = ChatPromptTemplate.from_messages(thread)
+else:
+    thread = [
+        {'role': 'system', 'content': os.getenv("ragas_question_instruction")},
+        {'role': 'user', 'content': os.getenv("ragas_question_query")}
+    ]
+    prompt_template = raghelper.tokenizer.apply_chat_template(thread, tokenize=False)
+    prompt = PromptTemplate(
+        input_variables=["context"],
+        template=prompt_template,
+    )
+
 rag_question = prompt | raghelper.llm
 
 # Prepare template for generating answers with our questions
-thread = [
-    {'role': 'system', 'content': os.getenv("ragas_answer_instruction")},
-    {'role': 'user', 'content': os.getenv("ragas_answer_query")}
-]
-prompt_template = raghelper.tokenizer.apply_chat_template(thread, tokenize=False)
-prompt = PromptTemplate(
-    input_variables=["context", "question"],
-    template=prompt_template,
-)
+if use_cloud:
+    thread = [
+        ('system', os.getenv('ragas_answer_instruction')),
+        ('human', os.getenv('ragas_answer_query'))
+    ]
+    prompt = ChatPromptTemplate.from_messages(thread)
+else:
+    thread = [
+        {'role': 'system', 'content': os.getenv("ragas_answer_instruction")},
+        {'role': 'user', 'content': os.getenv("ragas_answer_query")}
+    ]
+    prompt_template = raghelper.tokenizer.apply_chat_template(thread, tokenize=False)
+    prompt = PromptTemplate(
+        input_variables=["context", "question"],
+        template=prompt_template,
+    )
+
 rag_answer = prompt | raghelper.llm
 
 # Create test set
@@ -71,11 +90,27 @@ for i in range(0, ragas_qa_pairs):
 
     question_chain = ({"context": RunnablePassthrough()} | rag_question)
     response = question_chain.invoke(formatted_docs)
-    question = response[response.rindex(end_string)+len(end_string):]
+    if use_cloud:
+        if hasattr(response, 'content'):
+            question = response.content
+        elif hasattr(response, 'answer'):
+            question = response.answer
+        elif 'answer' in response:
+            question = response["answer"]
+    else:
+        question = response[response.rindex(end_string)+len(end_string):]
 
     answer_chain = ({"context": RunnablePassthrough(), "question": RunnablePassthrough()} | rag_answer)
     response = answer_chain.invoke({"context": formatted_docs, "question": question})
-    answer = response[response.rindex(end_string)+len(end_string):]
+    if use_cloud:
+        if hasattr(response, 'content'):
+            answer = response.content
+        elif hasattr(response, 'answer'):
+            answer = response.answer
+        elif 'answer' in response:
+            answer = response["answer"]
+    else:
+        answer = response[response.rindex(end_string)+len(end_string):]
 
     qa_pairs.append({"question": question, "ground_truth": answer})
 
@@ -84,7 +119,15 @@ new_qa_pairs = []
 for qa_pair in qa_pairs:
     (nh, response) = raghelper.handle_user_interaction(qa_pair['question'], [])
     docs = response['docs']
-    answer = response['text'][response['text'].rindex(end_string)+len(end_string):]
+    if use_cloud:
+        if hasattr(response, 'content'):
+            answer = response.content
+        elif hasattr(response, 'answer'):
+            answer = response.answer
+        elif 'answer' in response:
+            answer = response["answer"]
+    else:
+        answer = response['text'][response['text'].rindex(end_string)+len(end_string):]
 
     result_dict = qa_pair
     result_dict['answer'] = answer
@@ -101,20 +144,5 @@ ragas_data = [{
 
 # Create a Hugging Face Dataset
 dataset = Dataset.from_list(ragas_data)
-dataset.save_to_disk("ragas_dataset")
+dataset.save_to_disk(os.getenv("ragas_dataset"))
 # Evaluate
-results = evaluate(
-    dataset,
-    llm=raghelper.llm,
-    embeddings=raghelper.embeddings,
-    metrics=[
-        context_precision,
-        faithfulness,
-        answer_relevancy,
-        context_recall,
-    ],
-    run_config=RunConfig(max_workers=1)
-)
-
-print("Evaluation Results:")
-print(results)
