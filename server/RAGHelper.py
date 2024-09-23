@@ -220,14 +220,13 @@ class RAGHelper:
             )
 
             # And a sparse vector store with BM25 in Postgres too
-            self.sparse_retriever = PostgresBM25Retriever(connection_uri=vector_store_sparse_uri, table_name="sparse_vectors")
+            self.sparse_retriever = PostgresBM25Retriever(connection_uri=vector_store_sparse_uri, table_name="sparse_vectors", k=int(os.getenv("vector_store_k")))
 
             if os.getenv("vector_store_initial_load") == "True":
-                print(f"Adding documents! {len(self.chunked_documents)}")
                 # Add the documents 1 by 1 so we can track progress
                 with tqdm(total=len(self.chunked_documents), desc="Vectorizing documents") as pbar:
                     for d in self.chunked_documents:
-                        #self.db.add_documents([d], ids=[d.metadata["id"]])
+                        self.db.add_documents([d], ids=[d.metadata["id"]])
                         self.sparse_retriever.add_documents([d], ids=[d.metadata["id"]])
                         pbar.update(1)
         else:
