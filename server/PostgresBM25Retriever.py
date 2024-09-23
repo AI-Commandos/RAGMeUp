@@ -7,6 +7,7 @@ from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from typing import List
 import re
 import json
+import os
 
 class PostgresBM25Retriever(BaseRetriever):
     connection_uri: str
@@ -83,6 +84,11 @@ class PostgresBM25Retriever(BaseRetriever):
     def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun) -> List[Document]:
         # Perform BM25 search using pg_search
         query = re.sub(r'[\(\)]', '', query)
+        if os.getenv("use_re2") == "True":
+            os.getenv("re2_prompt")
+            index = query.find(f"\n{os.getenv('re2_prompt')}")
+            query = query[:index]
+        
         search_command = f"""
             WITH scores AS (
                 SELECT * FROM idx_{self.table_name}_bm25.score_bm25(
