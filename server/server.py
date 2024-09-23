@@ -3,7 +3,7 @@ import logging
 from dotenv import load_dotenv
 import os
 from RAGHelper_cloud import RAGHelperCloud
-from RAGHelper import RAGHelper
+from RAGHelper_local import RAGHelperLocal
 from pymilvus import Collection, connections
 
 load_dotenv()
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 if os.getenv("use_openai") == "True" or os.getenv("use_gemini") == "True" or os.getenv("use_azure") == "True" or os.getenv("use_ollama") == "True":
     raghelper = RAGHelperCloud(logger)
 else:
-    raghelper = RAGHelper(logger)
+    raghelper = RAGHelperLocal(logger)
 
 @app.route("/add_document", methods=['POST'])
 def add_document():
@@ -41,7 +41,7 @@ def chat():
         docs = response['docs']
 
     # Break up the response for OS LLMs
-    if isinstance(raghelper, RAGHelper):
+    if isinstance(raghelper, RAGHelperLocal):
         end_string = os.getenv("llm_assistant_token")
         reply = response['text'][response['text'].rindex(end_string)+len(end_string):]
 
@@ -105,7 +105,7 @@ def delete_document():
     file_path = os.path.join(data_dir, filename)
 
     # Remove from Milvus
-    connections.connect(uri=os.getenv('vector_store_path'))
+    connections.connect(uri=os.getenv('vector_store_uri'))
     collection = Collection("LangChainCollection")
     collection.load()
     result = collection.delete(f'source == "{file_path}"')
@@ -120,4 +120,4 @@ def delete_document():
     return jsonify({"count": result.delete_count})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=19653)
+    app.run(host="0.0.0.0")

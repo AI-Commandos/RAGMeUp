@@ -3,26 +3,13 @@ import torch
 from tqdm import tqdm
 import hashlib
 
-from provenance import (compute_attention, compute_rerank_provenance, compute_llm_provenance, DocumentSimilarityAttribution)
 from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
-
-from transformers import BitsAndBytesConfig
-from transformers import (
-  AutoTokenizer, 
-  AutoModelForCausalLM, 
-  BitsAndBytesConfig,
-  pipeline,
-)
+from PostgresBM25Retriever import PostgresBM25Retriever
 
 from langchain_core.documents.base import Document
-from langchain.chains.llm import LLMChain
 from langchain.retrievers import EnsembleRetriever
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_experimental.text_splitter import SemanticChunker
-from langchain_huggingface.embeddings import HuggingFaceEmbeddings
-from langchain_huggingface.llms import HuggingFacePipeline
-from langchain.prompts import PromptTemplate
-from langchain.schema.runnable import RunnablePassthrough
 from langchain_milvus.vectorstores import Milvus
 from langchain_postgres.vectorstores import PGVector
 from langchain_community.retrievers import BM25Retriever
@@ -55,9 +42,12 @@ def formatDocuments(docs):
 class RAGHelper:
     # Loads the data and chunks it into an ensemble retriever
     def loadData(self):
-        sparse_db_path = f"{os.getenv('vector_store_sparse')}"
-        if os.path.exists(sparse_db_path):
-            with open(sparse_db_path, 'rb') as f:
+        vector_store_sparse_uri = f"{os.getenv('vector_store_sparse_uri')}"
+        vector_store_uri = f"{os.getenv('vector_store_uri')}"
+        document_chunks_pickle = f"{os.getenv('document_chunks_pickle')}"
+
+        if os.path.exists(document_chunks_pickle):
+            with open(document_chunks_pickle, 'rb') as f:
                 self.chunked_documents = pickle.load(f)
         else:
             # Load PDF files if need be
@@ -81,6 +71,8 @@ class RAGHelper:
                     glob="*.json",
                     loader_cls=JSONLoader,
                     loader_kwargs=loader_kwargs,
+                    recursive=True,
+                    show_progress=True,
                 )
                 docs = docs + loader.load()
             # Load CSV
@@ -89,6 +81,8 @@ class RAGHelper:
                     path=data_dir,
                     glob="*.csv",
                     loader_cls=CSVLoader,
+                    recursive=True,
+                    show_progress=True,
                 )
                 docs = docs + loader.load()
             # Load MS Word
@@ -97,6 +91,8 @@ class RAGHelper:
                     path=data_dir,
                     glob="*.docx",
                     loader_cls=Docx2txtLoader,
+                    recursive=True,
+                    show_progress=True,
                 )
                 docs = docs + loader.load()
             # Load MS Excel
@@ -105,6 +101,8 @@ class RAGHelper:
                     path=data_dir,
                     glob="*.xlsx",
                     loader_cls=UnstructuredExcelLoader,
+                    recursive=True,
+                    show_progress=True,
                 )
                 docs = docs + loader.load()
             # Load MS PPT
@@ -113,6 +111,8 @@ class RAGHelper:
                     path=data_dir,
                     glob="*.pptx",
                     loader_cls=UnstructuredPowerPointLoader,
+                    recursive=True,
+                    show_progress=True,
                 )
                 docs = docs + loader.load()
             # Load XML, which is nasty
@@ -121,6 +121,8 @@ class RAGHelper:
                     path=data_dir,
                     glob="*.xml",
                     loader_cls=TextLoader,
+                    recursive=True,
+                    show_progress=True,
                 )
                 xmldocs = loader.load()
                 newdocs = []
@@ -177,11 +179,10 @@ class RAGHelper:
                         for doc in self.text_splitter.split_documents(docs)
             ]
 
-            # Store these too, for our sparse DB
-            with open(sparse_db_path, 'wb') as f:
+            # Store the chunks
+            with open(document_chunks_pickle, 'wb') as f:
                 pickle.dump(self.chunked_documents, f)
 
-        vector_store_uri = os.getenv('vector_store_uri')
         if os.getenv("vector_store") == "milvus":
             if os.getenv("vector_store_initial_load") == "True":
                 self.db = Milvus.from_documents(
@@ -189,6 +190,12 @@ class RAGHelper:
                     connection_args={"uri": vector_store_uri},
                     collection_name=os.getenv("vector_store_collection"),
                 )
+
+                # Add the documents 1 by 1 so we can track progress
+                with tqdm(total=len(self.chunked_documents), desc="Vectorizing documents") as pbar:
+                    for d in self.chunked_documents:
+                        self.db.add_documents([d], ids=[d.metadata["id"]])
+                        pbar.update(1)
             else:
                 # Load chunked documents into the Milvus index
                 self.db = Milvus.from_documents(
@@ -197,27 +204,34 @@ class RAGHelper:
                     connection_args={"uri": vector_store_uri},
                     collection_name=os.getenv("vector_store_collection"),
                 )
+            
+            # When we use Milvus, we have an in-memory BM25 retriever
+            self.sparse_retriever = BM25Retriever.from_texts(
+                [x.page_content for x in self.chunked_documents],
+                metadatas=[x.metadata for x in self.chunked_documents]
+            )
         elif os.getenv("vector_store") == "postgres":
+            # With postgres we have a dense vector store
             self.db = PGVector(
                 embeddings=self.embeddings,
                 collection_name=os.getenv("vector_store_collection"),
                 connection=vector_store_uri,
                 use_jsonb=True,
             )
+
+            # And a sparse vector store with BM25 in Postgres too
+            self.sparse_retriever = PostgresBM25Retriever(connection_uri=vector_store_sparse_uri, table_name="sparse_vectors")
+
+            if os.getenv("vector_store_initial_load") == "True":
+                print(f"Adding documents! {len(self.chunked_documents)}")
+                # Add the documents 1 by 1 so we can track progress
+                with tqdm(total=len(self.chunked_documents), desc="Vectorizing documents") as pbar:
+                    for d in self.chunked_documents:
+                        #self.db.add_documents([d], ids=[d.metadata["id"]])
+                        self.sparse_retriever.add_documents([d], ids=[d.metadata["id"]])
+                        pbar.update(1)
         else:
             raise Exception("Only milvus or postgres are supported as vector stores! Please set vector_store in your .env file.")
-
-        # Add the documents 1 by 1 so we can track progress
-        with tqdm(total=len(self.chunked_documents), desc="Vectorizing documents") as pbar:
-            for d in self.chunked_documents:
-                self.db.add_documents([d], ids=[d.metadata["id"]])
-                pbar.update(1)
-
-        # Now the BM25 retriever
-        bm25_retriever = BM25Retriever.from_texts(
-            [x.page_content for x in self.chunked_documents],
-            metadatas=[x.metadata for x in self.chunked_documents]
-        )
 
         # Set up the vector retriever
         retriever=self.db.as_retriever(
@@ -226,7 +240,7 @@ class RAGHelper:
 
         # Now combine them to do hybrid retrieval
         self.ensemble_retriever = EnsembleRetriever(
-            retrievers=[bm25_retriever, retriever], weights=[0.5, 0.5]
+            retrievers=[self.sparse_retriever, retriever], weights=[0.5, 0.5]
         )
         # Set up the reranker
         self.rerank_retriever = None
@@ -239,6 +253,110 @@ class RAGHelper:
                     top_n=int(os.getenv("rerank_k"))
                 )
             
+            self.rerank_retriever = ContextualCompressionRetriever(
+                base_compressor=self.compressor, base_retriever=self.ensemble_retriever
+            )
+
+    def addDocument(self, filename):
+        if filename.lower().endswith('pdf'):
+            docs = PyPDFLoader(filename).load()
+        if filename.lower().endswith('json'):
+            docs = JSONLoader(
+                file_path = filename,
+                jq_schema = os.getenv("json_schema"),
+                text_content = os.getenv("json_text_content") == "True",
+            ).load()
+        if filename.lower().endswith('csv'):
+            docs = CSVLoader(filename).load()
+        if filename.lower().endswith('docx'):
+            docs = Docx2txtLoader(filename).load()
+        if filename.lower().endswith('xlsx'):
+            docs = UnstructuredExcelLoader(filename).load()
+        if filename.lower().endswith('pptx'):
+            docs = UnstructuredPowerPointLoader(filename).load()
+
+        # Skills and personality are global and don't work on chunks, so do them first
+        new_docs = []
+        for doc in docs:
+            # Get the skills by using the LLM and attach to the doc
+            skills = self.parseCV(doc)
+            doc.metadata['skills'] = skills
+            # Also get the personality
+            doc.metadata['personality'] = self.personality_predictor.predict(doc)
+            new_docs.append(doc)
+
+        if os.getenv('splitter') == 'RecursiveCharacterTextSplitter':
+            self.text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=int(os.getenv('chunk_size')),
+                chunk_overlap=int(os.getenv('chunk_overlap')),
+                length_function=len,
+                keep_separator=True,
+                separators=[
+                    "\n \n",
+                    "\n\n",
+                    "\n",
+                    ".",
+                    "!",
+                    "?",
+                    " ",
+                    ",",
+                    "\u200b",  # Zero-width space
+                    "\uff0c",  # Fullwidth comma
+                    "\u3001",  # Ideographic comma
+                    "\uff0e",  # Fullwidth full stop
+                    "\u3002",  # Ideographic full stop
+                    "",
+                ],
+            )
+        elif os.getenv('splitter') == 'SemanticChunker':
+            breakpoint_threshold_amount=None
+            number_of_chunks=None
+            if os.getenv('breakpoint_threshold_amount') != 'None':
+                breakpoint_threshold_amount=float(os.getenv('breakpoint_threshold_amount'))
+            if os.getenv('number_of_chunks') != 'None':
+                number_of_chunks=int(os.getenv('number_of_chunks'))
+            self.text_splitter = SemanticChunker(
+                self.embeddings,
+                breakpoint_threshold_type=os.getenv('breakpoint_threshold_type'),
+                breakpoint_threshold_amount=breakpoint_threshold_amount,
+                number_of_chunks=number_of_chunks
+            )
+
+        new_chunks = self.text_splitter.split_documents(new_docs)
+
+        self.chunked_documents = self.chunked_documents + new_chunks
+        # Store these too, for our sparse DB
+        with open(f"{os.getenv('vector_store_uri')}_sparse.pickle", 'wb') as f:
+            pickle.dump(self.chunked_documents, f)
+
+        # Add to vector DB
+        self.db.add_documents(new_chunks)
+
+        # For postgres, add to sparse db too
+        if os.getenv("vector_store") == "postgres":
+            self.sparse_retriever.add_documents(new_chunks)
+        else:
+            # Recreate the in-memory store
+            self.sparse_retriever = BM25Retriever.from_texts(
+                [x.page_content for x in self.chunked_documents],
+                metadatas=[x.metadata for x in self.chunked_documents]
+            )
+
+            # Update full retriever too
+            retriever = self.db.as_retriever(search_type="mmr", search_kwargs = {'k': int(os.getenv('vector_store_k'))})
+            self.ensemble_retriever = EnsembleRetriever(
+                retrievers=[self.sparse_retriever, retriever], weights=[0.5, 0.5]
+            )
+
+        if os.getenv("rerank") == "True":
+            if os.getenv("rerank_model") == "flashrank":
+                self.compressor = FlashrankRerank(top_n=int(os.getenv("rerank_k")))
+            else:
+                self.compressor = ScoredCrossEncoderReranker(
+                    model=HuggingFaceCrossEncoder(model_name=os.getenv("rerank_model")),
+                    top_n=int(os.getenv("rerank_k"))
+                )
+
             self.rerank_retriever = ContextualCompressionRetriever(
                 base_compressor=self.compressor, base_retriever=self.ensemble_retriever
             )
