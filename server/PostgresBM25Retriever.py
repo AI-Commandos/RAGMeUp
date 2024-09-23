@@ -5,7 +5,7 @@ from langchain_core.documents import Document
 import uuid
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from typing import List
-import nltk
+import re
 import json
 
 class PostgresBM25Retriever(BaseRetriever):
@@ -81,13 +81,12 @@ class PostgresBM25Retriever(BaseRetriever):
         return ids
 
     def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun) -> List[Document]:
-        query_tokens = nltk.word_tokenize(query)
-        search_terms = " OR ".join([f"content:{word}" for word in query_tokens])
         # Perform BM25 search using pg_search
+        query = re.sub(r'[\(\)]', '', query)
         search_command = f"""
             WITH scores AS (
                 SELECT * FROM idx_{self.table_name}_bm25.score_bm25(
-                '{search_terms}',
+                'content:({query})',
                 limit_rows => {self.k}
                 )
             )
