@@ -12,6 +12,8 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 # Instantiate the RAG Helper class
 if os.getenv("use_openai") == "True" or os.getenv("use_gemini") == "True" or os.getenv("use_azure") == "True" or os.getenv("use_ollama") == "True":
     raghelper = RAGHelperCloud(logger)
