@@ -162,7 +162,7 @@ class RAGHelperLocal(RAGHelper):
             )
             rewrite_ask_llm_chain = LLMChain(llm=self.llm, prompt=rewrite_ask_prompt)
             context_retriever = self.ensemble_retriever
-            if os.getenv("rerank"):
+            if os.getenv("rerank") == "True":
                 context_retriever = self.rerank_retriever
             self.rewrite_ask_chain = (
                 {"context": context_retriever | formatDocuments, "question": RunnablePassthrough()} |
@@ -255,7 +255,7 @@ class RAGHelperLocal(RAGHelper):
             # Rewrite the question if needed
             user_query = self.handle_rewrite(user_query)
             context_retriever = self.ensemble_retriever
-            if os.getenv("rerank"):
+            if os.getenv("rerank") == "True":
                 context_retriever = self.rerank_retriever
             rag_chain = (
                 {"docs": context_retriever, "context": context_retriever | formatDocuments, "question": RunnablePassthrough()} |
