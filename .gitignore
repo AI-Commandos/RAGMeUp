@@ -161,3 +161,6 @@ cython_debug/
 ui/scala/.bsp/
 ui/scala/.idea/
 ui/react-ui/backend/node_modules/
+
+server/*data.db*
+server/*.pickle

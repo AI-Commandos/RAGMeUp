@@ -6,7 +6,17 @@ from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper_local import RAGHelperLocal
 from pymilvus import Collection, connections
 
-load_dotenv()
+
+def load_bashrc():
+    bashrc_path = os.path.expanduser("~/.bashrc")
+    if os.path.exists(bashrc_path):
+        with open(bashrc_path) as f:
+            for line in f:
+                if line.startswith("export "):
+                    key, value = line.strip().replace("export ", "").split("=", 1)
+                    value = value.strip(' "\'')
+                    os.environ[key] = value
+
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -14,10 +24,15 @@ logger = logging.getLogger(__name__)
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
+load_bashrc()
+load_dotenv()
+
 # Instantiate the RAG Helper class
 if os.getenv("use_openai") == "True" or os.getenv("use_gemini") == "True" or os.getenv("use_azure") == "True" or os.getenv("use_ollama") == "True":
+    logger.info("instantiating the cloud rag helper")
     raghelper = RAGHelperCloud(logger)
 else:
+    logger.info("instantiating the local rag helper")
     raghelper = RAGHelperLocal(logger)
 
 @app.route("/add_document", methods=['POST'])
