@@ -242,7 +242,7 @@ class RAGHelper:
         )
         # Set up the reranker
         self.rerank_retriever = None
-        if os.getenv("rerank"):
+        if os.getenv("rerank") == "True":
             if os.getenv("rerank_model") == "flashrank":
                 self.compressor = FlashrankRerank(top_n=int(os.getenv("rerank_k")))
             else:
