@@ -1,38 +1,37 @@
-# Start from the ParadeDB image
+# Use the base image from ParadeDB which includes pg_search
 FROM paradedb/paradedb:latest
 
-# Install build dependencies
-USER root
-RUN apt-get update && \
-    apt-mark hold locales && \
-    apt-get install -y --no-install-recommends \
-        build-essential \
-        postgresql-server-dev-16 \
-        git
+# Set Postgres version (assuming PG_MAJOR is 16 as in your pgvector Dockerfile)
+ARG PG_MAJOR=16
 
-# Clone pgvector
+# Fix permissions for /var/lib/apt/lists
+USER root
+RUN mkdir -p /var/lib/apt/lists/partial && chmod -R 777 /var/lib/apt/lists/partial
+
+# Install git to clone pgvector
+RUN apt-get update && apt-get install -y git
+
+# Clone pgvector source code
 RUN git clone https://github.com/pgvector/pgvector.git /tmp/pgvector
 
-# Build and install pgvector
-RUN cd /tmp/pgvector && \
+# Install dependencies, compile and install pgvector, clean up
+RUN apt-get update && \
+    apt-mark hold locales && \
+    apt-get install -y --no-install-recommends build-essential postgresql-server-dev-$PG_MAJOR && \
+    cd /tmp/pgvector && \
     make clean && \
     make OPTFLAGS="" && \
     make install && \
     mkdir /usr/share/doc/pgvector && \
-    cp LICENSE README.md /usr/share/doc/pgvector
-
-# Clean up
-RUN rm -r /tmp/pgvector && \
-    apt-get remove -y build-essential postgresql-server-dev-16 git && \
+    cp LICENSE README.md /usr/share/doc/pgvector && \
+    rm -r /tmp/pgvector && \
+    apt-get remove -y build-essential postgresql-server-dev-$PG_MAJOR && \
     apt-get autoremove -y && \
     apt-mark unhold locales && \
     rm -rf /var/lib/apt/lists/*
 
-# Switch back to postgres user
-USER postgres
+# Clean up
+RUN apt-get remove -y git && apt-get autoremove -y
 
-# Add pgvector to shared_preload_libraries
-RUN echo "shared_preload_libraries = 'pg_search,vector'" >> /usr/share/postgresql/postgresql.conf.sample
-
-# Use the default CMD from ParadeDB
-CMD ["postgres"]
+# Expose Postgres default port
+EXPOSE 5432
