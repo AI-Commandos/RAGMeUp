@@ -26,6 +26,16 @@ Then run the server using `python server.py` from the server subfolder.
 ## Scala UI
 Make sure you have JDK 17+. Download and install [SBT](https://www.scala-sbt.org/) and run `sbt run` from the `server/scala` directory or alternatively download the [compiled binary](https://github.com/UnderstandLingBV/RAGMeUp/releases/tag/scala-ui) and run `bin/ragemup(.bat)`
 
+## Using Postgres (adviced for production)
+RAG Me Up supports Postgres as hybrid retrieval database with both pgvector and pg_search installed. To run Postgres instead of Milvus, follow these steps.
+
+- In the postgres folder is a Dockerfile, build it using `docker build -t ragmeup-pgvector-pgsearch .`
+- Run the container using `docker run --name ragmeup-pgvector-pgsearch -e POSTGRES_USER=langchain -e POSTGRES_PASSWORD=langchain -e POSTGRES_DB=langchain -p 6024:5432 -d ragmeup-pgvector-pgsearch`
+- Once in use, our custom PostgresBM25Retriever will automatically create the right indexes for you.
+- pgvector however, will not do this automatically so you have to create them yourself (perhaps after loading the documents first so the right tables are created):
+    - Make sure the vector column is an actual vector (it's not by default): `ALTER TABLE langchain_pg_embedding ALTER COLUMN embedding TYPE vector(384);`
+    - Create the index (may take a while with a lot of data): `CREATE INDEX ON langchain_pg_embedding USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);`
+
 # How does RAG Me Up work?
 RAG Me Up aims to provide a robust RAG pipeline that is configurable without necessarily writing any code. To achieve this, a couple of strategies are used to make sure that the user query can be accurately answered through the documents provided.
 
@@ -114,7 +124,7 @@ The LLM that is used to generate messages is now also used to attribute the prov
 - `xml_xpath` If you are loading XML, this should be the XPath of the documents to load (the tags that contain your text)
 
 ## Retrieval configuration
-- `vector_store_path` RAG Me Up caches your vector store on disk if possible to make loading a next time faster. This is the location where the vector store is stored. Remove this file to force a reload of all your documents
+- `vector_store_uri` RAG Me Up caches your vector store on disk if possible to make loading a next time faster. This is the location where the vector store is stored. Remove this file to force a reload of all your documents
 - `vector_store_k` The number of documents to retrieve from the vector store
 - `rerank` Set to either True or False to enable reranking
 - `rerank_k` The number of documents to keep after reranking. Note that if you use reranking, this should be your final target for `k` and `vector_store_k` should be set (significantly) higher. For example, set `vector_store_k` to 10 and `rerank_k` to 3
