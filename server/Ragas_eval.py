@@ -32,7 +32,7 @@ else:
     raghelper = RAGHelper(logger)
 
 ragas_use_n_documents = int(os.getenv("vector_store_k"))
-if os.getenv("rerank"):
+if os.getenv("rerank") == "True":
     ragas_use_n_documents = int(os.getenv("rerank_k"))
 end_string = os.getenv("llm_assistant_token")
 ragas_sample_size = int(os.getenv("ragas_sample_size"))
