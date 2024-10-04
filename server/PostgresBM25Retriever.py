@@ -83,7 +83,7 @@ class PostgresBM25Retriever(BaseRetriever):
 
     def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun) -> List[Document]:
         # Perform BM25 search using pg_search
-        query = re.sub(r'[\(\)]', '', query)
+        query = re.sub(r'[\(\):]', '', query)
         if os.getenv("use_re2") == "True":
             os.getenv("re2_prompt")
             index = query.find(f"\n{os.getenv('re2_prompt')}")
