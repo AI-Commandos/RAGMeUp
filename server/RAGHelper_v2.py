@@ -155,6 +155,15 @@ class RAGHelper:
                     docs += loader.load()
                 elif file_type == "json":
                     docs += self._load_json_files()
+                elif file_type == "txt":
+                    loader = DirectoryLoader(
+                        path=self.data_dir,
+                        glob="*.txt",
+                        loader_cls=TextLoader,
+                        recursive=True,
+                        show_progress=True,
+                    )
+                    docs += loader.load()
                 elif file_type == "csv":
                     loader = DirectoryLoader(
                         path=self.data_dir,
@@ -211,6 +220,7 @@ class RAGHelper:
         loaders = {
             'pdf': PyPDFLoader,
             'json': self._load_json_document,
+            'txt': TextLoader,
             'csv': CSVLoader,
             'docx': Docx2txtLoader,
             'xlsx': UnstructuredExcelLoader,

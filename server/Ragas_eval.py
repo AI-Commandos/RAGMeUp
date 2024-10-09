@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import os
 from random import sample
 
-from RAGHelper_cloud_v2 import RAGHelperCloud
+from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper import RAGHelper
 from RAGHelper import formatDocuments
 
