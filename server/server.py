@@ -110,7 +110,7 @@ def chat():
             's': doc.metadata['source'],
             'c': doc.page_content,
             **({'pk': doc.metadata['pk']} if 'pk' in doc.metadata else {}),
-            **({'provenance': float(doc.metadata['provenance'])} if 'provenance' in doc.metadata else {})
+            **({'provenance': float(doc.metadata['provenance'])} if 'provenance' in doc.metadata and doc.metadata['provenance'] is not None else {})
         } for doc in docs if 'source' in doc.metadata]
     else:
         new_docs = docs
