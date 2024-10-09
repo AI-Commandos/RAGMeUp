@@ -74,6 +74,16 @@ class RAGHelper:
                     show_progress=True,
                 )
                 docs = docs + loader.load()
+            # Load TXT
+            if "txt" in file_types:
+                loader = DirectoryLoader(
+                    path=data_dir,
+                    glob="*.txt",
+                    loader_cls=TextLoader,
+                    recursive=True,
+                    show_progress=True,
+                )
+                docs = docs + loader.load()
             # Load CSV
             if "csv" in file_types:
                 loader = DirectoryLoader(
@@ -193,7 +203,7 @@ class RAGHelper:
                 # Add the documents 1 by 1 so we can track progress
                 with tqdm(total=len(self.chunked_documents), desc="Vectorizing documents") as pbar:
                     for d in self.chunked_documents:
-                        self.db.add_documents([d], ids=[d.metadata["id"]])
+                        self.db.add_documents([d])
                         pbar.update(1)
             else:
                 # Load chunked documents into the Milvus index
@@ -264,6 +274,8 @@ class RAGHelper:
                 jq_schema = os.getenv("json_schema"),
                 text_content = os.getenv("json_text_content") == "True",
             ).load()
+        if filename.lower().endswith('txt'):
+            docs = TextLoader(filename).load()
         if filename.lower().endswith('csv'):
             docs = CSVLoader(filename).load()
         if filename.lower().endswith('docx'):
