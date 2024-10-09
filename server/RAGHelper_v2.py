@@ -272,6 +272,22 @@ class RAGHelper:
         elif self.splitter_type == 'SemanticChunker':
             self.text_splitter = self._create_semantic_chunker()
 
+    def _split_documents(self, docs):
+        """
+        Splits documents into chunks.
+
+        Args:
+            docs (list): A list of loaded Document objects.
+        """
+        self._initialize_text_splitter()
+        self.logger.info("Chunking document(s).")
+        chunked_documents = [
+            Document(page_content=doc.page_content,
+                     metadata={**doc.metadata, 'id': hashlib.md5(doc.page_content.encode()).hexdigest()})
+            for doc in self.text_splitter.split_documents(docs)
+        ]
+        return chunked_documents
+
     def _split_and_store_documents(self, docs):
         """
         Splits documents into chunks and stores them as a pickle file.
@@ -279,14 +295,7 @@ class RAGHelper:
         Args:
             docs (list): A list of loaded Document objects.
         """
-        self._initialize_text_splitter()
-        self.logger.info("Chunking document(s).")
-        self.chunked_documents = [
-            Document(page_content=doc.page_content,
-                     metadata={**doc.metadata, 'id': hashlib.md5(doc.page_content.encode()).hexdigest()})
-            for doc in self.text_splitter.split_documents(docs)
-        ]
-
+        self.chunked_documents = self._split_documents(docs)
         # Store the chunked documents
         self.logger.info("Storing chunked document(s).")
         with open(self.document_chunks_pickle, 'wb') as f:
@@ -473,11 +482,10 @@ class RAGHelper:
         Raises:
             ValueError: If the file type is unsupported.
         """
-        docs = self._load_document(filename)
-        new_docs = self._process_documents(docs)
+        new_docs = self._load_document(filename)
+        self.logger.info("chunking the documents.")
+        new_chunks = self._split_documents(new_docs)
 
-        self._initialize_text_splitter()
-        new_chunks = self.text_splitter.split_documents(new_docs)
         self._update_chunked_documents(new_chunks)
 
         # Add new chunks to the vector database
