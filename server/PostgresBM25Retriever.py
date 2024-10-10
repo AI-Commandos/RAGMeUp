@@ -39,7 +39,7 @@ class PostgresBM25Retriever(BaseRetriever):
         self.cur.execute(f"""
                 DO $$
                 BEGIN
-                    IF NOT EXISTS (
+                    IF EXISTS (
                         SELECT 1
                         FROM information_schema.tables
                         WHERE table_schema = 'public'
