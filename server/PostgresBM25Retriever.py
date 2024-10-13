@@ -39,14 +39,19 @@ class PostgresBM25Retriever(BaseRetriever):
         self.cur.execute(f"""
                 DO $$
                 BEGIN
-                    IF NOT EXISTS (
+                    IF EXISTS (
                         SELECT 1
                         FROM information_schema.tables
                         WHERE table_schema = 'public'
                         AND table_name = '{self.table_name}'
+                    ) AND NOT EXISTS (
+                        SELECT 1
+                        FROM pg_indexes
+                        WHERE table_schema = 'public'
+                        AND table_name = 'idx_{self.table_name}_bm25_index'
                     ) THEN
                         CALL paradedb.create_bm25(
-                                index_name => 'idx_{self.table_name}_bm25',
+                                index_name => 'idx_{self.table_name}',
                                 table_name => '{self.table_name}',
                                 key_field => 'id',
                                 text_fields => paradedb.field('content') || paradedb.field('metadata')

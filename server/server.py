@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, send_file
 import logging
 from dotenv import load_dotenv
 import os
-from RAGHelper_cloud_v2 import RAGHelperCloud
+from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper_local import RAGHelperLocal
 from pymilvus import Collection, connections
 
