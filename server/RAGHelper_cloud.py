@@ -1,209 +1,163 @@
 import os
+import re
 
-from provenance import (compute_llm_provenance_cloud, compute_rerank_provenance, DocumentSimilarityAttribution)
-from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
-from RAGHelper import RAGHelper
-from RAGHelper import formatDocuments
-
-from langchain.retrievers import EnsembleRetriever
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_experimental.text_splitter import SemanticChunker
-from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain.prompts import ChatPromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
-from langchain_community.retrievers import BM25Retriever
-from langchain.retrievers import ContextualCompressionRetriever
-from langchain.retrievers.document_compressors import FlashrankRerank
 from langchain_core.output_parsers import StrOutputParser
-from langchain_community.cross_encoders import HuggingFaceCrossEncoder
-
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.document_loaders import JSONLoader
-from langchain_community.document_loaders import Docx2txtLoader
-from langchain_community.document_loaders import UnstructuredExcelLoader
-from langchain_community.document_loaders import UnstructuredPowerPointLoader
-from langchain_community.document_loaders.csv_loader import CSVLoader
-
-from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import AzureChatOpenAI
+from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_ollama.llms import OllamaLLM
+from langchain_openai import AzureChatOpenAI, ChatOpenAI
+from provenance import (DocumentSimilarityAttribution,
+                        compute_llm_provenance_cloud,
+                        compute_rerank_provenance)
+from RAGHelper import RAGHelper
 
-import re
-import pickle
 
-def combine_results(inputs):
-    if "context" in inputs.keys() and "docs" in inputs.keys():
-        return {
-            "answer": inputs["answer"],
-            "docs": inputs["docs"],
-            "context": inputs["context"],
-            "question": inputs["question"]
-        }
-    else:
-        return {
-            "answer": inputs["answer"],
-            "question": inputs["question"]
-        }
+def combine_results(inputs: dict) -> dict:
+    """Combine the results of the user query processing.
+
+    Args:
+        inputs (dict): The input results.
+
+    Returns:
+        dict: A dictionary containing the answer, context, and question.
+    """
+    combined = {"answer": inputs["answer"], "question": inputs["question"]}
+    if "context" in inputs and "docs" in inputs:
+        combined.update({"docs": inputs["docs"], "context": inputs["context"]})
+    return combined
+
 
 class RAGHelperCloud(RAGHelper):
     def __init__(self, logger):
-        if os.getenv("use_openai") == "True":
-            self.llm = ChatOpenAI(
-                model=os.getenv("openai_model_name"),
-                temperature=0,
-                max_tokens=None,
-                timeout=None,
-                max_retries=2,
-            )
-        elif os.getenv("use_gemini") == "True":
-            self.llm = ChatGoogleGenerativeAI(model=os.getenv("gemini_model_name"), convert_system_message_to_human=True)
-        elif os.getenv("use_azure") == "True":
-            self.llm = AzureChatOpenAI(
-                openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"],
-                azure_deployment=os.environ["AZURE_OPENAI_CHAT_DEPLOYMENT_NAME"],
-            )
-        elif os.getenv("use_ollama") == "True":
-            self.llm = OllamaLLM(model=os.getenv("ollama_model"))
-
-        # Set up embedding handling for vector store
-        if os.getenv('force_cpu') == "True":
-            model_kwargs = {
-                'device': 'cpu'
-            }
-        else:
-            model_kwargs = {
-                'device': 'cuda'
-            }
-        self.embeddings = HuggingFaceEmbeddings(
-            model_name=os.getenv('embedding_model'),
-            model_kwargs=model_kwargs
-        )
+        """Initialize the RAGHelperCloud instance with required models and configurations."""
+        super().__init__(logger)
+        self.rewrite_chain = None
+        self.rewrite_ask_chain = None
+        self.attributor = None
+        self.rag_fetch_new_chain = None
+        self.logger = logger
+        self.llm = self.initialize_llm()
+        self.embeddings = self.initialize_embeddings()
 
         # Load the data
-        self.loadData()
+        self.load_data()
+        self.initialize_rag_chains()
+        self.initialize_provenance_attribution()
+        self.initialize_rewrite_loops()
 
-        # Create the RAG chain for determining if we need to fetch new documents
+    def initialize_llm(self):
+        """Initialize the Language Model based on environment configurations."""
+        if os.getenv("use_openai") == "True":
+            self.logger.info("Initializing OpenAI conversation.")
+            return ChatOpenAI(model=os.getenv("openai_model_name"), temperature=0, max_tokens=None, timeout=None,
+                              max_retries=2)
+        if os.getenv("use_gemini") == "True":
+            self.logger.info("Initializing Gemini conversation.")
+            return ChatGoogleGenerativeAI(model=os.getenv("gemini_model_name"), convert_system_message_to_human=True)
+        if os.getenv("use_azure") == "True":
+            self.logger.info("Initializing Azure OpenAI conversation.")
+            return AzureChatOpenAI(openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"],
+                                   azure_deployment=os.environ["AZURE_OPENAI_CHAT_DEPLOYMENT_NAME"])
+        if os.getenv("use_ollama") == "True":
+            self.logger.info("Initializing Ollama conversation.")
+            return OllamaLLM(model=os.getenv("ollama_model"))
+
+        self.logger.error("No valid LLM configuration found.")
+        raise ValueError("No valid LLM configuration found.")
+
+    def initialize_embeddings(self):
+        """Initialize the embeddings based on the CPU/GPU configuration."""
+        embedding_model = os.getenv('embedding_model')
+        model_kwargs = {'device': 'cpu'} if os.getenv('force_cpu') == "True" else {'device': 'cuda'}
+        self.logger.info(f"Initializing embedding model {embedding_model} with params {model_kwargs}.")
+        return HuggingFaceEmbeddings(model_name=embedding_model, model_kwargs=model_kwargs)
+
+    def initialize_rag_chains(self):
+        """Create the RAG chain for fetching new documents."""
         rag_thread = [
             ('system', os.getenv('rag_fetch_new_instruction')),
             ('human', os.getenv('rag_fetch_new_question'))
         ]
+        self.logger.info("Initializing RAG chains for fetching new documents.")
         rag_prompt = ChatPromptTemplate.from_messages(rag_thread)
         rag_llm_chain = rag_prompt | self.llm
-        self.rag_fetch_new_chain = (
-            {"question": RunnablePassthrough()} |
-            rag_llm_chain
-        )
+        self.rag_fetch_new_chain = {"question": RunnablePassthrough()} | rag_llm_chain
 
-        # For provenance
+    def initialize_provenance_attribution(self):
+        """Initialize the provenance attribution method based on the environment configuration."""
         if os.getenv("provenance_method") == "similarity":
             self.attributor = DocumentSimilarityAttribution()
 
-        # Also create the rewrite loop LLM chain, if need be
-        self.rewrite_ask_chain = None
-        self.rewrite_chain = None
+    def initialize_rewrite_loops(self):
+        """Create rewrite loop LLM chains if enabled."""
         if os.getenv("use_rewrite_loop") == "True":
-            # First the chain to ask the LLM if a rewrite would be required
-            rewrite_ask_thread = [
-                ('system', os.getenv('rewrite_query_instruction')),
-                ('human', os.getenv('rewrite_query_question'))
-            ]
-            rewrite_ask_prompt = ChatPromptTemplate.from_messages(rewrite_ask_thread)
-            rewrite_ask_llm_chain = rewrite_ask_prompt | self.llm
-            context_retriever = self.ensemble_retriever
-            if os.getenv("rerank") == "True":
-                context_retriever = self.rerank_retriever
-            self.rewrite_ask_chain = (
-                {"context": context_retriever | formatDocuments, "question": RunnablePassthrough()} |
-                rewrite_ask_llm_chain
-            )
+            self.rewrite_ask_chain = self.create_rewrite_ask_chain()
+            self.rewrite_chain = self.create_rewrite_chain()
 
-            # Next the chain to ask the LLM for the actual rewrite(s)
-            rewrite_thread = [
-                ('human', os.getenv('rewrite_query_prompt'))
-            ]
-            rewrite_prompt = ChatPromptTemplate.from_messages(rewrite_thread)
-            rewrite_llm_chain = rewrite_prompt | self.llm
-            self.rewrite_chain = (
-                {"question": RunnablePassthrough()} |
-                rewrite_llm_chain
-            )
+    def create_rewrite_ask_chain(self):
+        """Create the chain to ask if a rewrite is needed."""
+        rewrite_ask_thread = [
+            ('system', os.getenv('rewrite_query_instruction')),
+            ('human', os.getenv('rewrite_query_question'))
+        ]
+        rewrite_ask_prompt = ChatPromptTemplate.from_messages(rewrite_ask_thread)
+        rewrite_ask_llm_chain = rewrite_ask_prompt | self.llm
+        context_retriever = self.ensemble_retriever if self.rerank else self.rerank_retriever
+        return {"context": context_retriever | RAGHelper.format_documents,
+                "question": RunnablePassthrough()} | rewrite_ask_llm_chain
 
-    def handle_rewrite(self, user_query):
-        # Check if we even need to rewrite or not
+    def create_rewrite_chain(self):
+        """Create the chain to perform the actual rewrite."""
+        rewrite_thread = [('human', os.getenv('rewrite_query_prompt'))]
+        rewrite_prompt = ChatPromptTemplate.from_messages(rewrite_thread)
+        rewrite_llm_chain = rewrite_prompt | self.llm
+        return {"question": RunnablePassthrough()} | rewrite_llm_chain
+
+    def handle_rewrite(self, user_query: str) -> str:
+        """Determine if a rewrite is needed and perform it if required.
+
+        Args:
+            user_query (str): The original user query.
+
+        Returns:
+            str: The potentially rewritten user query.
+        """
         if os.getenv("use_rewrite_loop") == "True":
-            # Ask the LLM if we need to rewrite
             response = self.rewrite_ask_chain.invoke(user_query)
-            if hasattr(response, 'content'):
-                response = response.content
-            elif hasattr(response, 'answer'):
-                response = response.answer
-            elif 'answer' in response:
-                response = response["answer"]
-            response = re.sub(r'\W+ ', '', response)
-            if response.lower().startswith('yes'):
-                # Start the rewriting into different alternatives
-                response = self.rewrite_chain.invoke(user_query)
+            self.logger.info(f"The response of the rewrite loop is - {response}")
+            response = self.extract_response_content(response)
 
-                if hasattr(response, 'content'):
-                    response = response.content
-                elif hasattr(response, 'answer'):
-                    response = response.answer
-                elif 'answer' in response:
-                    response = response["answer"]
+            if re.sub(r'\W+ ', '', response).lower().startswith('yes'):
+                return self.extract_response_content(self.rewrite_chain.invoke(user_query))
+        return user_query
 
-                # Show be split by newlines
-                return response
-            else:
-                # We do not need to rewrite
-                return user_query
-        else:
-            return user_query
+    def handle_user_interaction(self, user_query: str, history: list) -> tuple:
+        """Handle user interaction by processing their query and maintaining conversation history.
 
-    # Main function to handle user interaction
-    def handle_user_interaction(self, user_query, history):
-        if len(history) == 0:
-            fetch_new_documents = True
-        else:
-            # Prompt for LLM
-            response = self.rag_fetch_new_chain.invoke(user_query)
-            if hasattr(response, 'content'):
-                response = response.content
-            elif hasattr(response, 'answer'):
-                response = response.answer
-            elif 'answer' in response:
-                response = response["answer"]
-            response = re.sub(r'\W+ ', '', response)
-            if response.lower().startswith('yes'):
-                fetch_new_documents = True
-            else:
-                fetch_new_documents = False
+        Args:
+            user_query (str): The user's query.
+            history (list): The history of previous interactions.
 
-        # Create prompt template based on whether we have history or not
-        thread = [(x["role"], x["content"].replace("{", "(").replace("}", ")")) for x in history]
-        if fetch_new_documents:
-            thread = []
-        if len(thread) == 0:
-            thread.append(('system', os.getenv('rag_instruction')))
-            thread.append(('human', os.getenv('rag_question_initial')))
-        else:
-            thread.append(('human', os.getenv('rag_question_followup')))
+        Returns:
+            tuple: A tuple containing the conversation thread and the reply.
+        """
+        fetch_new_documents = self.should_fetch_new_documents(user_query, history)
 
+        thread = self.create_interaction_thread(history, fetch_new_documents)
         # Create prompt from prompt template
         prompt = ChatPromptTemplate.from_messages(thread)
 
         # Create llm chain
         llm_chain = prompt | self.llm
+
         if fetch_new_documents:
-            # Rewrite the question if needed
             user_query = self.handle_rewrite(user_query)
-            context_retriever = self.ensemble_retriever
-            if os.getenv("rerank") == "True":
-                context_retriever = self.rerank_retriever
-            
+            context_retriever = self.ensemble_retriever if self.rerank else self.rerank_retriever
             retriever_chain = {
                 "docs": context_retriever,
-                "context": context_retriever | formatDocuments,
+                "context": context_retriever | RAGHelper.format_documents,
                 "question": RunnablePassthrough()
             }
             llm_chain = prompt | self.llm | StrOutputParser()
@@ -216,9 +170,7 @@ class RAGHelperCloud(RAGHelper):
                 | combine_results
             )
         else:
-            retriever_chain = {
-                "question": RunnablePassthrough()
-            }
+            retriever_chain = {"question": RunnablePassthrough()}
             llm_chain = prompt | self.llm | StrOutputParser()
             rag_chain = (
                 retriever_chain
@@ -228,7 +180,7 @@ class RAGHelperCloud(RAGHelper):
                     ))
                 | combine_results
             )
-        
+
         # Check if we need to apply Re2 to mention the question twice
         if os.getenv("use_re2") == "True":
             user_query = f'{user_query}\n{os.getenv("re2_prompt")}{user_query}'
@@ -236,134 +188,128 @@ class RAGHelperCloud(RAGHelper):
         # Invoke RAG pipeline
         reply = rag_chain.invoke(user_query)
 
-        # See if we need to track provenance
+        # Track provenance if needed
         if fetch_new_documents and os.getenv("provenance_method") in ['rerank', 'attention', 'similarity', 'llm']:
-            # Add the user question and the answer to our thread for provenance computation
-            answer = reply['answer']
-            context = reply['docs']
-            
-            # Use the reranker but now on the answer (and potentially query too)
-            if os.getenv("provenance_method") == "rerank":
-                if not(os.getenv("rerank") == "True"):
-                    raise ValueError("Provenance attribution is set to rerank but reranking is not enabled. Please choose another provenance method or turn on reranking.")
-                reranked_docs = compute_rerank_provenance(self.compressor, user_query, reply['docs'], answer)
-                
-                # This is a bit of a hassle because reranked_docs is now reordered and we have no definitive key to use because of hybrid search.
-                # Note that we can't just return reranked_docs because the LLM may refer to "doc #1" in the order of the original scoring.
-                provenance_scores = []
-                for doc in context:
-                    # Find the document in reranked_docs
-                    reranked_score = [d.metadata['relevance_score'] for d in reranked_docs if d.page_content == doc.page_content][0]
-                    provenance_scores.append(reranked_score)
-            # See if we need to do similarity-base provenance
-            elif os.getenv("provenance_method") == "similarity":
-                provenance_scores = self.attributor.compute_similarity(user_query, context, answer)
-            # See if we need to use LLM-based provenance
-            elif os.getenv("provenance_method") == "llm":
-                provenance_scores = compute_llm_provenance_cloud(self.llm, user_query, context, answer)
-            
-            # Add the provenance scores
-            for i, score in enumerate(provenance_scores):
-                reply['docs'][i].metadata['provenance'] = score
+            self.track_provenance(reply, user_query)
 
         return (thread, reply)
 
-    def addDocument(self, filename):
-        if filename.lower().endswith('pdf'):
-            docs = PyPDFLoader(filename).load()
-        if filename.lower().endswith('json'):
-            docs = JSONLoader(
-                file_path = filename,
-                jq_schema = os.getenv("json_schema"),
-                text_content = os.getenv("json_text_content") == "True",
-            ).load()
-        if filename.lower().endswith('csv'):
-            docs = CSVLoader(filename).load()
-        if filename.lower().endswith('docx'):
-            docs = Docx2txtLoader(filename).load()
-        if filename.lower().endswith('xlsx'):
-            docs = UnstructuredExcelLoader(filename).load()
-        if filename.lower().endswith('pptx'):
-            docs = UnstructuredPowerPointLoader(filename).load()
+    def should_fetch_new_documents(self, user_query: str, history: list) -> bool:
+        """Determine if new documents should be fetched based on user query and history.
 
-        # Skills and personality are global and don't work on chunks, so do them first
-        new_docs = []
-        for doc in docs:
-            # Get the skills by using the LLM and attach to the doc
-            skills = self.parseCV(doc)
-            doc.metadata['skills'] = skills
-            # Also get the personality
-            doc.metadata['personality'] = self.personality_predictor.predict(doc)
-            new_docs.append(doc)
+        Args:
+            user_query (str): The user's query.
+            history (list): The history of previous interactions.
 
-        if os.getenv('splitter') == 'RecursiveCharacterTextSplitter':
-            self.text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=int(os.getenv('chunk_size')),
-                chunk_overlap=int(os.getenv('chunk_overlap')),
-                length_function=len,
-                keep_separator=True,
-                separators=[
-                    "\n \n",
-                    "\n\n",
-                    "\n",
-                    ".",
-                    "!",
-                    "?",
-                    " ",
-                    ",",
-                    "\u200b",  # Zero-width space
-                    "\uff0c",  # Fullwidth comma
-                    "\u3001",  # Ideographic comma
-                    "\uff0e",  # Fullwidth full stop
-                    "\u3002",  # Ideographic full stop
-                    "",
-                ],
-            )
-        elif os.getenv('splitter') == 'SemanticChunker':
-            breakpoint_threshold_amount=None
-            number_of_chunks=None
-            if os.getenv('breakpoint_threshold_amount') != 'None':
-                breakpoint_threshold_amount=float(os.getenv('breakpoint_threshold_amount'))
-            if os.getenv('number_of_chunks') != 'None':
-                number_of_chunks=int(os.getenv('number_of_chunks'))
-            self.text_splitter = SemanticChunker(
-                self.embeddings,
-                breakpoint_threshold_type=os.getenv('breakpoint_threshold_type'),
-                breakpoint_threshold_amount=breakpoint_threshold_amount,
-                number_of_chunks=number_of_chunks
-            )
+        Returns:
+            bool: True if new documents should be fetched, False otherwise.
+        """
+        if not history:
+            self.logger.info("There is no content in history, fetching new documents!")
+            return True
+        response = self.rag_fetch_new_chain.invoke(user_query)
+        response = self.extract_response_content(response)
+        return re.sub(r'\W+ ', '', response).lower().startswith('yes')
 
-        new_chunks = self.text_splitter.split_documents(new_docs)
+    @staticmethod
+    def create_interaction_thread(history: list, fetch_new_documents: bool) -> list:
+        """Create the conversation thread based on user input and history.
 
-        self.chunked_documents = self.chunked_documents + new_chunks
-        # Store these too, for our sparse DB
-        with open(f"{os.getenv('vector_store_uri')}_sparse.pickle", 'wb') as f:
-            pickle.dump(self.chunked_documents, f)
+        Args:
+            user_query (str): The user's query.
+            history (list): The history of previous interactions.
+            fetch_new_documents (bool): Whether to fetch new documents.
 
-        # Add to vector DB
-        self.db.add_documents(new_chunks)
+        Returns:
+            list: The constructed conversation thread.
+        """
+        # Create prompt template based on whether we have history or not
+        thread = [(x["role"], x["content"].replace("{", "(").replace("}", ")")) for x in history]
+        if fetch_new_documents:
+            thread = [('system', os.getenv('rag_instruction')), ('human', os.getenv('rag_question_initial'))]
+        else:
+            thread.append(('human', os.getenv('rag_question_followup')))
+        return thread
 
-        # Add to BM25
-        bm25_retriever = BM25Retriever.from_texts(
-            [x.page_content for x in self.chunked_documents],
-            metadatas=[x.metadata for x in self.chunked_documents]
-        )
+    def create_rag_chain(self, retriever_chain: dict, llm_chain: str) -> str:
+        """Create the RAG chain to invoke both the retriever and the language model.
 
-        # Update full retriever too
-        retriever = self.db.as_retriever(search_type="mmr", search_kwargs = {'k': int(os.getenv('vector_store_k'))})
-        self.ensemble_retriever = EnsembleRetriever(
-            retrievers=[bm25_retriever, retriever], weights=[0.5, 0.5]
-        )
+        Args:
+            retriever_chain (dict): The retriever chain configuration.
+            llm_chain (str): The language model chain.
 
-        if os.getenv("rerank") == "True":
-            if os.getenv("rerank_model") == "flashrank":
-                self.compressor = FlashrankRerank(top_n=int(os.getenv("rerank_k")))
-            else:
-                self.compressor = ScoredCrossEncoderReranker(
-                    model=HuggingFaceCrossEncoder(model_name=os.getenv("rerank_model")),
-                    top_n=int(os.getenv("rerank_k"))
-                )
+        Returns:
+            str: The combined RAG chain.
+        """
+        return retriever_chain | llm_chain
 
-            self.rerank_retriever = ContextualCompressionRetriever(
-                base_compressor=self.compressor, base_retriever=self.ensemble_retriever
-            )
+    def track_provenance(self, reply: str, user_query: str) -> None:
+        """Track the provenance of the response if applicable.
+
+        Args:
+            reply (str): The response from the LLM.
+            user_query (str): The original user query.
+        """
+        # Add the user question and the answer to our thread for provenance computation
+        # Retrieve answer and context
+        answer = reply.get('answer')
+        context = reply.get('docs')
+
+        provenance_method = os.getenv("provenance_method")
+        self.logger.info(f"Provenance method: {provenance_method}")
+
+        # Use the reranker if the provenance method is 'rerank'
+        if provenance_method == "rerank":
+            self.logger.info("Using reranking for provenance attribution.")
+            if not self.rerank:
+                raise ValueError("Provenance attribution is set to rerank but reranking is not enabled. "
+                                 "Please choose another method or enable reranking.")
+
+            reranked_docs = compute_rerank_provenance(self.compressor, user_query, context, answer)
+            self.logger.debug(f"Reranked documents computed: {len(reranked_docs)} docs reranked.")
+
+            # Build provenance scores based on reranked docs
+            provenance_scores = []
+            for doc in context:
+                reranked_score = next(
+                    (d.metadata['relevance_score'] for d in reranked_docs if d.page_content == doc.page_content), None)
+                if reranked_score is None:
+                    self.logger.warning(f"Document not found in reranked docs: {doc.page_content}")
+                provenance_scores.append(reranked_score)
+            self.logger.debug("Provenance scores computed using reranked documents.")
+
+        # Use similarity-based provenance if method is 'similarity'
+        elif provenance_method == "similarity":
+            self.logger.info("Using similarity-based provenance attribution.")
+            provenance_scores = self.attributor.compute_similarity(user_query, context, answer)
+            self.logger.debug("Provenance scores computed using similarity method.")
+
+        # Use LLM-based provenance if method is 'llm'
+        elif provenance_method == "llm":
+            self.logger.info("Using LLM-based provenance attribution.")
+            provenance_scores = compute_llm_provenance_cloud(self.llm, user_query, context, answer)
+            self.logger.debug("Provenance scores computed using LLM-based method.")
+
+        # Add provenance scores to documents
+        for i, score in enumerate(provenance_scores):
+            reply['docs'][i].metadata['provenance'] = score
+            self.logger.debug(f"Provenance score added to doc {i}: {score}")
+
+    @staticmethod
+    def extract_response_content(response: dict) -> str:
+        """Extract the content from the response dictionary.
+
+        Args:
+            response (dict): The response dictionary.
+
+        Returns:
+            str: The extracted content.
+        """
+        # return getattr(response, 'content', getattr(response, 'answer', response['answer']))
+        if hasattr(response, 'content'):
+            response = response.content
+        elif hasattr(response, 'answer'):
+            response = response.answer
+        elif 'answer' in response:
+            response = response["answer"]
+        return response
