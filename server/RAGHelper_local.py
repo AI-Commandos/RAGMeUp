@@ -4,9 +4,6 @@ import torch
 from provenance import (compute_attention, compute_rerank_provenance, compute_llm_provenance, DocumentSimilarityAttribution)
 from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
 from RAGHelper import RAGHelper
-from RAGHelper import formatDocuments
-
-from transformers import BitsAndBytesConfig
 from transformers import (
   AutoTokenizer, 
   AutoModelForCausalLM, 
@@ -165,7 +162,7 @@ class RAGHelperLocal(RAGHelper):
             if os.getenv("rerank") == "True":
                 context_retriever = self.rerank_retriever
             self.rewrite_ask_chain = (
-                {"context": context_retriever | formatDocuments, "question": RunnablePassthrough()} |
+                {"context": context_retriever | RAGHelper.format_documents, "question": RunnablePassthrough()} |
                 rewrite_ask_llm_chain
             )
 

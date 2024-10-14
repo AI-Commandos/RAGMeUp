@@ -59,7 +59,8 @@ class RAGHelper:
         self.chunk_size = int(os.getenv("chunk_size"))
         self.chunk_overlap = int(os.getenv("chunk_overlap"))
         self.breakpoint_threshold_amount = os.getenv('breakpoint_threshold_amount', 'None')
-        self.number_of_chunks = None if (value := os.getenv('number_of_chunks', None)) is None or value.lower() == 'none' else int(value)
+        self.number_of_chunks = None if (value := os.getenv('number_of_chunks',
+                                                            None)) is None or value.lower() == 'none' else int(value)
         self.breakpoint_threshold_type = os.getenv('breakpoint_threshold_type')
         self.vector_store_collection = os.getenv("vector_store_collection")
         self.xml_xpath = os.getenv("xml_xpath")
@@ -139,6 +140,41 @@ class RAGHelper:
                 self.logger.error(f"Error processing XML document: {e}")
         return newdocs
 
+    @staticmethod
+    def _filter_metadata(docs, filters=None):
+        """
+        Filters the metadata of documents by retaining only specified keys.
+
+        Parameters
+        ----------
+        docs : list
+            A list of document objects, where each document contains a metadata dictionary.
+        filters : list, optional
+            A list of metadata keys to retain (default is ["source"]).
+
+        Returns
+        -------
+        list
+            The modified list of documents with filtered metadata.
+
+        Raises
+        ------
+        ValueError
+            If docs is not a list or if filters is not a list.
+        """
+        if not isinstance(docs, list):
+            raise ValueError("Expected 'docs' to be a list.")
+        if filters is None:
+            filters = ["source"]
+        elif not isinstance(filters, list):
+            raise ValueError("Expected 'filters' to be a list.")
+
+        # Filter metadata for each document
+        for doc in docs:
+            doc.metadata = {key: doc.metadata.get(key) for key in filters if key in doc.metadata}
+
+        return docs
+
     def _load_documents(self):
         """
         Loads documents from specified file types in the data directory.
@@ -204,7 +240,8 @@ class RAGHelper:
                     docs += self._load_xml_files()
             except Exception as e:
                 print(f"Error loading {file_type} files: {e}")
-        return docs
+
+        return self._filter_metadata(docs)
 
     def _load_json_document(self, filename):
         """Load JSON documents with specific parameters"""
@@ -228,7 +265,8 @@ class RAGHelper:
         }
         self.logger.info(f"Loading {file_type} document....")
         if file_type in loaders:
-            return loaders[file_type](filename).load()
+            docs = loaders[file_type](filename).load()
+            return self._filter_metadata(docs)
         else:
             raise ValueError(f"Unsupported file type: {file_type}")
 
@@ -335,7 +373,7 @@ class RAGHelper:
             self.logger.info("Loading data from existing store.")
             # Add the documents 1 by 1, so we can track progress
             with tqdm(total=len(self.chunked_documents), desc="Vectorizing documents") as pbar:
-                for i in range(0, len(self.chunked_documents),100):
+                for i in range(0, len(self.chunked_documents), 100):
                     # Slice the documents for the current batch
                     batch = self.chunked_documents[i:i + 100]
                     # Prepare documents and their IDs for batch insertion
@@ -433,7 +471,10 @@ class RAGHelper:
         """Add the new document chunks to the vector database."""
         if not self.db:
             self._initialize_vector_store()
-        self.db.add_documents(new_chunks)
+
+        documents = [d for d in new_chunks]
+        ids = [d.metadata["id"] for d in new_chunks]
+        self.db.add_documents(documents, ids=ids)
 
         if self.vector_store == "postgres":
             self.sparse_retriever.add_documents(new_chunks)
@@ -483,6 +524,7 @@ class RAGHelper:
             ValueError: If the file type is unsupported.
         """
         new_docs = self._load_document(filename)
+
         self.logger.info("chunking the documents.")
         new_chunks = self._split_documents(new_docs)
 
