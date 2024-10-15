@@ -42,7 +42,7 @@ class RAGHelper:
         self.sparse_retriever = None
         self.ensemble_retriever = None
         self.rerank_retriever = None
-
+        self._batch_size = 1000
         # Load environment variables
         self.vector_store_sparse_uri = os.getenv('vector_store_sparse_uri')
         self.vector_store_uri = os.getenv('vector_store_uri')
@@ -373,9 +373,9 @@ class RAGHelper:
             self.logger.info("Loading data from existing store.")
             # Add the documents 1 by 1, so we can track progress
             with tqdm(total=len(self.chunked_documents), desc="Vectorizing documents") as pbar:
-                for i in range(0, len(self.chunked_documents), 100):
+                for i in range(0, len(self.chunked_documents), self._batch_size):
                     # Slice the documents for the current batch
-                    batch = self.chunked_documents[i:i + 100]
+                    batch = self.chunked_documents[i:i + self._batch_size]
                     # Prepare documents and their IDs for batch insertion
                     documents = [d for d in batch]
                     ids = [d.metadata["id"] for d in batch]
