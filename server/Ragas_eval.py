@@ -6,7 +6,6 @@ from random import sample
 
 from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper import RAGHelper
-from RAGHelper import formatDocuments
 
 from datasets import Dataset
 
@@ -86,7 +85,7 @@ rag_answer = prompt | raghelper.llm
 qa_pairs = []
 for i in range(0, ragas_qa_pairs):
     selected_docs = random.sample(document_sample, min(ragas_use_n_documents, len(document_sample)))
-    formatted_docs = formatDocuments(selected_docs)
+    formatted_docs = RAGHelper.format_documents(selected_docs)
 
     question_chain = ({"context": RunnablePassthrough()} | rag_question)
     response = question_chain.invoke(formatted_docs)
