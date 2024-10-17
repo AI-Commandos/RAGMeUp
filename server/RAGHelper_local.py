@@ -204,7 +204,11 @@ class RAGHelperLocal(RAGHelper):
 
         llm_chain = self._create_llm_chain(fetch_new_documents, prompt)
 
-        user_query = self._handle_rewrite_if_needed(user_query, fetch_new_documents)
+        # Handle rewrite and re2
+        user_query = self.handle_rewrite(user_query)
+        if os.getenv("use_re2") == "True":
+            user_query = f'{user_query}\n{os.getenv("re2_prompt")}{user_query}'
+        
         reply = self._invoke_rag_chain(user_query, llm_chain)
 
         if fetch_new_documents:
@@ -253,14 +257,6 @@ class RAGHelperLocal(RAGHelper):
                 "question": RunnablePassthrough()
             } | LLMChain(llm=self.llm, prompt=prompt)
         return {"question": RunnablePassthrough()} | LLMChain(llm=self.llm, prompt=prompt)
-
-    def _handle_rewrite_if_needed(self, user_query, fetch_new_documents):
-        """Rewrite the user's query if necessary, based on environment settings."""
-        if fetch_new_documents:
-            user_query = self.handle_rewrite(user_query)
-        if os.getenv("use_re2") == "True":
-            user_query = f'{user_query}\n{os.getenv("re2_prompt")}{user_query}'
-        return user_query
 
     @staticmethod
     def _invoke_rag_chain(user_query, llm_chain):

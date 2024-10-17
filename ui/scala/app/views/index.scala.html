@@ -202,7 +202,7 @@
 
                 documents = data['documents'];
                 addMessage(data['reply'], false);
-                if (documents.length > 0) {
+                if (documents.length > 0 && data['fetched_new_documents']) {
                   presentDocuments(documents);
                 }
                 chathistory = data['history'];

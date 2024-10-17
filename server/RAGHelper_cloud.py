@@ -153,7 +153,6 @@ class RAGHelperCloud(RAGHelper):
         llm_chain = prompt | self.llm
 
         if fetch_new_documents:
-            user_query = self.handle_rewrite(user_query)
             context_retriever = self.ensemble_retriever if self.rerank else self.rerank_retriever
             retriever_chain = {
                 "docs": context_retriever,
@@ -181,6 +180,7 @@ class RAGHelperCloud(RAGHelper):
                 | combine_results
             )
 
+        user_query = self.handle_rewrite(user_query)
         # Check if we need to apply Re2 to mention the question twice
         if os.getenv("use_re2") == "True":
             user_query = f'{user_query}\n{os.getenv("re2_prompt")}{user_query}'

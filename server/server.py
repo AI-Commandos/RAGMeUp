@@ -105,7 +105,9 @@ def chat():
         reply = response['answer']
 
     # Format documents
+    fetched_new_documents = False
     if not original_docs or 'docs' in response:
+        fetched_new_documents = True
         new_docs = [{
             's': doc.metadata['source'],
             'c': doc.page_content,
@@ -121,7 +123,8 @@ def chat():
         "history": new_history,
         "documents": new_docs,
         "rewritten": False,
-        "question": prompt
+        "question": prompt,
+        "fetched_new_documents": fetched_new_documents
     }
 
     # Check for rewritten question
