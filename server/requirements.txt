@@ -12,7 +12,9 @@ langchain-ollama==0.1.1
 sentence-transformers==2.6.1
 transformers==4.43.1
 bitsandbytes==0.42.0
-torch==2.3.1
+torch==2.4.0
+torchvision
+torchaudio
 flask
 python-dotenv==1.0.1
 docx2txt==0.8

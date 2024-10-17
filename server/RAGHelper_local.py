@@ -53,14 +53,13 @@ class RAGHelperLocal(RAGHelper):
                 torch_dtype=torch.float16,
                 device_map="auto"
             ).to(torch.device("mps"))
-        elif not os.getenv('force_cpu') == "True":
-            self.logger.debug("CUDA for LLM.")
+        elif os.getenv('force_cpu') == "True":
+            self.logger.debug("LLM on CPU (slow!).")
             tokenizer = AutoTokenizer.from_pretrained(llm_model, trust_remote_code=trust_remote_code)
             model = AutoModelForCausalLM.from_pretrained(
                 llm_model,
                 trust_remote_code=trust_remote_code,
-                device='cpu'
-            )
+            ).to(torch.device("cpu"))
         else:
             self.logger.debug("Initializing LLM on GPU.")
             bnb_config = self._get_bnb_config()
@@ -68,7 +67,8 @@ class RAGHelperLocal(RAGHelper):
             model = AutoModelForCausalLM.from_pretrained(
                 llm_model,
                 quantization_config=bnb_config,
-                trust_remote_code=trust_remote_code
+                trust_remote_code=trust_remote_code,
+                device_map="auto"
             )
 
         return tokenizer, model
@@ -98,6 +98,9 @@ class RAGHelperLocal(RAGHelper):
             repetition_penalty=float(os.getenv('repetition_penalty')),
             return_full_text=True,
             max_new_tokens=int(os.getenv('max_new_tokens')),
+            model_kwargs={
+                'device_map': 'auto',
+            }
         )
         return HuggingFacePipeline(pipeline=text_generation_pipeline)
 
