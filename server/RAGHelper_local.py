@@ -154,7 +154,7 @@ class RAGHelperLocal(RAGHelper):
         )
         rewrite_ask_llm_chain = LLMChain(llm=self.llm, prompt=rewrite_ask_prompt)
 
-        context_retriever = self.ensemble_retriever if os.getenv("rerank") != "True" else self.rerank_retriever
+        context_retriever = self.rerank_retriever if self.rerank else self.ensemble_retriever
         return {"context": context_retriever | RAGHelper.format_documents,
                 "question": RunnablePassthrough()} | rewrite_ask_llm_chain
 

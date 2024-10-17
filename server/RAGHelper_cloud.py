@@ -104,7 +104,7 @@ class RAGHelperCloud(RAGHelper):
         ]
         rewrite_ask_prompt = ChatPromptTemplate.from_messages(rewrite_ask_thread)
         rewrite_ask_llm_chain = rewrite_ask_prompt | self.llm
-        context_retriever = self.ensemble_retriever if self.rerank else self.rerank_retriever
+        context_retriever = self.rerank_retriever if self.rerank else self.ensemble_retriever
         return {"context": context_retriever | RAGHelper.format_documents,
                 "question": RunnablePassthrough()} | rewrite_ask_llm_chain
 
