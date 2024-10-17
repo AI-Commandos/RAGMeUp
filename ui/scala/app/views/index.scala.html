@@ -145,30 +145,33 @@
       $(row).append(col);
       $(dialogue).append(row);
       dialogue.scrollTop(dialogue[0].scrollHeight);
-
-      $(document).on('click', '.documentcontainerclass', function() {
-          let newContent = $(this).data('content');
-
-          let leftArrowDiv = $(this).find('div[data-arrow="left"]');
-          let rightArrowDiv = $(this).find('div[data-arrow="right"]');
-
-          if (leftArrowDiv.is(':visible')) {
-              var newNewContent = newContent.substring(0, 100);
-              if (newContent.length > 100) {
-                  newNewContent += ' ...';
-              }
-              $(this).find('p.doccontenttext').html(newNewContent);
-              $(leftArrowDiv).toggleClass('hidden');
-              $(rightArrowDiv).toggleClass('hidden');
-              $(this).find(">:first-child").toggleClass('documentshown');
-          } else if (rightArrowDiv.is(':visible')) {
-              $(this).find('p.doccontenttext').html(newContent);
-              $(rightArrowDiv).toggleClass('hidden');
-              $(leftArrowDiv).toggleClass('hidden');
-              $(this).find(">:first-child").toggleClass('documentshown');
-          }
-      });
     }
+
+    $(document).on('click', '.documentcontainerclass', function() {
+        let newContent = $(this).data('content');
+
+        let leftArrowDiv = $(this).find('div[data-arrow="left"]');
+        let rightArrowDiv = $(this).find('div[data-arrow="right"]');
+
+        if (leftArrowDiv.is(':visible')) {
+            var newNewContent = '';
+            if (newContent && newContent.length > 0) {
+              newNewContent = newContent.substring(0, 100);
+            }
+            if (newContent.length > 100) {
+                newNewContent += ' ...';
+            }
+            $(this).find('p.doccontenttext').html(newNewContent);
+            $(leftArrowDiv).toggleClass('hidden');
+            $(rightArrowDiv).toggleClass('hidden');
+            $(this).find(">:first-child").toggleClass('documentshown');
+        } else if (rightArrowDiv.is(':visible')) {
+            $(this).find('p.doccontenttext').html(newContent);
+            $(rightArrowDiv).toggleClass('hidden');
+            $(leftArrowDiv).toggleClass('hidden');
+            $(this).find(">:first-child").toggleClass('documentshown');
+        }
+    });
 
     function handleChat() {
         $('button[type="submit"]', this).prop('disabled', true);
