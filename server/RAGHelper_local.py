@@ -45,7 +45,7 @@ class RAGHelperLocal(RAGHelper):
         trust_remote_code = os.getenv('trust_remote_code') == "True"
 
         if torch.backends.mps.is_available():
-            self.logger.debug("Initializing LLM on MPS.")
+            self.logger.info("Initializing LLM on MPS.")
             tokenizer = AutoTokenizer.from_pretrained(llm_model, trust_remote_code=trust_remote_code)
             model = AutoModelForCausalLM.from_pretrained(
                 llm_model,
@@ -54,14 +54,14 @@ class RAGHelperLocal(RAGHelper):
                 device_map="auto"
             ).to(torch.device("mps"))
         elif os.getenv('force_cpu') == "True":
-            self.logger.debug("LLM on CPU (slow!).")
+            self.logger.info("LLM on CPU (slow!).")
             tokenizer = AutoTokenizer.from_pretrained(llm_model, trust_remote_code=trust_remote_code)
             model = AutoModelForCausalLM.from_pretrained(
                 llm_model,
                 trust_remote_code=trust_remote_code,
             ).to(torch.device("cpu"))
         else:
-            self.logger.debug("Initializing LLM on GPU.")
+            self.logger.info("Initializing LLM on GPU.")
             bnb_config = self._get_bnb_config()
             tokenizer = AutoTokenizer.from_pretrained(llm_model, trust_remote_code=trust_remote_code)
             model = AutoModelForCausalLM.from_pretrained(
@@ -205,7 +205,7 @@ class RAGHelperLocal(RAGHelper):
         llm_chain = self._create_llm_chain(fetch_new_documents, prompt)
 
         user_query = self._handle_rewrite_if_needed(user_query, fetch_new_documents)
-        reply = self._invoke_rag_chain(fetch_new_documents, user_query, llm_chain)
+        reply = self._invoke_rag_chain(user_query, llm_chain)
 
         if fetch_new_documents:
             self._track_provenance(user_query, reply, thread)
