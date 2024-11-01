@@ -10,6 +10,7 @@ POST    /search                     controllers.HomeController.search()
 GET     /download/:file             controllers.HomeController.download(file)
 GET     /delete/:file               controllers.HomeController.delete(file)
 POST    /upload                     controllers.HomeController.upload()
+POST    /feedback                   controllers.HomeController.feedback()
 
 # Map static resources from the /public folder to the /assets URL path
 GET     /webjars/*file              controllers.Assets.at(path="/public/lib", file)

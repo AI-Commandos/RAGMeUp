@@ -36,28 +36,20 @@ class PostgresBM25Retriever(BaseRetriever):
                 );""")
         
         # Create BM25 index
-        self.cur.execute(f"""
-                DO $$
-                BEGIN
-                    IF EXISTS (
-                        SELECT 1
-                        FROM information_schema.tables
-                        WHERE table_schema = 'public'
-                        AND table_name = '{self.table_name}'
-                    ) AND NOT EXISTS (
-                        SELECT 1
-                        FROM pg_indexes
-                        WHERE table_schema = 'public'
-                        AND table_name = 'idx_{self.table_name}_bm25_index'
-                    ) THEN
-                        CALL paradedb.create_bm25(
-                                index_name => 'idx_{self.table_name}',
-                                table_name => '{self.table_name}',
-                                key_field => 'id',
-                                text_fields => paradedb.field('content') || paradedb.field('metadata')
-                        );
+        self.cur.execute(fr"""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                    AND table_name = '{self.table_name}'
+                ) THEN
+                    EXECUTE 'CREATE INDEX idx_sparse_vectors_bm25 ON {self.table_name} 
+                    USING bm25 (({self.table_name}.*))
+                    WITH (text_fields = ''{{\"content\": {{}}, \"metadata\": {{}}}}'')'::text;
                 END IF;
-                END $$;
+            END $$;
         """)
         self.conn.commit()
 
@@ -88,22 +80,22 @@ class PostgresBM25Retriever(BaseRetriever):
 
     def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun) -> List[Document]:
         # Perform BM25 search using pg_search
-        query = re.sub(r'[\(\):]', '', query)
         if os.getenv("use_re2") == "True":
             os.getenv("re2_prompt")
             index = query.find(f"\n{os.getenv('re2_prompt')}")
             query = query[:index]
+        query = re.sub(r'[\(\):]', '', query)
         
         search_command = f"""
-            WITH scores AS (
-                SELECT * FROM idx_{self.table_name}_bm25.score_bm25(
-                'content:({query})',
-                limit_rows => {self.k}
-                )
-            )
-            SELECT scores.id, content, metadata, score_bm25
-            FROM scores
-            LEFT JOIN {self.table_name} ON scores.id = {self.table_name}.id;
+            SELECT 
+                sparse_vectors.id, 
+                sparse_vectors.content, 
+                sparse_vectors.metadata, 
+                paradedb.score(sparse_vectors.id) AS score_bm25
+            FROM {self.table_name}
+            WHERE content @@@ '{query}'
+            ORDER BY score_bm25 DESC
+            LIMIT {self.k};
         """
         self.cur.execute(search_command)
         

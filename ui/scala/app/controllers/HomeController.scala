@@ -108,4 +108,8 @@ class HomeController @Inject()(
           .flashing("success" -> s"File ${file} has been deleted (${deleteCount} chunks in total).")
       }
   }
+
+  def feedback() = Action { implicit request: Request[AnyContent] =>
+    Ok(Json.obj())
+  }
 }

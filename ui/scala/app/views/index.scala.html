@@ -37,8 +37,15 @@
 </div>
 
 <script>
+    function uuidv4() {
+      return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
+        (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
+      );
+    }
+
     var chathistory = [];
     var documents = [];
+    var sessionid = uuidv4();
 
     $.ajaxSetup({
         beforeSend: function(xhr) {
@@ -78,6 +85,34 @@
             html      = converter.makeHtml(text);
         var label = $('<label>').html(html);
         $(container).append(label);
+
+        if (!isHuman) {
+          var feedbackPos = $('<i class="fa-regular fa-thumbs-up" style="color: #999; font-size: 1.5em; padding-right: 5px;"></i>');
+          var feedbackNeg = $('<i class="fa-regular fa-thumbs-down" style="color: #999; font-size: 1.5em; "></i>');
+          $(feedbackPos).on('click', function() {
+            $.post({
+              url: "@controllers.routes.HomeController.feedback()",
+              data: JSON.stringify(),
+              contentType: "application/json; charset=utf-8",
+              dataType: "json"
+            })
+            .done(function(response) {
+              console.log("Success:", response);
+            })
+            .fail(function(xhr, status, error) {
+              console.error("Error:", error);
+            });
+
+          });
+          $(feedbackNeg).on('click', function() {
+          });
+          var feedbackRow = $("<div class='row'>")
+            .append($("<div class='col-md-1 offset-11'>")
+              .append(feedbackPos)
+              .append(feedbackNeg)
+            );
+          $(container).append(feedbackRow);
+        }
 
         $(col).append(container);
         $(row).append(col);
@@ -139,7 +174,7 @@
       var dialogue = $("#dialogue");
       var row = $('<div>').addClass('row');
       var col = $('<div>').addClass('col-md-8 offset-md-1');
-      var container = $('<div>').addClass('label-agent');
+      var container = $('<div>').addClass('label-agent').addClass('label-docuyments');
       $(container).append(message);
       $(col).append(container);
       $(row).append(col);
@@ -204,7 +239,7 @@
                 }
 
                 documents = data['documents'];
-                addMessage(data['reply'], false);
+                addMessage(data['reply'], false, data);
                 if (documents.length > 0 && data['fetched_new_documents']) {
                   presentDocuments(documents);
                 }
