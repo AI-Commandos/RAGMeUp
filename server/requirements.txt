@@ -27,7 +27,6 @@ tqdm
 milvus-lite==2.4.7
 pymilvus==2.4.3
 lxml==5.1.0
-python-dotenv
 rank_bm25
 openai==1.35.3
 google-ai-generativelanguage==0.6.6
