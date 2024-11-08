@@ -448,15 +448,6 @@ class RAGHelper:
         if self.rerank:
             self._initialize_reranker()
 
-    def _process_documents(self, docs):
-        """Attach skills and personality metadata to the documents."""
-        new_docs = []
-        for doc in docs:
-            doc.metadata['skills'] = self.parse_cv(doc)
-            doc.metadata['personality'] = self.personality_predictor.predict(doc)
-            new_docs.append(doc)
-        return new_docs
-
     def _update_chunked_documents(self, new_chunks):
         """Update the chunked documents list and store them."""
         if not self.chunked_documents:
