@@ -50,7 +50,7 @@ class PostgresBM25Retriever(BaseRetriever):
                         table_name => '{self.table_name}',
                         key_field => 'id',
                         text_fields => paradedb.field('content') || paradedb.field('metadata')
-                    )
+                    );
                 END IF;
             END $$;
         """)
