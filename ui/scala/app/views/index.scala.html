@@ -184,6 +184,10 @@
 
     $(document).on('click', '.documentcontainerclass', function() {
         let newContent = $(this).data('content');
+        // Check if newContent is an object, and convert it to a string if so
+        if (typeof newContent === 'object') {
+            newContent = JSON.stringify(newContent);
+        }
 
         let leftArrowDiv = $(this).find('div[data-arrow="left"]');
         let rightArrowDiv = $(this).find('div[data-arrow="right"]');
@@ -196,15 +200,16 @@
             if (newContent.length > 100) {
                 newNewContent += ' ...';
             }
+
+            $(leftArrowDiv).toggleClass('hidden');
+            $(rightArrowDiv).toggleClass('hidden');
+            $(this).find(">:first-child").toggleClass('documentshown');
             $(this).find('p.doccontenttext').html(newNewContent);
-            $(leftArrowDiv).toggleClass('hidden');
-            $(rightArrowDiv).toggleClass('hidden');
-            $(this).find(">:first-child").toggleClass('documentshown');
         } else if (rightArrowDiv.is(':visible')) {
-            $(this).find('p.doccontenttext').html(newContent);
             $(rightArrowDiv).toggleClass('hidden');
             $(leftArrowDiv).toggleClass('hidden');
             $(this).find(">:first-child").toggleClass('documentshown');
+            $(this).find('p.doccontenttext').html(newContent);
         }
     });
 
