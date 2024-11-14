@@ -5,6 +5,7 @@ import os
 from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper_local import RAGHelperLocal
 from pymilvus import Collection, connections
+from GraphRAGHelper import GraphRAGHelper
 
 
 def load_bashrc():
@@ -38,7 +39,10 @@ load_bashrc()
 load_dotenv()
 
 # Instantiate the RAG Helper class based on the environment configuration
-if any(os.getenv(key) == "True" for key in ["use_openai", "use_gemini", "use_azure", "use_ollama"]):
+if os.getenv("use_graph_rag") == "True":
+    logger.info("Instantiating the GraphRAG helper.")
+    raghelper = GraphRAGHelper(logger)
+elif any(os.getenv(key) == "True" for key in ["use_openai", "use_gemini", "use_azure", "use_ollama"]):
     logger.info("Instantiating the cloud RAG helper.")
     raghelper = RAGHelperCloud(logger)
 else:
@@ -91,15 +95,12 @@ def chat():
         docs = response['docs']
 
     # Break up the response for local LLMs
-    if isinstance(raghelper, RAGHelperLocal):
+    if isinstance(raghelper, RAGHelperLocal) or isinstance(raghelper, GraphRAGHelper):
         end_string = os.getenv("llm_assistant_token")
         reply = response['text'][response['text'].rindex(end_string) + len(end_string):]
-
-        # Get updated history
         new_history = [{"role": msg["role"], "content": msg["content"].format_map(response)} for msg in new_history]
         new_history.append({"role": "assistant", "content": reply})
     else:
-        # Populate history for other LLMs
         new_history = [{"role": msg[0], "content": msg[1].format_map(response)} for msg in new_history]
         new_history.append({"role": "assistant", "content": response['answer']})
         reply = response['answer']
