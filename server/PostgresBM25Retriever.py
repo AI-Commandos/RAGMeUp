@@ -45,9 +45,12 @@ class PostgresBM25Retriever(BaseRetriever):
                     WHERE table_schema = 'public'
                     AND table_name = '{self.table_name}'
                 ) THEN
-                    EXECUTE 'CREATE INDEX idx_sparse_vectors_bm25 ON {self.table_name} 
-                    USING bm25 (({self.table_name}.*))
-                    WITH (text_fields = ''{{\"content\": {{}}, \"metadata\": {{}}}}'')'::text;
+                    CALL paradedb.create_bm25(
+                        index_name => '{self.table_name}_bm25',
+                        table_name => '{self.table_name}',
+                        key_field => 'id',
+                        text_fields => paradedb.field('content') || paradedb.field('metadata')
+                    );
                 END IF;
             END $$;
         """)
