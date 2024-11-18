@@ -39,3 +39,5 @@ pydantic==2.7.4
 pydantic_core==2.18.4
 psycopg2-binary==2.9.9
 relik
+neo4j
+
