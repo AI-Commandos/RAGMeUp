@@ -10,7 +10,7 @@ langchain-google-genai==1.0.7
 langchain-openai==0.1.9
 langchain-ollama==0.1.1
 sentence-transformers==2.6.1
-transformers==4.43.1
+transformers==4.41.1 # Note: we downgraded this from 4.43.1 to 4.41.1 to make it compatible with relik
 bitsandbytes==0.42.0
 torch==2.4.0
 torchvision
