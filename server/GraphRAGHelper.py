@@ -1,11 +1,11 @@
 import os
 
-from RAGHelper import RAGHelper
+from RAGHelper_cloud import RAGHelper_cloud
 from relik import Relik
 from relik.inference.data.objects import RelikOutput
 from neo4j import GraphDatabase
 
-class GraphRAGHelper(RAGHelper):
+class GraphRAGHelper(RAGHelper_cloud):
     def __init__(self, logger):
         super().__init__(logger)
         self.logger = logger
@@ -64,3 +64,7 @@ class GraphRAGHelper(RAGHelper):
         )
         result = tx.run(cypher_query, query=query)
         return result
+    
+    def handle_user_interaction(prompt, history):
+        # TODO: implement this method (overwite the parent methods)
+        pass

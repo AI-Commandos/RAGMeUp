@@ -100,13 +100,8 @@ def chat():
     if not docs or 'docs' in response:
         docs = response['docs']
 
-    # Get related documents from Neo4j if use_graph_rag is True
-    if os.getenv("use_graph_rag") == "True":
-        related_docs = raghelper.retrieve_documents(prompt)
-        docs.extend(related_docs)
-
     # Break up the response for local LLMs
-    if isinstance(raghelper, RAGHelperLocal) or isinstance(raghelper, GraphRAGHelper):
+    if isinstance(raghelper, RAGHelperLocal):
         end_string = os.getenv("llm_assistant_token")
         reply = response['text'][response['text'].rindex(end_string) + len(end_string):]
         new_history = [{"role": msg["role"], "content": msg["content"].format_map(response)} for msg in new_history]
