@@ -1,3 +1,5 @@
+import os
+
 from RAGHelper import RAGHelper
 from relik import Relik
 from relik.inference.data.objects import RelikOutput
@@ -11,7 +13,7 @@ class GraphRAGHelper(RAGHelper):
         self.neo4j_uri = os.getenv("NEO4J_URI")
         self.neo4j_user = os.getenv("NEO4J_USER")
         self.neo4j_password = os.getenv("NEO4J_PASSWORD")
-        self.driver = GraphDatabase.driver(self.neo4j_uri, auth=(self.neo4j_user, self.neo4j_password))
+        self.driver = GraphDatabase.driver(self.neo4j_uri, auth=(self.neo4j_user, self.neo4j_password))  
 
     def construct_graph(self, documents):
         graph = {}
@@ -54,6 +56,7 @@ class GraphRAGHelper(RAGHelper):
 
     @staticmethod
     def _find_related_documents(tx, query):
+        # TODO: dynamically create cypher query (with LLM)
         cypher_query = (
             "MATCH (a:Entity)-[r:RELATION]->(b:Entity) "
             "WHERE a.name CONTAINS $query OR b.name CONTAINS $query "

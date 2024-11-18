@@ -69,6 +69,12 @@ def add_document():
     logger.info(f"Adding document {filename}")
     raghelper.add_document(filename)
 
+    # Construct the graph and save it to Neo4j if use_graph_rag is True
+    if os.getenv("use_graph_rag") == "True":
+        documents = raghelper._load_documents()
+        raghelper.construct_graph(documents)
+        raghelper.save_graph_to_neo4j()
+
     return jsonify({"filename": filename}), 200
 
 
@@ -93,6 +99,11 @@ def chat():
     (new_history, response) = raghelper.handle_user_interaction(prompt, history)
     if not docs or 'docs' in response:
         docs = response['docs']
+
+    # Get related documents from Neo4j if use_graph_rag is True
+    if os.getenv("use_graph_rag") == "True":
+        related_docs = raghelper.retrieve_documents(prompt)
+        docs.extend(related_docs)
 
     # Break up the response for local LLMs
     if isinstance(raghelper, RAGHelperLocal) or isinstance(raghelper, GraphRAGHelper):
