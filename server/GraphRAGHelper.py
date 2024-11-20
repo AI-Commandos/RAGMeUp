@@ -1,7 +1,7 @@
 import os
 import spacy
 
-from RAGHelper_cloud import RAGHelper_cloud
+from RAGHelper_cloud import RAGHelperCloud
 from relik import Relik
 from relik.inference.data.objects import RelikOutput
 from neo4j import GraphDatabase
@@ -30,7 +30,7 @@ def combine_results(inputs: dict) -> dict:
         "answer": combined_answer
     }
 
-class GraphRAGHelper(RAGHelper_cloud):
+class GraphRAGHelper(RAGHelperCloud):
     def __init__(self, logger):
         super().__init__(logger)
         self.logger = logger
@@ -125,7 +125,7 @@ class GraphRAGHelper(RAGHelper_cloud):
             context_retriever = self.ensemble_retriever if self.rerank else self.rerank_retriever
             retriever_chain = {
                 "docs": context_retriever,
-                "context": context_retriever | RAGHelper_cloud.format_documents,
+                "context": context_retriever | RAGHelperCloud.format_documents,
                 "question": RunnablePassthrough()
             }
             # Combine graph-based documents with retrieved documents
