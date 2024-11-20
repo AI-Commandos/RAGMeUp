@@ -7,8 +7,6 @@ from RAGHelper_local import RAGHelperLocal
 from pymilvus import Collection, connections
 from GraphRAGHelper import GraphRAGHelper
 
-# TODO: change functions (e.g. delete documents)
-
 def load_bashrc():
     """
     Load environment variables from the user's .bashrc file.

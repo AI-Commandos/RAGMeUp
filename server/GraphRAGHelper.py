@@ -86,7 +86,6 @@ class GraphRAGHelper(RAGHelperLocal):
         return entities
     
     def _find_related_documents(self, tx, query):
-        # TODO: dynamically create cypher query (with LLM)
         entities = self._extract_entities(query)
         if not entities:
             entities = [query]  # Fallback to using the entire query if no entities are found
