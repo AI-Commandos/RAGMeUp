@@ -1,7 +1,7 @@
 import os
 import spacy
 
-from RAGHelper_cloud import RAGHelperCloud
+from RAGHelper_local import RAGHelperLocal
 from relik import Relik
 from relik.inference.data.objects import RelikOutput
 from neo4j import GraphDatabase
@@ -30,7 +30,7 @@ def combine_results(inputs: dict) -> dict:
         "answer": combined_answer
     }
 
-class GraphRAGHelper(RAGHelperCloud):
+class GraphRAGHelper(RAGHelperLocal):
     def __init__(self, logger):
         super().__init__(logger)
         self.logger = logger
@@ -110,14 +110,14 @@ class GraphRAGHelper(RAGHelperCloud):
         Returns:
             tuple: A tuple containing the conversation thread and the reply.
         """
-        fetch_new_documents = self.should_fetch_new_documents(user_query, history)
+        fetch_new_documents = self._should_fetch_new_documents(user_query, history)
 
-        thread = self.create_interaction_thread(history, fetch_new_documents)
+        thread = self._prepare_conversation_thread(history, fetch_new_documents)
         # Create prompt from prompt template
-        prompt = ChatPromptTemplate.from_messages(thread)
+        prompt = self._create_prompt_template(thread, self._determine_input_variables(fetch_new_documents))
 
         # Create llm chain
-        llm_chain = prompt | self.llm
+        llm_chain = self._create_llm_chain(fetch_new_documents, prompt)
 
         if fetch_new_documents:
             # Use graph-based retrieval to fetch related documents
@@ -125,7 +125,7 @@ class GraphRAGHelper(RAGHelperCloud):
             context_retriever = self.ensemble_retriever if self.rerank else self.rerank_retriever
             retriever_chain = {
                 "docs": context_retriever,
-                "context": context_retriever | RAGHelperCloud.format_documents,
+                "context": context_retriever | RAGHelperLocal.format_documents,
                 "question": RunnablePassthrough()
             }
             # Combine graph-based documents with retrieved documents
@@ -158,6 +158,39 @@ class GraphRAGHelper(RAGHelperCloud):
 
         # Track provenance if needed
         if fetch_new_documents and os.getenv("provenance_method") in ['rerank', 'attention', 'similarity', 'llm']:
-            self.track_provenance(response, user_query)
+            self._track_provenance(user_query, response, thread)
 
         return (thread, response)
+
+    def add_document(self, filename):
+        """
+        Add a document to the knowledge graph.
+
+        Args:
+            filename (str): The name of the file to be added.
+        """
+        new_docs = self._load_document(filename)
+        self.logger.info("Chunking the documents.")
+        new_chunks = self._split_documents(new_docs)
+        self._update_chunked_documents(new_chunks)
+        self._add_to_vector_database(new_chunks)
+        self.construct_graph(new_docs)
+        self.save_graph_to_neo4j()
+
+    def delete_document(self, filename):
+        """
+        Delete a document from the knowledge graph.
+
+        Args:
+            filename (str): The name of the file to be deleted.
+        """
+        file_path = os.path.join(self.data_dir, filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            self.logger.info(f"Deleted file: {filename}")
+            # Reconstruct the knowledge graph
+            all_docs = self._load_documents()
+            self.construct_graph(all_docs)
+            self.save_graph_to_neo4j()
+        else:
+            self.logger.warning(f"File not found: {filename}")

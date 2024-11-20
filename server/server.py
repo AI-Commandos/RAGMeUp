@@ -70,12 +70,6 @@ def add_document():
     logger.info(f"Adding document {filename}")
     raghelper.add_document(filename)
 
-    # Construct the graph and save it to Neo4j if use_graph_rag is True
-    if os.getenv("use_graph_rag") == "True":
-        documents = raghelper._load_documents()
-        raghelper.construct_graph(documents)
-        raghelper.save_graph_to_neo4j()
-
     return jsonify({"filename": filename}), 200
 
 
@@ -216,12 +210,15 @@ def delete_document():
     if not os.path.exists(file_path):
         return jsonify({"error": "File not found"}), 404
 
-    # Remove from Milvus
-    connections.connect(uri=os.getenv('vector_store_uri'))
-    collection = Collection("LangChainCollection")
-    collection.load()
-    result = collection.delete(f'source == "{file_path}"')
-    collection.release()
+    if isinstance(raghelper, GraphRAGHelper):
+        raghelper.delete_document(filename)
+    else:
+        # Remove from Milvus
+        connections.connect(uri=os.getenv('vector_store_uri'))
+        collection = Collection("LangChainCollection")
+        collection.load()
+        result = collection.delete(f'source == "{file_path}"')
+        collection.release()
 
     # Remove from disk too
     os.remove(file_path)
