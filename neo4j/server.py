@@ -59,12 +59,12 @@ def close_db():
 
 if __name__ == "__main__":
     # Set ngrok auth token and expose the app
-    ngrok.set_auth_token("2ohISYTgXpPtyERHhNthDp0LShA_231mp9im9zLmBtFynmZqc")  # Replace with your actual ngrok auth token
-    public_url = ngrok.connect(6000)  # Expose port 5000
+    ngrok.set_auth_token("TOKEN")  # Replace with your actual ngrok auth token
+    public_url = ngrok.connect(5000)  # Expose port 5000
     print(f"ngrok tunnel available at: {public_url}")
 
     # Start Flask app
-    app.run(port=6000)
+    app.run(port=5000)
 
 # from flask import Flask
 # from pyngrok import ngrok
