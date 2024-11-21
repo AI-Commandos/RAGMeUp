@@ -1,0 +1,23 @@
+# Use the official Neo4j image
+FROM neo4j:latest
+
+# Set environment variables for Neo4j
+ENV NEO4J_AUTH=neo4j/password  # Replace 'password' with a secure password
+ENV NEO4J_dbms_memory_pagecache_size=512M
+ENV NEO4J_dbms_memory_heap_initial_size=512M
+ENV NEO4J_dbms_memory_heap_max_size=1G
+ENV NEO4JLABS_PLUGINS='["graph-data-science"]'  # Install Graph Data Science Plugin if needed
+ENV NEO4J_dbms_directories_data=/my/local/data
+
+# Expose default Neo4j ports
+EXPOSE 7474 7687
+
+# # Add any custom initialization scripts if needed
+# COPY ./neo4j-init.sh /docker-entrypoint-initdb.d/neo4j-init.sh
+# RUN chmod +x /docker-entrypoint-initdb.d/neo4j-init.sh
+
+# Optional: Change default config file if needed
+COPY ./neo4j.conf /var/lib/neo4j/conf/neo4j.conf
+
+# Run Neo4j as the default command
+CMD ["neo4j"]
