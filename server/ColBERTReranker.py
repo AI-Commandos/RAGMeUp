@@ -1,6 +1,5 @@
 from typing import List, Dict, Any
-from langchain.retrievers.document_compressors import BaseDocumentCompressor
-from langchain_core.documents import Document
+from langchain_core.documents import Document, BaseDocumentCompressor
 from colbert.infra import Run, RunConfig, ColBERTConfig
 from colbert.modeling.tokenization import QueryTokenizer, DocTokenizer
 from colbert import Indexer, Searcher
