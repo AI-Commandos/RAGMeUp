@@ -98,7 +98,7 @@ def chat():
         return jsonify(response), 200
 
     # Get the LLM response
-    (new_history, response) = raghelper.handle_user_interaction(prompt, history)
+    (new_history, response) = raghelper.handle_user_interaction(prompt, history, isText2SQL=False)
     if not docs or "docs" in response:
         docs = response["docs"]
 
