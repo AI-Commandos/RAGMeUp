@@ -83,7 +83,15 @@ def chat():
     prompt = json_data.get('prompt')
     history = json_data.get('history', [])
     original_docs = json_data.get('docs', [])
+    isText2SQL = json_data.get('isText2SQL', False)
     docs = original_docs
+
+    if isText2SQL:
+        # Handle Text-to-SQL
+        new_history, response = raghelper.handle_user_interaction(
+            prompt, history, is_text2sql=True
+        )
+        return jsonify(response), 200
 
     # Get the LLM response
     (new_history, response) = raghelper.handle_user_interaction(prompt, history)

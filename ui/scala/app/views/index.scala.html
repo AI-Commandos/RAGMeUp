@@ -19,6 +19,10 @@
     </div>
   </div>
 </div>
+<div class="form-check form-switch" style="position: absolute; top: 10px; left: 10px; z-index: 10;"">
+  <input class="form-check-input" type="checkbox" id="text2sqlToggle">
+  <label class="form-check-label" for="text2sqlToggle">Enable Text-to-SQL</label>
+</div>
 <div class="row">
   <div class="col-md-10 offset-md-1">
     <div id="dialogue" style="display: none;"></div>
@@ -37,6 +41,7 @@
 </div>
 
 <script>
+  let isText2SQL = $("#text2sqlToggle").is(":checked");
     function uuidv4() {
       return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
         (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
@@ -214,6 +219,7 @@
     });
 
     function handleChat() {
+        isText2SQL = $("#text2sqlToggle").is(":checked");
         $('button[type="submit"]', this).prop('disabled', true);
         $("#mainContainer").hide();
         var query = $("#query").val();
@@ -230,13 +236,16 @@
             data: JSON.stringify({
               query: query,
               history: chathistory,
-              docs: documents
+              docs: documents,
+              isText2SQL: isText2SQL
             }),
             contentType: "application/json; charset=utf-8",
             dataType: "json",
             success: function(data){
                 $("#loader").hide();
                 $("#mainContainer").remove();
+
+
 
                 if (data['rewritten']) {
                   var msg = '<span style="color: #ccc; font-style: italic; font-weight: 300;">Your message has been rewritten to this:</span>\n\n' + data['question'];

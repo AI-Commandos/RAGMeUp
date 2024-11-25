@@ -38,3 +38,5 @@ accelerate==0.34.0
 pydantic==2.7.4
 pydantic_core==2.18.4
 psycopg2-binary==2.9.9
+psycopg2
+transformers

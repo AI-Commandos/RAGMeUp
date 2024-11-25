@@ -39,6 +39,7 @@ class HomeController @Inject()(
     val query = (json \ "query").as[String]
     val history = (json \ "history").as[Seq[JsObject]]
     val docs = (json \ "docs").as[Seq[JsObject]]
+    val isText2Sql = (json \ "isText2SQL").asOpt[Boolean].getOrElse(false)
 
     ws
       .url(s"${config.get[String]("server_url")}/chat")
@@ -46,7 +47,8 @@ class HomeController @Inject()(
       .post(Json.obj(
         "prompt" -> query,
         "history" -> history,
-        "docs" -> docs
+        "docs" -> docs,
+        "isText2SQL" -> isText2Sql
       ))
       .map(response =>
           Ok(response.json)
@@ -112,4 +114,28 @@ class HomeController @Inject()(
   def feedback() = Action { implicit request: Request[AnyContent] =>
     Ok(Json.obj())
   }
+
+  def text2sql() = Action.async { implicit request: Request[AnyContent] =>
+    val json = request.body.asJson.getOrElse(Json.obj()).as[JsObject]
+    val query = (json \ "query").as[String]
+    val schema = (json \ "schema").asOpt[String].getOrElse("") // Optional: Database schema
+
+    ws
+      .url(s"${config.get[String]("server_url")}/text2sql") // Backend Text-to-SQL service
+      .withRequestTimeout(5.minutes)
+      .post(Json.obj(
+        "query" -> query,
+        "schema" -> schema // Pass schema if required
+      ))
+      .map { response =>
+        if (response.status == 200) {
+          // Forward the SQL query results to the client
+          Ok(response.json)
+        } else {
+          // Handle errors
+          BadRequest(Json.obj("error" -> s"Text-to-SQL failed: ${response.statusText}"))
+        }
+      }
+}
+
 }

@@ -133,66 +133,75 @@ class RAGHelperCloud(RAGHelper):
                 return self.extract_response_content(self.rewrite_chain.invoke(user_query))
         return user_query
 
-    def handle_user_interaction(self, user_query: str, history: list) -> tuple:
-        """Handle user interaction by processing their query and maintaining conversation history.
+    def handle_user_interaction(self, user_query: str, history: list, isText2SQL: bool) -> tuple:
+        """
+        Handle user interactions for either RAG or Text-to-SQL workflows.
 
         Args:
-            user_query (str): The user's query.
-            history (list): The history of previous interactions.
+            query (str): User query.
+            history (list): Conversation history.
+            is_text2sql (bool): Flag to determine if the query is for Text-to-SQL.
 
         Returns:
-            tuple: A tuple containing the conversation thread and the reply.
+            tuple: Updated history and response.
         """
-        fetch_new_documents = self.should_fetch_new_documents(user_query, history)
-
-        thread = self.create_interaction_thread(history, fetch_new_documents)
-        # Create prompt from prompt template
-        prompt = ChatPromptTemplate.from_messages(thread)
-
-        # Create llm chain
-        llm_chain = prompt | self.llm
-
-        if fetch_new_documents:
-            context_retriever = self.ensemble_retriever if self.rerank else self.rerank_retriever
-            retriever_chain = {
-                "docs": context_retriever,
-                "context": context_retriever | RAGHelper.format_documents,
-                "question": RunnablePassthrough()
-            }
-            llm_chain = prompt | self.llm | StrOutputParser()
-            rag_chain = (
-                retriever_chain
-                | RunnablePassthrough.assign(
-                    answer=lambda x: llm_chain.invoke(
-                        {"docs": x["docs"], "context": x["context"], "question": x["question"]}
-                    ))
-                | combine_results
-            )
+        if isText2SQL:
+            # Text-to-SQL workflow
+            schema = self.get_schema()
+            sql_query = self.translate_to_sql(user_query, schema)
+            sql_results = self.execute_sql_query(sql_query)
+            return history, {"sql_query": sql_query, "results": sql_results}
         else:
-            retriever_chain = {"question": RunnablePassthrough()}
-            llm_chain = prompt | self.llm | StrOutputParser()
-            rag_chain = (
-                retriever_chain
-                | RunnablePassthrough.assign(
-                    answer=lambda x: llm_chain.invoke(
-                        {"question": x["question"]}
-                    ))
-                | combine_results
-            )
+            fetch_new_documents = self.should_fetch_new_documents(user_query, history)
 
-        user_query = self.handle_rewrite(user_query)
-        # Check if we need to apply Re2 to mention the question twice
-        if os.getenv("use_re2") == "True":
-            user_query = f'{user_query}\n{os.getenv("re2_prompt")}{user_query}'
+            thread = self.create_interaction_thread(history, fetch_new_documents)
+            # Create prompt from prompt template
+            prompt = ChatPromptTemplate.from_messages(thread)
 
-        # Invoke RAG pipeline
-        reply = rag_chain.invoke(user_query)
+            # Create llm chain
+            llm_chain = prompt | self.llm
 
-        # Track provenance if needed
-        if fetch_new_documents and os.getenv("provenance_method") in ['rerank', 'attention', 'similarity', 'llm']:
-            self.track_provenance(reply, user_query)
+            if fetch_new_documents:
+                context_retriever = self.ensemble_retriever if self.rerank else self.rerank_retriever
+                retriever_chain = {
+                    "docs": context_retriever,
+                    "context": context_retriever | RAGHelper.format_documents,
+                    "question": RunnablePassthrough()
+                }
+                llm_chain = prompt | self.llm | StrOutputParser()
+                rag_chain = (
+                    retriever_chain
+                    | RunnablePassthrough.assign(
+                        answer=lambda x: llm_chain.invoke(
+                            {"docs": x["docs"], "context": x["context"], "question": x["question"]}
+                        ))
+                    | combine_results
+                )
+            else:
+                retriever_chain = {"question": RunnablePassthrough()}
+                llm_chain = prompt | self.llm | StrOutputParser()
+                rag_chain = (
+                    retriever_chain
+                    | RunnablePassthrough.assign(
+                        answer=lambda x: llm_chain.invoke(
+                            {"question": x["question"]}
+                        ))
+                    | combine_results
+                )
 
-        return (thread, reply)
+            user_query = self.handle_rewrite(user_query)
+            # Check if we need to apply Re2 to mention the question twice
+            if os.getenv("use_re2") == "True":
+                user_query = f'{user_query}\n{os.getenv("re2_prompt")}{user_query}'
+
+            # Invoke RAG pipeline
+            reply = rag_chain.invoke(user_query)
+
+            # Track provenance if needed
+            if fetch_new_documents and os.getenv("provenance_method") in ['rerank', 'attention', 'similarity', 'llm']:
+                self.track_provenance(reply, user_query)
+
+            return (thread, reply)
 
     def should_fetch_new_documents(self, user_query: str, history: list) -> bool:
         """Determine if new documents should be fetched based on user query and history.

@@ -23,6 +23,10 @@ from PostgresBM25Retriever import PostgresBM25Retriever
 from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
 from tqdm import tqdm
 
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+import psycopg2
+from psycopg2 import OperationalError
+
 
 class RAGHelper:
     """
@@ -66,6 +70,114 @@ class RAGHelper:
         self.xml_xpath = os.getenv("xml_xpath")
         self.json_text_content = os.getenv("json_text _content", "false").lower() == 'true'
         self.json_schema = os.getenv("json_schema")
+
+        # Text2SQL
+        self.db_path = os.getenv('db_path')
+        self.db_name = os.getenv('db_name')
+        self.db_port = os.getenv('db_port')
+        self.db_user = os.getenv('db_user')
+        self.db_password = os.getenv('db_password')
+        self.text2sql_model_name = "Salesforce/T5_large_finetuned_sqa"
+        self.text2sql_tokenizer = AutoTokenizer.from_pretrained(
+            self.text2sql_model_name
+        )
+        self.text2sql_model = AutoModelForSeq2SeqLM.from_pretrained(
+            self.text2sql_model_name
+        )
+
+    def connect_to_postgresql(self):
+        """
+        Establish a connection to the PostgreSQL database.
+
+        Returns:
+            psycopg2.connection: Database connection object.
+        """
+        return psycopg2.connect(
+            dbname=self.db_name,
+            user=self.db_user,
+            password=self.db_password,
+            host=self.db_path,
+            port=self.db_port,
+        )
+
+    def get_schema(self):
+        """
+        Retrieve the database schema for PostgreSQL.
+
+        Returns:
+            str: Schema formatted for Text-to-SQL model input.
+        """
+        conn = self.connect_to_postgresql()
+        schema = {}
+        try:
+            cursor = conn.cursor()
+            # Fetch all tables in the public schema
+            cursor.execute(
+                """
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'public';
+            """
+            )
+            tables = cursor.fetchall()
+
+            for (table_name,) in tables:
+                # Fetch column names for each table
+                cursor.execute(
+                    f"""
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_name = '{table_name}';
+                """
+                )
+                columns = cursor.fetchall()
+                schema[table_name] = [column[0] for column in columns]  # Column names
+        finally:
+            conn.close()
+
+        # Format schema for the model
+        formatted_schema = [
+            f"{table}: [{', '.join(columns)}]" for table, columns in schema.items()
+        ]
+        return " | ".join(formatted_schema)
+
+    def translate_to_sql(self, query, schema):
+        """
+        Translate a natural language query into SQL using a pre-trained model.
+
+        Args:
+            query (str): Natural language query.
+            schema (str): Database schema as context.
+
+        Returns:
+            str: Generated SQL query.
+        """
+        input_text = f"translate English to SQL: {query} using schema: {schema}"
+        inputs = self.text2sql_tokenizer(input_text, return_tensors="pt")
+        outputs = self.text2sql_model.generate(inputs.input_ids, max_length=512)
+        return self.text2sql_tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+    def execute_sql_query(self, sql_query):
+        """
+        Execute a SQL query against the PostgreSQL database.
+
+        Args:
+            sql_query (str): SQL query to execute.
+
+        Returns:
+            dict: Query results or error information.
+        """
+        conn = self.connect_to_postgres()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(sql_query)
+            rows = cursor.fetchall()
+            columns = [desc.name for desc in cursor.description]
+            return {"columns": columns, "rows": rows}
+        except psycopg2.Error as e:
+            return {"error": str(e)}
+        finally:
+            conn.close()
 
     @staticmethod
     def format_documents(docs):
