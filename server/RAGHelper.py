@@ -77,7 +77,7 @@ class RAGHelper:
         self.db_port = os.getenv('db_port')
         self.db_user = os.getenv('db_user')
         self.db_password = os.getenv('db_password')
-        self.text2sql_model_name = "Salesforce/T5_large_finetuned_sqa"
+        self.text2sql_model_name = "gaussalgo/T5-LM-Large-text2sql-spider"
         self.text2sql_tokenizer = AutoTokenizer.from_pretrained(
             self.text2sql_model_name
         )
