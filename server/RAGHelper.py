@@ -21,6 +21,11 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from lxml import etree
 from PostgresBM25Retriever import PostgresBM25Retriever
 from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
+from langchain.chains import HypotheticalDocumentEmbedder, LLMChain
+from langchain.prompts import PromptTemplate
+from langchain_huggingface.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface.llms import HuggingFacePipeline
+from CustomHyDE import CustomHypotheticalDocumentEmbedder
 from tqdm import tqdm
 
 
@@ -52,6 +57,10 @@ class RAGHelper:
         self.splitter_type = os.getenv('splitter')
         self.vector_store = os.getenv("vector_store")
         self.vector_store_initial_load = os.getenv("vector_store_initial_load") == "True"
+        self.hyde_enabled = os.getenv("hyde_enabled", "False").lower() == "true"
+        self.hyde_multi_generations = int(os.getenv("hyde_multi_generations", 1))
+        self.hyde_prompt_template = os.getenv("hyde_prompt_template", "web_search")
+        self.hyde_embeddings = None
         self.rerank = os.getenv("rerank") == "True"
         self.rerank_model = os.getenv("rerank_model")
         self.rerank_k = int(os.getenv("rerank_k"))
@@ -432,6 +441,74 @@ class RAGHelper:
         self.rerank_retriever = ContextualCompressionRetriever(
             base_compressor=self.compressor, base_retriever=self.ensemble_retriever
         )
+
+    def apply_hyde_if_enabled(self,prompt):
+        """
+        Applies HyDE embedding to the prompt if enabled in configuration.
+        """
+        if os.getenv("hyde_enabled", "False").lower() == "true":
+            self.logger.info("HyDE is enabled. Generating HyDE embedding.")
+            return self.embed_query_with_hyde(prompt)
+        return prompt
+
+    def _create_hyde_prompt(self):
+        """Create a custom HyDE prompt."""
+        domain = os.getenv("domain")
+        return PromptTemplate(
+            input_variables=["question"],
+            template=f"Generate a hypothetical answer for the following query in the context of {domain}.\nQuestion: {{question}}\nAnswer:"
+        )
+
+    def _initialize_hyde_embeddings(self):
+        """Initialize HyDE embeddings lazily."""
+        if not hasattr(self, "hyde_embeddings") or self.hyde_embeddings is None:
+            self.logger.info("Initializing HyDE embeddings.")
+            try:
+                # Log the embedding model
+                embedding_model = os.getenv("embedding_model")
+                self.logger.info(f"Using embedding model: {embedding_model}")
+                base_embeddings = HuggingFaceEmbeddings(model_name=embedding_model)
+
+                # Log the LLM model
+                self.logger.info(f"Using LLM model: {self.llm}")
+                prompt = self._create_hyde_prompt()
+
+                # Create the LLM chain
+                self.logger.info("Creating LLM chain...")
+                llm_chain = LLMChain(llm=self.llm, prompt=prompt)
+
+                # Initialize HyDE embeddings
+                self.hyde_embeddings = CustomHypotheticalDocumentEmbedder(
+                    llm_chain=llm_chain,
+                    base_embeddings=base_embeddings
+                )
+                self.logger.info("HyDE embeddings initialized successfully.")
+
+            except Exception as e:
+                self.logger.error(f"Failed to initialize HyDE embeddings: {e}")
+                raise
+
+    def embed_query_with_hyde(self, query):
+        """Embed a query using HyDE embeddings or retrieve the raw hypothetical document."""
+        if not self.hyde_enabled:
+            raise ValueError("HyDE is not enabled in the current configuration.")
+
+        self.logger.info(f"Embedding query using HyDE for query: {query}")
+        self._initialize_hyde_embeddings()  # Ensure embeddings are initialized
+
+        try:
+            # Retrieve the hypothetical document text
+            hypothetical_doc = self.hyde_embeddings.embed_query(query, return_text=True)
+            self.logger.info(f"Hypothetical document (text): {hypothetical_doc}")
+
+            # If you need embeddings instead, set return_text=False
+            # embeddings = self.hyde_embeddings.embed_query(query, return_text=False)
+
+            return hypothetical_doc
+
+        except Exception as e:
+            self.logger.error(f"Error in HyDE query embedding: {e}")
+            raise
 
     def _setup_retrievers(self):
         """Sets up the retrievers based on specified configurations."""

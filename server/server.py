@@ -46,6 +46,41 @@ else:
     raghelper = RAGHelperLocal(logger)
 
 
+@app.route("/test_hyde", methods=['GET'])
+def test_hyde():
+    """
+    Test the HyDE embedding functionality with a predefined query.
+
+    This endpoint generates a hypothetical document embedding for a predefined query
+    and returns the embedding vector.
+
+    Returns:
+        JSON response with the embedding vector and dimension.
+    """
+    # Hardcoded test query
+    query = "What are the main adversarial conditions used to evaluate the robustness of Large Language Models (LLMs) according to the study?"
+    logger.info(f"Testing HyDE embedding with predefined query: {query}")
+
+    if not os.getenv("hyde_enabled", "False").lower() == "true":
+        return jsonify({"error": "HyDE is not enabled in the configuration"}), 400
+
+    try:
+        # Generate HyDE embeddings
+        hyde_embedding = raghelper.embed_query_with_hyde(query)
+
+        # Return a sample of the embedding for validation
+        response = {
+            "embedding_sample": hyde_embedding[1:10],  # First 10 values for brevity
+            "dimension": len(hyde_embedding),
+            "message": f"HyDE embedding generated successfully for query: {query}"
+        }
+        logger.info("HyDE embedding generated successfully.")
+        return jsonify(response), 200
+
+    except Exception as e:
+        logger.error(f"Error generating HyDE embedding: {e}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/add_document", methods=['POST'])
 def add_document():
     """
@@ -84,6 +119,8 @@ def chat():
     history = json_data.get('history', [])
     original_docs = json_data.get('docs', [])
     docs = original_docs
+
+    prompt = raghelper.apply_hyde_if_enabled(prompt)
 
     # Get the LLM response
     (new_history, response) = raghelper.handle_user_interaction(prompt, history)
