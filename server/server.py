@@ -5,7 +5,7 @@ import os
 from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper_local import RAGHelperLocal
 from pymilvus import Collection, connections
-
+from GraphRAGHelper import GraphRAGHelper
 
 def load_bashrc():
     """
@@ -24,6 +24,27 @@ def load_bashrc():
                     value = value.strip(' "\'')
                     os.environ[key] = value
 
+def initialize_helper():
+    """
+    Initialize the RAG helper based on the environment configuration.
+    """
+    logger = logging.getLogger(__name__)
+    use_graph_rag = os.getenv("use_graph_rag") == "True"
+    
+    if use_graph_rag:
+        # Initialize GraphRAGHelper
+        logger.info("Instantiating the GraphRAG helper.")
+        helper = GraphRAGHelper(logger)
+    elif any(os.getenv(key) == "True" for key in ["use_openai", "use_gemini", "use_azure", "use_ollama"]):
+        # Initialize RAGHelperCloud
+        logger.info("Instantiating the cloud RAG helper.")
+        raghelper = RAGHelperCloud(logger)
+    else:
+        # Initialize RAGHelperLocal
+        logger.info("Instantiating the local RAG helper.")
+        helper = RAGHelperLocal(logger)
+    
+    return helper
 
 # Initialize Flask application
 app = Flask(__name__)
@@ -37,14 +58,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 load_bashrc()
 load_dotenv()
 
-# Instantiate the RAG Helper class based on the environment configuration
-if any(os.getenv(key) == "True" for key in ["use_openai", "use_gemini", "use_azure", "use_ollama"]):
-    logger.info("Instantiating the cloud RAG helper.")
-    raghelper = RAGHelperCloud(logger)
-else:
-    logger.info("Instantiating the local RAG helper.")
-    raghelper = RAGHelperLocal(logger)
-
+raghelper = initialize_helper()
 
 @app.route("/add_document", methods=['POST'])
 def add_document():
@@ -85,35 +99,40 @@ def chat():
     original_docs = json_data.get('docs', [])
     docs = original_docs
 
-    # Get the LLM response
-    (new_history, response) = raghelper.handle_user_interaction(prompt, history)
-    if not docs or 'docs' in response:
-        docs = response['docs']
+    # Determine which helper to use based on the environment variable
+    if isinstance(raghelper, GraphRAGHelper):
+        # Use GraphRAGHelper to handle user interaction
+        (new_history, response) = raghelper.handle_user_interaction(prompt, history)
+    else:
+        # Use the regular RAGHelper to handle user interaction
+        (new_history, response) = raghelper.handle_user_interaction(prompt, history)
+        if not docs or 'docs' in response:
+            docs = response['docs']
 
     # Break up the response for local LLMs
-    if isinstance(raghelper, RAGHelperLocal):
+    if isinstance(raghelper, RAGHelperLocal) or isinstance(raghelper, GraphRAGHelper):
         end_string = os.getenv("llm_assistant_token")
         reply = response['text'][response['text'].rindex(end_string) + len(end_string):]
-
-        # Get updated history
         new_history = [{"role": msg["role"], "content": msg["content"].format_map(response)} for msg in new_history]
         new_history.append({"role": "assistant", "content": reply})
     else:
-        # Populate history for other LLMs
         new_history = [{"role": msg[0], "content": msg[1].format_map(response)} for msg in new_history]
         new_history.append({"role": "assistant", "content": response['answer']})
         reply = response['answer']
 
-    # Format documents
-    fetched_new_documents = False
-    if not original_docs or 'docs' in response:
-        fetched_new_documents = True
-        new_docs = [{
-            's': doc.metadata['source'],
-            'c': doc.page_content,
-            **({'pk': doc.metadata['pk']} if 'pk' in doc.metadata else {}),
-            **({'provenance': float(doc.metadata['provenance'])} if 'provenance' in doc.metadata and doc.metadata['provenance'] is not None else {})
-        } for doc in docs if 'source' in doc.metadata]
+    # Format documents only if not using GraphRAGHelper
+    if not isinstance(raghelper, GraphRAGHelper):
+        fetched_new_documents = False
+        if not original_docs or 'docs' in response:
+            fetched_new_documents = True
+            new_docs = [{
+                's': doc.metadata['source'],
+                'c': doc.page_content,
+                **({'pk': doc.metadata['pk']} if 'pk' in doc.metadata else {}),
+                **({'provenance': float(doc.metadata['provenance'])} if 'provenance' in doc.metadata and doc.metadata['provenance'] is not None else {})
+            } for doc in docs if 'source' in doc.metadata]
+        else:
+            new_docs = docs
     else:
         new_docs = docs
 
@@ -124,7 +143,7 @@ def chat():
         "documents": new_docs,
         "rewritten": False,
         "question": prompt,
-        "fetched_new_documents": fetched_new_documents
+        "fetched_new_documents": fetched_new_documents if not isinstance(raghelper, GraphRAGHelper) else False
     }
 
     # Check for rewritten question
@@ -201,18 +220,21 @@ def delete_document():
     if not os.path.exists(file_path):
         return jsonify({"error": "File not found"}), 404
 
-    # Remove from Milvus
-    connections.connect(uri=os.getenv('vector_store_uri'))
-    collection = Collection("LangChainCollection")
-    collection.load()
-    result = collection.delete(f'source == "{file_path}"')
-    collection.release()
+    if isinstance(raghelper, GraphRAGHelper):
+        raghelper.delete_document(filename)
+    else:
+        # Remove from Milvus
+        connections.connect(uri=os.getenv('vector_store_uri'))
+        collection = Collection("LangChainCollection")
+        collection.load()
+        result = collection.delete(f'source == "{file_path}"')
+        collection.release()
 
-    # Remove from disk too
-    os.remove(file_path)
+        # Remove from disk too
+        os.remove(file_path)
 
-    # Reinitialize BM25
-    raghelper.loadData()
+        # Reinitialize BM25
+        raghelper.loadData()
 
     return jsonify({"count": result.delete_count})
 
