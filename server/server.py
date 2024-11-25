@@ -21,7 +21,7 @@ def load_bashrc():
             for line in f:
                 if line.startswith("export "):
                     key, value = line.strip().replace("export ", "").split("=", 1)
-                    value = value.strip(' "\'')
+                    value = value.strip(" \"'")
                     os.environ[key] = value
 
 
@@ -38,7 +38,10 @@ load_bashrc()
 load_dotenv()
 
 # Instantiate the RAG Helper class based on the environment configuration
-if any(os.getenv(key) == "True" for key in ["use_openai", "use_gemini", "use_azure", "use_ollama"]):
+if any(
+    os.getenv(key) == "True"
+    for key in ["use_openai", "use_gemini", "use_azure", "use_ollama"]
+):
     logger.info("Instantiating the cloud RAG helper.")
     raghelper = RAGHelperCloud(logger)
 else:
@@ -46,7 +49,7 @@ else:
     raghelper = RAGHelperLocal(logger)
 
 
-@app.route("/add_document", methods=['POST'])
+@app.route("/add_document", methods=["POST"])
 def add_document():
     """
     Add a document to the RAG helper.
@@ -58,7 +61,7 @@ def add_document():
         JSON response with the filename and HTTP status code 200.
     """
     json_data = request.get_json()
-    filename = json_data.get('filename')
+    filename = json_data.get("filename")
 
     if not filename:
         return jsonify({"error": "Filename is required"}), 400
@@ -68,7 +71,7 @@ def add_document():
     return jsonify({"filename": filename}), 200
 
 
-@app.route("/chat", methods=['POST'])
+@app.route("/chat", methods=["POST"])
 def chat():
     """
     Handle chat interactions with the RAG system.
@@ -80,48 +83,65 @@ def chat():
         JSON response containing the assistant's reply, history, documents, and other metadata.
     """
     json_data = request.get_json()
-    prompt = json_data.get('prompt')
-    history = json_data.get('history', [])
-    original_docs = json_data.get('docs', [])
-    isText2SQL = json_data.get('isText2SQL', False)
+    prompt = json_data.get("prompt")
+    history = json_data.get("history", [])
+    original_docs = json_data.get("docs", [])
+    isText2SQL = json_data.get("isText2SQL", False)
     docs = original_docs
 
     if isText2SQL:
         # Handle Text-to-SQL
         new_history, response = raghelper.handle_user_interaction(
-            prompt, history, is_text2sql=True
+            prompt, history, isText2SQL=True
         )
         return jsonify(response), 200
 
     # Get the LLM response
     (new_history, response) = raghelper.handle_user_interaction(prompt, history)
-    if not docs or 'docs' in response:
-        docs = response['docs']
+    if not docs or "docs" in response:
+        docs = response["docs"]
 
     # Break up the response for local LLMs
     if isinstance(raghelper, RAGHelperLocal):
         end_string = os.getenv("llm_assistant_token")
-        reply = response['text'][response['text'].rindex(end_string) + len(end_string):]
+        reply = response["text"][
+            response["text"].rindex(end_string) + len(end_string) :
+        ]
 
         # Get updated history
-        new_history = [{"role": msg["role"], "content": msg["content"].format_map(response)} for msg in new_history]
+        new_history = [
+            {"role": msg["role"], "content": msg["content"].format_map(response)}
+            for msg in new_history
+        ]
         new_history.append({"role": "assistant", "content": reply})
     else:
         # Populate history for other LLMs
-        new_history = [{"role": msg[0], "content": msg[1].format_map(response)} for msg in new_history]
-        new_history.append({"role": "assistant", "content": response['answer']})
-        reply = response['answer']
+        new_history = [
+            {"role": msg[0], "content": msg[1].format_map(response)}
+            for msg in new_history
+        ]
+        new_history.append({"role": "assistant", "content": response["answer"]})
+        reply = response["answer"]
 
     # Format documents
     fetched_new_documents = False
-    if not original_docs or 'docs' in response:
+    if not original_docs or "docs" in response:
         fetched_new_documents = True
-        new_docs = [{
-            's': doc.metadata['source'],
-            'c': doc.page_content,
-            **({'pk': doc.metadata['pk']} if 'pk' in doc.metadata else {}),
-            **({'provenance': float(doc.metadata['provenance'])} if 'provenance' in doc.metadata and doc.metadata['provenance'] is not None else {})
-        } for doc in docs if 'source' in doc.metadata]
+        new_docs = [
+            {
+                "s": doc.metadata["source"],
+                "c": doc.page_content,
+                **({"pk": doc.metadata["pk"]} if "pk" in doc.metadata else {}),
+                **(
+                    {"provenance": float(doc.metadata["provenance"])}
+                    if "provenance" in doc.metadata
+                    and doc.metadata["provenance"] is not None
+                    else {}
+                ),
+            }
+            for doc in docs
+            if "source" in doc.metadata
+        ]
     else:
         new_docs = docs
 
@@ -132,18 +152,18 @@ def chat():
         "documents": new_docs,
         "rewritten": False,
         "question": prompt,
-        "fetched_new_documents": fetched_new_documents
+        "fetched_new_documents": fetched_new_documents,
     }
 
     # Check for rewritten question
-    if os.getenv("use_rewrite_loop") == "True" and prompt != response['question']:
+    if os.getenv("use_rewrite_loop") == "True" and prompt != response["question"]:
         response_dict["rewritten"] = True
-        response_dict["question"] = response['question']
+        response_dict["question"] = response["question"]
 
     return jsonify(response_dict), 200
 
 
-@app.route("/get_documents", methods=['GET'])
+@app.route("/get_documents", methods=["GET"])
 def get_documents():
     """
     Retrieve a list of documents from the data directory.
@@ -154,17 +174,21 @@ def get_documents():
     Returns:
         JSON response containing the list of files.
     """
-    data_dir = os.getenv('data_directory')
+    data_dir = os.getenv("data_directory")
     file_types = os.getenv("file_types", "").split(",")
 
     # Filter files based on specified types
-    files = [f for f in os.listdir(data_dir)
-             if os.path.isfile(os.path.join(data_dir, f)) and os.path.splitext(f)[1][1:] in file_types]
+    files = [
+        f
+        for f in os.listdir(data_dir)
+        if os.path.isfile(os.path.join(data_dir, f))
+        and os.path.splitext(f)[1][1:] in file_types
+    ]
 
     return jsonify(files)
 
 
-@app.route("/get_document", methods=['POST'])
+@app.route("/get_document", methods=["POST"])
 def get_document():
     """
     Retrieve a specific document from the data directory.
@@ -177,20 +201,22 @@ def get_document():
         otherwise sends the file as an attachment.
     """
     json_data = request.get_json()
-    filename = json_data.get('filename')
-    data_dir = os.getenv('data_directory')
+    filename = json_data.get("filename")
+    data_dir = os.getenv("data_directory")
     file_path = os.path.join(data_dir, filename)
 
     if not os.path.exists(file_path):
         return jsonify({"error": "File not found"}), 404
 
-    return send_file(file_path,
-                     mimetype='application/octet-stream',
-                     as_attachment=True,
-                     download_name=filename)
+    return send_file(
+        file_path,
+        mimetype="application/octet-stream",
+        as_attachment=True,
+        download_name=filename,
+    )
 
 
-@app.route("/delete", methods=['POST'])
+@app.route("/delete", methods=["POST"])
 def delete_document():
     """
     Delete a specific document from the data directory and the Milvus vector store.
@@ -202,15 +228,15 @@ def delete_document():
         JSON response with the count of deleted documents.
     """
     json_data = request.get_json()
-    filename = json_data.get('filename')
-    data_dir = os.getenv('data_directory')
+    filename = json_data.get("filename")
+    data_dir = os.getenv("data_directory")
     file_path = os.path.join(data_dir, filename)
 
     if not os.path.exists(file_path):
         return jsonify({"error": "File not found"}), 404
 
     # Remove from Milvus
-    connections.connect(uri=os.getenv('vector_store_uri'))
+    connections.connect(uri=os.getenv("vector_store_uri"))
     collection = Collection("LangChainCollection")
     collection.load()
     result = collection.delete(f'source == "{file_path}"')
