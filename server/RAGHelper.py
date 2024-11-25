@@ -72,10 +72,10 @@ class RAGHelper:
         self.json_schema = os.getenv("json_schema")
 
         # Text2SQL
-        self.db_path = os.getenv('db_path')
+        self.db_path = os.getenv('db_host')
         self.db_name = os.getenv('db_name')
         self.db_port = os.getenv('db_port')
-        self.db_user = os.getenv('db_user')
+        self.db_user = os.getenv('db_username')
         self.db_password = os.getenv('db_password')
         self.text2sql_model_name = "gaussalgo/T5-LM-Large-text2sql-spider"
         self.text2sql_tokenizer = AutoTokenizer.from_pretrained(
