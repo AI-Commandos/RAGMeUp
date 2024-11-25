@@ -57,7 +57,7 @@ class GraphRAGHelper(RAGHelper):
         """
         if os.path.exists(self.document_chunks_pickle):
             self.logger.info("documents chunk pickle exists, reusing it.")
-            self._load_chunked_documents()
+            self._load_chunked_documents() 
         else:
             self.logger.info("loading the documents for the first time.")
             docs = self._load_documents()
