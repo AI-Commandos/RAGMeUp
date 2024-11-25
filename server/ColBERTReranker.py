@@ -34,7 +34,6 @@ class ColBERTReranker(BaseDocumentCompressor):
         """
         super().__init__()
 
-        self.top_n = top_n
         self.device = device
 
         # Initialize ColBERT configuration
