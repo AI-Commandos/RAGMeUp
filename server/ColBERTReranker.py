@@ -34,7 +34,8 @@ class ColBERTReranker(BaseDocumentCompressor):
         """
         super().__init__()
 
-        self.device = device
+        self.top_n: top_n
+        self.device: device
 
         # Initialize ColBERT configuration
         self.colbert_config = ColBERTConfig(
@@ -51,7 +52,7 @@ class ColBERTReranker(BaseDocumentCompressor):
         # Load model
         with Run().context(RunConfig(nranks=1)):
             self.searcher = Searcher(
-                index=None, config=self.colbert_config, device=self.device
+                index=None, config=colbert_config, device=self.device
             )
 
     def compress_documents(
