@@ -306,3 +306,6 @@ class RAGHelperLocal(RAGHelper):
         reranked_docs = compute_rerank_provenance(self.compressor, user_query, reply['docs'], answer)
         return [d.metadata['relevance_score'] for d in reranked_docs if
                 d.page_content in [doc.page_content for doc in reply['docs']]]
+
+
+

@@ -5,6 +5,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from langchain.prompts import ChatPromptTemplate
+import graphrag
 
 # This is a clever little function that attempts to compute the attribution of each document retrieved from the RAG store towards the generated answer.
 # The way this function works is by getting the (self-)attention scores of each token towards every other token and then computing, for each document:
@@ -104,7 +105,7 @@ def compute_rerank_provenance(reranker, query, documents, answer):
         full_text = answer
     
     # Score the documents, this will return the same document list but now with a relevance_score in metadata
-    scored_documents = reranker.compress_documents(documents, full_text)
+    scored_documents = graphrag.compress_documents(documents, full_text)
     return scored_documents
 
 def compute_llm_provenance(tokenizer, model, query, context, answer):
