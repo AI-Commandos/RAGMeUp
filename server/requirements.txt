@@ -41,5 +41,5 @@ psycopg2-binary==2.9.9
 numpy==1.26.4
 scipy==1.12.0
 networkx==3.4.2
-neo4j==5.26.0
-json_repair
+json_repair==0.30.2
+pygraphviz==1.14

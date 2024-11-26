@@ -167,5 +167,3 @@ server/*.pickle
 
 data
 run_RAG_server.ipynb
-
-neo4j

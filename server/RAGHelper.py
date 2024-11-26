@@ -1,7 +1,6 @@
 import hashlib
 import os
 import pickle
-import re
 
 from langchain.retrievers import (ContextualCompressionRetriever,
                                   EnsembleRetriever)
@@ -18,10 +17,9 @@ from langchain_core.documents.base import Document
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_milvus.vectorstores import Milvus
 from langchain_postgres.vectorstores import PGVector
-from langchain_community.graphs import Neo4jGraph
-from langchain_community.vectorstores.neo4j_vector import Neo4jVector
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_experimental.graph_transformers import LLMGraphTransformer
+from langchain_community.graphs.networkx_graph import NetworkxEntityGraph
+from langchain.indexes import GraphIndexCreator
 from lxml import etree
 from PostgresBM25Retriever import PostgresBM25Retriever
 from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
@@ -39,8 +37,8 @@ class RAGHelper:
         Initializes the RAGHelper class and loads environment variables.
         """
         self.logger = logger
+        self.documents = []
         self.chunked_documents = []
-        self.chunked_raw_documents = []
         self.embeddings = None  # Placeholder for embeddings; set during initialization
         self.text_splitter = None
         self.db = None
@@ -49,10 +47,11 @@ class RAGHelper:
         self.rerank_retriever = None
         self._batch_size = 1000
         # Load environment variables
+        self.graph_file = os.getenv('graph_file')
+        self.graph_plot = os.getenv('graph_plot')
         self.vector_store_sparse_uri = os.getenv('vector_store_sparse_uri')
         self.vector_store_uri = os.getenv('vector_store_uri')
         self.document_chunks_pickle = os.getenv('document_chunks_pickle')
-        self.raw_document_chunks_pickle = os.getenv('raw_document_chunks_pickle')
         self.data_dir = os.getenv('data_directory')
         self.file_types = os.getenv("file_types").split(",")
         self.splitter_type = os.getenv('splitter')
@@ -95,9 +94,6 @@ class RAGHelper:
         with open(self.document_chunks_pickle, 'rb') as f:
             self.logger.info("Loading chunked documents.")
             self.chunked_documents = pickle.load(f)
-        with open(self.raw_document_chunks_pickle, 'rb') as f:
-            self.logger.info("Loading chunked documents.")
-            self.chunked_raw_documents = pickle.load(f)
 
     def _load_json_files(self):
         """
@@ -342,14 +338,12 @@ class RAGHelper:
         Args:
             docs (list): A list of loaded Document objects.
         """
+        self.documents = docs
         self.chunked_documents = self._split_documents(docs)
-        self.chunked_raw_documents = self.text_splitter.split_documents(docs)
         # Store the chunked documents
         self.logger.info("Storing chunked document(s).")
         with open(self.document_chunks_pickle, 'wb') as f:
             pickle.dump(self.chunked_documents, f)
-        with open(self.raw_document_chunks_pickle, 'wb') as f:
-            pickle.dump(self.chunked_raw_documents, f)
 
     def _initialize_milvus(self):
         """Initializes the Milvus vector store."""
@@ -369,16 +363,6 @@ class RAGHelper:
             collection_name=self.vector_store_collection,
             connection=self.vector_store_uri,
             use_jsonb=True
-        )
-    
-    def _initialize_neo4j(self):
-        self.logger.info(f"Setting up Neo4j DB.")
-        self.graph_db = Neo4jVector.from_existing_graph(
-            self.embeddings(),
-            search_type="hybrid",
-            node_label="Document",
-            text_node_properties=["text"],
-            embedding_node_property="embedding"
         )
 
     def _initialize_vector_store(self):
@@ -511,16 +495,24 @@ class RAGHelper:
         return []
 
     def _initialize_graph_store(self):
-        llm_transformer = LLMGraphTransformer(llm=self.llm)
-        print(self.chunked_documents)
-        graph_documents = llm_transformer.convert_to_graph_documents(self.chunked_raw_documents)
+        """Concatenates all documents using two linebreaks and creates a graph from it"""
         
-        # TODO remove prints
-        self.logger.info(f"Nodes:{graph_documents[0].nodes}")
-        self.logger.info(f"Relationships:{graph_documents[0].relationships}")
+        if (os.path.isfile(self.graph_file)):
+            self.graph = NetworkxEntityGraph.from_gml(self.graph_file)
+            self.graph.draw_graphviz(layout="dot", filename=self.graph_plot)
+            return
         
-        self.graph_store = Neo4jGraph()
-        self.graph_store.add_graph_documents(graph_documents, baseEntityLabel=True, include_source=True)
+        text = ""
+        for document in self.documents:
+            text += document.page_content
+            text += "\n\n"
+        
+        index_creator = GraphIndexCreator(llm=self.llm)
+        self.graph = index_creator.from_text(text)
+        
+        self.graph.draw_graphviz(layout="dot", filename="graph.svg")
+        
+        self.graph.write_to_gml(self.graph_file)
         
     def load_data(self):
         """
@@ -550,6 +542,8 @@ class RAGHelper:
             ValueError: If the file type is unsupported.
         """
         new_docs = self._load_document(filename)
+        
+        self.documents += new_docs
 
         self.logger.info("chunking the documents.")
         new_chunks = self._split_documents(new_docs)

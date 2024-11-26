@@ -36,12 +36,8 @@ class RAGHelperLocal(RAGHelper):
         self.rag_fetch_new_chain = self._create_rag_chain()
         self.rewrite_ask_chain, self.rewrite_chain = self._initialize_rewrite_chains()
         
-        # Create graph chains
-        self.graph_extraction_chain, self.graph_community_summary_chain = self._initialize_graph_chains()
-        
         if os.getenv('graph') == "True":
             self._initialize_graph_store()
-            self._initialize_neo4j()
 
         # Initialize provenance method
         self.attributor = DocumentSimilarityAttribution() if os.getenv("provenance_method") == "similarity" else None
@@ -176,61 +172,7 @@ class RAGHelperLocal(RAGHelper):
         rewrite_llm_chain = LLMChain(llm=self.llm, prompt=rewrite_prompt)
 
         return {"question": RunnablePassthrough()} | rewrite_llm_chain
-
-    def _initialize_graph_chains(self):
-        """Initialize and return graph chains if required."""
-        graph_community_summary_chain = None
-        graph_extraction_llm_chain = None
-
-        if os.getenv("graph") == "True":
-            graph_community_summary_chain = self._create_graph_community_summary_chain()
-            graph_extraction_llm_chain = self._create_graph_extraction_chain()
-
-        return graph_extraction_llm_chain, graph_community_summary_chain
-        
-    def _create_graph_extraction_chain(self):
-        """Create and return the chain to extract entities and relations."""
-        graph_extraction_thread = [
-            {'role': 'system', 'content': os.getenv('rag_graph_extraction_query')},
-        ]
-        graph_extraction_prompt_template = self.tokenizer.apply_chat_template(graph_extraction_thread, tokenize=False)
-        graph_extraction_prompt = PromptTemplate(
-            input_variables=["text"],
-            template=graph_extraction_prompt_template,
-        )
-        graph_extraction_llm_chain = LLMChain(llm=self.llm, prompt=graph_extraction_prompt)
-
-        return {"text": RunnablePassthrough()} | graph_extraction_llm_chain
-        
     
-    def _create_graph_community_summary_chain(self):
-        """Create and return the chain to create graph community summaries."""
-        graph_community_summary_thread = [
-            {
-              "role": "system",
-              "content": ( # TODO: convert content into env variable
-                  "You are provided with a set of relationships from a knowledge graph, each represented as "
-                  "entity1->entity2->relation->relationship_description. Your task is to create a summary of these "
-                  "relationships. The summary should include the names of the entities involved and a concise synthesis "
-                  "of the relationship descriptions. The goal is to capture the most critical and relevant details that "
-                  "highlight the nature and significance of each relationship. Ensure that the summary is coherent and "
-                  "integrates the information in a way that emphasizes the key aspects of the relationships."
-              )
-            },
-            {
-              "role": "user",
-              "content": "{text}" # TODO: make into better prompt and convert into env variable
-            }
-        ]
-        graph_community_summary_prompt_template = self.tokenizer.apply_chat_template(graph_community_summary_thread, tokenize=False)
-        graph_community_summary_prompt = PromptTemplate(
-            input_variables=["text"],
-            template=graph_community_summary_prompt_template
-        )
-        graph_community_summary_chain = LLMChain(llm=self.llm, prompt=graph_community_summary_prompt)
-        
-        return {"text": RunnablePassthrough()} | graph_community_summary_chain
-
     def handle_rewrite(self, user_query: str) -> str:
         """Handle the rewriting of the user query if necessary."""
         if os.getenv("use_rewrite_loop") == "True":
@@ -274,6 +216,8 @@ class RAGHelperLocal(RAGHelper):
 
         if fetch_new_documents:
             self._track_provenance(user_query, reply, thread)
+            
+        # TODO: also probe self.graph (the type of self.graph is langchain_community.graphs.networkx_graph.NetworkxEntityGraph)
 
         return thread, reply
 
