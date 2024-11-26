@@ -1,6 +1,8 @@
 import hashlib
 import os
 import pickle
+import requests
+import base64
 
 from langchain.retrievers import (ContextualCompressionRetriever,
                                   EnsembleRetriever)
@@ -66,6 +68,7 @@ class RAGHelper:
         self.xml_xpath = os.getenv("xml_xpath")
         self.json_text_content = os.getenv("json_text _content", "false").lower() == 'true'
         self.json_schema = os.getenv("json_schema")
+        self.neo4j = os.getenv("neo4j_location")
 
     @staticmethod
     def format_documents(docs):
@@ -83,7 +86,7 @@ class RAGHelper:
             metadata_string = ", ".join([f"{md}: {doc.metadata[md]}" for md in doc.metadata.keys()])
             doc_strings.append(f"Document {i} content: {doc.page_content}\nDocument {i} metadata: {metadata_string}")
         return "\n\n<NEWDOC>\n\n".join(doc_strings)
-
+    
     def _load_chunked_documents(self):
         """Loads previously chunked documents from a pickle file."""
         with open(self.document_chunks_pickle, 'rb') as f:
@@ -487,6 +490,12 @@ class RAGHelper:
         # Implement your skill extraction logic here
         return []
 
+
+    def encode_file_to_base64(file_path):
+        with open(file_path, "rb") as file:
+            encoded_file = base64.b64encode(file.read()).decode('utf-8')
+        return encoded_file
+
     def load_data(self):
         """
         Loads data from various file types and chunks it into an ensemble retriever.
@@ -503,6 +512,35 @@ class RAGHelper:
         self._initialize_vector_store()
         self._setup_retrievers()
 
+    def add_document_to_graphdb(self,file,filetype):
+        if filetype == "csv":
+            try:
+                url = f"{self.neo4j}/add_csv"
+                query = "MATCH (n) RETURN n"  # Replace this with your actual query
+                base64_file = self.encode_file_to_base64(file) # Encode the file to Base64
+                payload = {
+                    "query": query,
+                    "file": base64_file
+                }
+                response = requests.post(url, json=payload)
+                response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
+                self.logger.info(response.status_code)
+            except:
+                try:
+                    url = f"{self.neo4j}/add_instance"
+                    payload = {
+                        "query": "MERGE (q:Quote {text: $quoteText}) MERGE (t:Topic {name: $topicName}) MERGE (q)-[:IS_PART_OF]->(t)",
+                        "parameters": {
+                        "quoteText": "Yes sir welcome quote",
+                        "topicName": "welcome word"
+                        }
+                    }
+                    response = requests.post(url, json=payload)
+                    response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
+                    self.logger.info(response.status_code)
+                except:
+                    self.logger.info(f"could not add .csv to neo4j")
+
     def add_document(self, filename):
         """
         Load documents from various file types, extract metadata,
@@ -515,7 +553,10 @@ class RAGHelper:
             ValueError: If the file type is unsupported.
         """
         new_docs = self._load_document(filename)
-
+        self.logger.info("adding documents to graphdb.")
+        for doc in new_docs:
+            self.add_document_to_graphdb(self,doc,doc.metadata.get("source").lower().split('.')[-1])
+        
         self.logger.info("chunking the documents.")
         new_chunks = self._split_documents(new_docs)
 
