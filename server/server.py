@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper_local import RAGHelperLocal
+from RAGHelper_sql import RAGHelperSQL
 from pymilvus import Collection, connections
 
 
