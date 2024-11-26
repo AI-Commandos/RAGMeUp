@@ -38,6 +38,7 @@ class Graph_whisperer:
     
     @staticmethod
     def _add_document(tx, payload):
+        #change the code below, this is copied as an examle from the create_instance
         for instance in payload:
             tx.run(
                     instance['query'],
