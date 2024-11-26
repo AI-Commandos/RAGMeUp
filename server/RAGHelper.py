@@ -18,6 +18,8 @@ from langchain_experimental.text_splitter import SemanticChunker
 from langchain_milvus.vectorstores import Milvus
 from langchain_postgres.vectorstores import PGVector
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.graphs.networkx_graph import NetworkxEntityGraph
+from langchain.indexes import GraphIndexCreator
 from lxml import etree
 from PostgresBM25Retriever import PostgresBM25Retriever
 from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
@@ -35,6 +37,7 @@ class RAGHelper:
         Initializes the RAGHelper class and loads environment variables.
         """
         self.logger = logger
+        self.documents = []
         self.chunked_documents = []
         self.embeddings = None  # Placeholder for embeddings; set during initialization
         self.text_splitter = None
@@ -44,6 +47,8 @@ class RAGHelper:
         self.rerank_retriever = None
         self._batch_size = 1000
         # Load environment variables
+        self.graph_file = os.getenv('graph_file')
+        self.graph_plot = os.getenv('graph_plot')
         self.vector_store_sparse_uri = os.getenv('vector_store_sparse_uri')
         self.vector_store_uri = os.getenv('vector_store_uri')
         self.document_chunks_pickle = os.getenv('document_chunks_pickle')
@@ -333,6 +338,7 @@ class RAGHelper:
         Args:
             docs (list): A list of loaded Document objects.
         """
+        self.documents = docs
         self.chunked_documents = self._split_documents(docs)
         # Store the chunked documents
         self.logger.info("Storing chunked document(s).")
@@ -488,6 +494,29 @@ class RAGHelper:
         # Implement your skill extraction logic here
         return []
 
+    def _initialize_graph_store(self):
+        """Concatenates all documents using two linebreaks and creates a graph from it"""
+        
+        if (os.path.isfile(self.graph_file)):
+            self.graph = NetworkxEntityGraph.from_gml(self.graph_file)
+            self.graph.draw_graphviz(layout="dot", filename=self.graph_plot)
+            return
+        
+        text = ""
+        for document in self.documents:
+            text += "File:\n"
+            text += document.metadata['source']
+            text += '\nContents:\n'
+            text += document.page_content
+            text += "\n\n"
+        
+        index_creator = GraphIndexCreator(llm=self.llm)
+        self.graph = index_creator.from_text(text)
+        
+        self.graph.draw_graphviz(layout="dot", filename=self.graph_plot)
+        
+        self.graph.write_to_gml(self.graph_file)
+        
     def load_data(self):
         """
         Loads data from various file types and chunks it into an ensemble retriever.
@@ -516,6 +545,8 @@ class RAGHelper:
             ValueError: If the file type is unsupported.
         """
         new_docs = self._load_document(filename)
+        
+        self.documents += new_docs
 
         self.logger.info("chunking the documents.")
         new_chunks = self._split_documents(new_docs)

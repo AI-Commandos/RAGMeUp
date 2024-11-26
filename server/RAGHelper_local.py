@@ -35,6 +35,9 @@ class RAGHelperLocal(RAGHelper):
         # Create RAG chains
         self.rag_fetch_new_chain = self._create_rag_chain()
         self.rewrite_ask_chain, self.rewrite_chain = self._initialize_rewrite_chains()
+        
+        if os.getenv('graph') == "True":
+            self._initialize_graph_store()
 
         # Initialize provenance method
         self.attributor = DocumentSimilarityAttribution() if os.getenv("provenance_method") == "similarity" else None
@@ -169,7 +172,7 @@ class RAGHelperLocal(RAGHelper):
         rewrite_llm_chain = LLMChain(llm=self.llm, prompt=rewrite_prompt)
 
         return {"question": RunnablePassthrough()} | rewrite_llm_chain
-
+    
     def handle_rewrite(self, user_query: str) -> str:
         """Handle the rewriting of the user query if necessary."""
         if os.getenv("use_rewrite_loop") == "True":
@@ -213,6 +216,8 @@ class RAGHelperLocal(RAGHelper):
 
         if fetch_new_documents:
             self._track_provenance(user_query, reply, thread)
+            
+        # TODO: also probe self.graph (the type of self.graph is langchain_community.graphs.networkx_graph.NetworkxEntityGraph)
 
         return thread, reply
 

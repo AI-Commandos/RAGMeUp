@@ -178,3 +178,6 @@ RAG Me Up uses Ragas to evaluate your pipeline. You can run an evaluation based 
 
 # Funding
 We are actively looking for funding to democratize AI and advance its applications. Contact us at info@commandos.ai if you want to invest.
+
+
+# TODO add readme about GraphRAG

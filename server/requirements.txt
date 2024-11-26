@@ -38,3 +38,8 @@ accelerate==0.34.0
 pydantic==2.7.4
 pydantic_core==2.18.4
 psycopg2-binary==2.9.9
+numpy==1.26.4
+scipy==1.12.0
+networkx==3.4.2
+json_repair==0.30.2
+pygraphviz==1.14

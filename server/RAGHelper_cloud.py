@@ -1,6 +1,7 @@
 import os
 import re
 
+import torch
 from langchain.prompts import ChatPromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -46,6 +47,9 @@ class RAGHelperCloud(RAGHelper):
         self.initialize_rag_chains()
         self.initialize_provenance_attribution()
         self.initialize_rewrite_loops()
+        
+        if (os.getenv("graph") == "True"):
+            self._initialize_graph_store()
 
     def initialize_llm(self):
         """Initialize the Language Model based on environment configurations."""
@@ -70,7 +74,10 @@ class RAGHelperCloud(RAGHelper):
     def initialize_embeddings(self):
         """Initialize the embeddings based on the CPU/GPU configuration."""
         embedding_model = os.getenv('embedding_model')
-        model_kwargs = {'device': 'cpu'} if os.getenv('force_cpu') == "True" else {'device': 'cuda'}
+        model_kwargs = {
+            'device': 'mps' if torch.backends.mps.is_available() else 'cuda' if os.getenv(
+                'force_cpu') != "True" else 'cpu'
+        }
         self.logger.info(f"Initializing embedding model {embedding_model} with params {model_kwargs}.")
         return HuggingFaceEmbeddings(model_name=embedding_model, model_kwargs=model_kwargs)
 
@@ -191,6 +198,8 @@ class RAGHelperCloud(RAGHelper):
         # Track provenance if needed
         if fetch_new_documents and os.getenv("provenance_method") in ['rerank', 'attention', 'similarity', 'llm']:
             self.track_provenance(reply, user_query)
+
+        # TODO: also probe self.graph (the type of self.graph is langchain_community.graphs.networkx_graph.NetworkxEntityGraph)
 
         return (thread, reply)
 

@@ -5,6 +5,7 @@ import os
 from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper_local import RAGHelperLocal
 from pymilvus import Collection, connections
+import pygraphviz
 
 
 def load_bashrc():
@@ -118,6 +119,7 @@ def chat():
         new_docs = docs
 
     # Build the response dictionary
+    # TODO also send the result from the knowledge graph
     response_dict = {
         "reply": reply,
         "history": new_history,
