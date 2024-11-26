@@ -6,11 +6,17 @@ from langchain_core.documents import Document
 from typing import Optional, Sequence
 
 import operator
+from langchain.retrievers.document_compressors.cross_encoder import BaseCrossEncoder
 
+from langchain_core.documents import BaseDocumentCompressor, Document
 
-class ColbertR():
+class ColbertR(BaseDocumentCompressor):
+
+    model: BaseCrossEncoder
+    """CrossEncoder model to use for scoring similarity
+      between the query and documents."""
     top_n: int = 3
-
+    """Number of documents to return."""
 
     class Config:
         arbitrary_types_allowed = True
@@ -39,8 +45,8 @@ class ColbertR():
         
         colbert_reranker = ColbertRerank(
             top_n=5,
-            model="colbert-ir/colbertv2.0",
-            tokenizer="colbert-ir/colbertv2.0",
+            model="./colbertv2.0",
+            tokenizer="./colbertv2.0",
             keep_retrieval_score=True,
         )
 
@@ -48,13 +54,24 @@ class ColbertR():
             similarity_top_k=10,
             node_postprocessors=[colbert_reranker],
         )
-
+        # Perform the query
         response = query_engine.query(query)
-        scores = [node.score for node in response.source_nodes] 
-        print("What are scores")
-        print(scores)
-        docs_with_scores = list(zip(documents, scores))
-        print("What are docs_with_scores")
-        print(docs_with_scores)
+
+        # Extract reranked documents and their scores
+        docs_with_scores = [
+            (doc.node, doc.score)  # doc.node is the document, doc.score is the reranking score
+            for doc in response.source_nodes
+        ]
+
+        # Sort the documents by reranking score in descending order
         result = sorted(docs_with_scores, key=operator.itemgetter(1), reverse=True)
-        return [doc.copy(update={"metadata": {**doc.metadata, "relevance_score": score}}) for doc, score in result[:self.top_n]]
+
+        # Return documents in the specified format
+        return [
+            doc.copy(
+                update={
+                    "metadata": {**doc.metadata, "relevance_score": score}
+                }
+            )
+            for doc, score in result[:colbert_reranker.top_n]
+        ]
