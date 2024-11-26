@@ -1,4 +1,5 @@
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
+from llama_index.core import Document as LlamaDocument
 from llama_index.postprocessor.colbert_rerank import ColbertRerank
 
 from langchain_core.callbacks import Callbacks
@@ -40,8 +41,14 @@ class ColbertR(BaseDocumentCompressor):
         Returns:
             A sequence of compressed documents.
         """
+        def convert_to_llama_documents(documents):
+            return [
+                LlamaDocument(text=doc.page_content, metadata=doc.metadata)
+                for doc in documents
+            ]
+        llama_docs = convert_to_llama_documents(documents)
         # build index
-        index = VectorStoreIndex.from_documents(documents=documents)
+        index = VectorStoreIndex.from_documents(documents=llama_docs)
         
         colbert_reranker = ColbertRerank(
             top_n=5,
