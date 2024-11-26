@@ -64,10 +64,6 @@ def add_document():
     if file.filename == '':
         return jsonify({"error": "No file selected"}), 400
     
-    searchtype = request.form.get('searchtype')
-    if not searchtype:
-        return jsonify({"error": "No searchtype provided"}), 400
-    
     if file:
         filename = secure_filename(file.filename)
         

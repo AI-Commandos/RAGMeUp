@@ -12,6 +12,7 @@ import play.api.mvc._
 import play.api.libs.ws._
 import play.api.mvc.MultipartFormData.{DataPart, FilePart}
 
+import java.io.File
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -93,6 +94,17 @@ class HomeController @Inject()(
     val filename = Paths.get(file.filename).getFileName
     val dataFolder = config.get[String]("data_folder")
     val filePath = new java.io.File(s"$dataFolder/$filename")
+
+    // Create folder if it doesn't exist yet
+    val dataFolderFile = new File(dataFolder)
+    if (!dataFolderFile.exists()) {
+      if (dataFolderFile.mkdirs()) {} else {
+        throw new RuntimeException(s"Failed to create directory $dataFolder.")
+      }
+    } else if (!dataFolderFile.isDirectory) {
+      throw new RuntimeException(s"$dataFolder exists but is not a directory.")
+    }
+
     file.ref.copyTo(filePath)
 
     // Prepare the file as a FilePart
