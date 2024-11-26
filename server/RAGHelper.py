@@ -504,6 +504,9 @@ class RAGHelper:
         
         text = ""
         for document in self.documents:
+            text += "File:\n"
+            text += document.metadata['source']
+            text += '\nContents:\n'
             text += document.page_content
             text += "\n\n"
         
