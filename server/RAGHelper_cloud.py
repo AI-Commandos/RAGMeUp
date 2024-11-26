@@ -46,6 +46,9 @@ class RAGHelperCloud(RAGHelper):
         self.initialize_rag_chains()
         self.initialize_provenance_attribution()
         self.initialize_rewrite_loops()
+        
+        if (os.getenv("graph") == "True"):
+            self._initialize_graph_store()
 
     def initialize_llm(self):
         """Initialize the Language Model based on environment configurations."""
@@ -191,6 +194,8 @@ class RAGHelperCloud(RAGHelper):
         # Track provenance if needed
         if fetch_new_documents and os.getenv("provenance_method") in ['rerank', 'attention', 'similarity', 'llm']:
             self.track_provenance(reply, user_query)
+
+        # TODO: also probe self.graph (the type of self.graph is langchain_community.graphs.networkx_graph.NetworkxEntityGraph)
 
         return (thread, reply)
 
