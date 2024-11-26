@@ -24,22 +24,21 @@ class ColBERTReranker(BaseDocumentCompressor):
         arbitrary_types_allowed = True
         extra = "forbid"
 
-    def __init__(self, model_name_or_path: str = "/colbertv2.0/pytorch_mobel.bin", top_n: int = 3, colbert_config: Optional[ColBERTConfig] = None):
-        """
-        Initialize the ColBERTReranker with a ColBERT model.
+    # def __init__(self, model_name_or_path: str = "/colbertv2.0/pytorch_mobel.bin", top_n: int = 3, colbert_config: Optional[ColBERTConfig] = None):
+    #     """
+    #     Initialize the ColBERTReranker with a ColBERT model.
 
-        Args:
-            model_name_or_path: Path to the pretrained ColBERT model.
-            top_n: Number of top documents to return.
-            colbert_config: Configuration for the ColBERT model.
-        """
-        self.top_n = top_n
-        self.config = colbert_config or ColBERTConfig()
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-        self.model = ColBERT.from_pretrained(model_name_or_path, config=self.config)
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = self.model.to(self.device)
-        self.model.eval()  # Set to evaluation mode
+    #     Args:
+    #         model_name_or_path: Path to the pretrained ColBERT model.
+    #         top_n: Number of top documents to return.
+    #         colbert_config: Configuration for the ColBERT model.
+    #     """
+    #     # self.top_n = top_n
+    #     self.config = colbert_config or ColBERTConfig()
+    #     self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+    #     self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #     self.model = self.model.to(self.device)
+    #     self.model.eval()  # Set to evaluation mode
 
     def compress_documents(
         self,
