@@ -21,6 +21,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from lxml import etree
 from PostgresBM25Retriever import PostgresBM25Retriever
 from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
+from colbert.infra.config import ColBERTConfig  # Ensure the ColBERT config is imported
+from ColbertReranker import ColBERTReranker
 from tqdm import tqdm
 
 
@@ -423,11 +425,27 @@ class RAGHelper:
             self.logger.info("Setting up the FlashrankRerank.")
             self.compressor = FlashrankRerank(top_n=self.rerank_k)
         else:
-            self.logger.info("Setting up the ScoredCrossEncoderReranker.")
-            self.compressor = ScoredCrossEncoderReranker(
-                model=HuggingFaceCrossEncoder(model_name=self.rerank_model),
-                top_n=self.rerank_k
+                    
+            self.logger.info("Setting up the ColBERTReranker.")
+            
+            # Define the ColBERT configuration
+            colbert_config = ColBERTConfig(
+                doc_maxlen=300,  # Maximum document length (tokens)
+                query_maxlen=32, # Maximum query length (tokens)
+                dim=128,         # Embedding dimension
+                similarity="cosine",  # Similarity metric (e.g., 'cosine', 'dot')
+                root="/path/to/experiments"  # Required root directory for ColBERT
             )
+            
+            # Initialize the ColBERT Reranker
+            self.compressor = ColBERTReranker(
+                model_name_or_path=self.rerank_model,  # Path or name of the pretrained ColBERT model
+                top_n=self.rerank_k,                  # Number of top documents to return
+                colbert_config=colbert_config         # Optional ColBERT configuration
+            )
+            
+            # Log the successful setup
+            self.logger.info(f"ColBERTReranker initialized with config: {colbert_config}")
         self.logger.info("Setting up the ContextualCompressionRetriever.")
         self.rerank_retriever = ContextualCompressionRetriever(
             base_compressor=self.compressor, base_retriever=self.ensemble_retriever
