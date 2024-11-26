@@ -3,7 +3,6 @@ import logging
 from dotenv import load_dotenv
 import os
 from RAGHelper_cloud import RAGHelperCloud
-from RAGHelper_local import RAGHelperLocal
 from RAGHelper_sql import RAGHelperSQL
 from pymilvus import Collection, connections
 
@@ -44,7 +43,7 @@ if any(os.getenv(key) == "True" for key in ["use_openai", "use_gemini", "use_azu
     raghelper = RAGHelperCloud(logger)
 else:
     logger.info("Instantiating the local RAG helper.")
-    raghelper = RAGHelperLocal(logger)
+    raghelper = RAGHelperSQL(logger)
 
 
 @app.route("/add_document", methods=['POST'])
