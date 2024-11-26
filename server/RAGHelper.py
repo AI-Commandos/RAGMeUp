@@ -59,7 +59,7 @@ class RAGHelper:
         self.vector_store_initial_load = os.getenv("vector_store_initial_load") == "True"
         self.hyde_enabled = os.getenv("hyde_enabled", "False").lower() == "true"
         self.hyde_multi_generations = int(os.getenv("hyde_multi_generations", 1))
-        self.hyde_prompt_template = os.getenv("hyde_prompt_template", "web_search")
+        self.hyde_task_type = os.getenv("hyde_task_type")
         self.hyde_embeddings = None
         self.rerank = os.getenv("rerank") == "True"
         self.rerank_model = os.getenv("rerank_model")
@@ -442,7 +442,7 @@ class RAGHelper:
             base_compressor=self.compressor, base_retriever=self.ensemble_retriever
         )
 
-    def apply_hyde_if_enabled(self,prompt):
+    def apply_hyde_if_enabled(self, prompt):
         """
         Applies HyDE embedding to the prompt if enabled in configuration.
         """
@@ -452,11 +452,18 @@ class RAGHelper:
         return prompt
 
     def _create_hyde_prompt(self):
-        """Create a custom HyDE prompt."""
+        """Create a custom HyDE prompt based on .env configurations."""
+        # Retrieve configuration values from the .env file
+        task_type = os.getenv("hyde_task_type")
+        context_instruction = os.getenv("hyde_context_instruction")
         domain = os.getenv("domain")
+
+        # Format the instruction with the domain or task-specific context
+        formatted_instruction = context_instruction.format(context=domain)
+
         return PromptTemplate(
             input_variables=["question"],
-            template=f"Generate a hypothetical answer for the following query in the context of {domain}.\nQuestion: {{question}}\nAnswer:"
+            template=f"{formatted_instruction}\nTask Type: {task_type}\nQuestion: {{question}}\nAnswer:"
         )
 
     def _initialize_hyde_embeddings(self):

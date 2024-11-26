@@ -25,9 +25,6 @@ class RAGHelperLocal(RAGHelper):
     def __init__(self, logger):
         super().__init__(logger)
         self.logger = logger
-        self.hyde_enabled = os.getenv("hyde_enabled", "False").lower() == "true"
-        self.hyde_multi_generations = int(os.getenv("hyde_multi_generations", 1))
-        self.hyde_prompt_template = os.getenv("hyde_prompt_template", "web_search")
         self.tokenizer, self.model = self._initialize_llm()
         self.llm = self._create_llm_pipeline()
         self.embeddings = self._initialize_embeddings()
