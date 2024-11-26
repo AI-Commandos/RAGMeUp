@@ -165,5 +165,9 @@ ui/react-ui/backend/node_modules/
 server/*data.db*
 server/*.pickle
 
+.DS_Store
+
 data
 run_RAG_server.ipynb
+graph_plot.svg
+graph_file.gml

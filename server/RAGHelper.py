@@ -513,7 +513,7 @@ class RAGHelper:
         index_creator = GraphIndexCreator(llm=self.llm)
         self.graph = index_creator.from_text(text)
         
-        self.graph.draw_graphviz(layout="dot", filename="graph.svg")
+        self.graph.draw_graphviz(layout="dot", filename=self.graph_plot)
         
         self.graph.write_to_gml(self.graph_file)
         
