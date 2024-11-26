@@ -1,6 +1,7 @@
 import os
 import re
 
+import torch
 from langchain.prompts import ChatPromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -73,7 +74,10 @@ class RAGHelperCloud(RAGHelper):
     def initialize_embeddings(self):
         """Initialize the embeddings based on the CPU/GPU configuration."""
         embedding_model = os.getenv('embedding_model')
-        model_kwargs = {'device': 'cpu'} if os.getenv('force_cpu') == "True" else {'device': 'cuda'}
+        model_kwargs = {
+            'device': 'mps' if torch.backends.mps.is_available() else 'cuda' if os.getenv(
+                'force_cpu') != "True" else 'cpu'
+        }
         self.logger.info(f"Initializing embedding model {embedding_model} with params {model_kwargs}.")
         return HuggingFaceEmbeddings(model_name=embedding_model, model_kwargs=model_kwargs)
 
