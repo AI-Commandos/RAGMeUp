@@ -13,8 +13,6 @@ class ColBERTReranker(BaseDocumentCompressor):
     A document compressor that uses ColBERT for reranking documents.
     """
 
-    top_n: int = 3
-
     def __init__(
             self,
             model_name: str = "colbert-ir/colbertv2.0",
@@ -66,5 +64,5 @@ class ColBERTReranker(BaseDocumentCompressor):
         results = kutding.search(query)
 
         # Return top_n documents
-        return [{'metadata': {**result.document_metadata, 'relevance_score': result.score}} for result in
-                sorted(results, key=lambda x: x['score'])[:self.top_n]]
+        return [{'page_content': result['content'],'metadata': {**result['document_metadata'], 'relevance_score': result['score']}} for result in
+                sorted(results, key=lambda x: x['score'], reverse = True)[:self.top_n]]

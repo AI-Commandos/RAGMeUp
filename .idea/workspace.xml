@@ -5,6 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="25b4d2aa-80fc-46cf-98a2-1d10cf2ae3d0" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server/RAGHelper_cloud.py" beforeDir="false" afterPath="$PROJECT_DIR$/server/RAGHelper_cloud.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ui/scala/conf/application.conf" beforeDir="false" afterPath="$PROJECT_DIR$/ui/scala/conf/application.conf" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -26,21 +28,21 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "WebServerToolWindowFactoryState": "false",
-    "git-widget-placeholder": "ElanoIter",
-    "last_opened_file_path": "C:/Users/woute/OneDrive/Documenten/JADS/NLP/RAGMeUp",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;ElanoIter&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/woute/OneDrive/Documenten/JADS/NLP/RAGMeUp&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
@@ -51,7 +53,8 @@
       <updated>1732538144868</updated>
       <workItem from="1732538146707" duration="3734000" />
       <workItem from="1732542190064" duration="1238000" />
-      <workItem from="1732626118496" duration="3004000" />
+      <workItem from="1732626118496" duration="3931000" />
+      <workItem from="1732734882864" duration="3158000" />
     </task>
     <servers />
   </component>

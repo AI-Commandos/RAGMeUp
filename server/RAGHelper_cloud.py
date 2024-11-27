@@ -144,10 +144,13 @@ class RAGHelperCloud(RAGHelper):
             tuple: A tuple containing the conversation thread and the reply.
         """
         fetch_new_documents = self.should_fetch_new_documents(user_query, history)
+        self.logger.info(fetch_new_documents)
 
         thread = self.create_interaction_thread(history, fetch_new_documents)
+        self.logger.info(thread)
         # Create prompt from prompt template
         prompt = ChatPromptTemplate.from_messages(thread)
+        self.logger.info(prompt)
 
         # Create llm chain
         llm_chain = prompt | self.llm
