@@ -36,12 +36,15 @@ class PostgresText2SQLRetriever(BaseRetriever):
         self.tables = os.getenv("tables")
 
     def setup_database(self):
-        # Just simply setup a postgres database
-        # Create a new database
-        new_db_name = os.getenv("TEXT2SQL_DB_NAME")
+        new_db_name = "text2sql"
         self.cur.execute(
-            sql.SQL("CREATE DATABASE {}").format(sql.Identifier(new_db_name))
+            sql.SQL("SELECT 1 FROM pg_database WHERE datname = {}").format(sql.Literal(new_db_name))
         )
+        exists = self.cur.fetchone()
+        if not exists:
+            self.cur.execute(
+            sql.SQL("CREATE DATABASE {}").format(sql.Identifier(new_db_name))
+            )
 
     def setup_table(self, csv_file_path):
         # Create a table based on a CSV file
