@@ -20,8 +20,34 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
+class SQLGenerator:
+    def __init__(self, model_name="cssupport/t5-small-awesome-text-to-sql"):
+        self.tokenizer = T5Tokenizer.from_pretrained("t5-small")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = T5ForConditionalGeneration.from_pretrained(model_name)
+        self.model = self.model.to(self.device)
+        self.model.eval()
+
+    def generate_sql(self, input_prompt):
+        # Tokenize the input prompt
+        inputs = self.tokenizer(
+            input_prompt, padding=True, truncation=True, return_tensors="pt"
+        ).to(self.device)
+
+        # Forward pass
+        with torch.no_grad():
+            outputs = self.model.generate(**inputs, max_length=512)
+
+        # Decode the output IDs to a string (SQL query in this case)
+        generated_sql = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+        return generated_sql
+
+
 class PostgresText2SQLRetriever(BaseRetriever):
     connection_uri: str
+    sql_generator: SQLGenerator
+    tables: str
     conn: psycopg2.extensions.connection = None
     cur: psycopg2.extensions.cursor = None
 
@@ -47,27 +73,49 @@ class PostgresText2SQLRetriever(BaseRetriever):
             )
 
     def setup_table(self, csv_file_path):
-        # Create a table based on a CSV file
-        table_name = csv_file_path.split("/")[-1].split(".")[0]
-
-        with open(csv_file_path, "r") as f:
-            reader = csv.reader(f)
-            headers = next(reader)
-            columns = ", ".join([f"{header} TEXT" for header in headers])
-
-            create_table_query = sql.SQL("CREATE TABLE {} ({})").format(
-                sql.Identifier(table_name), sql.SQL(columns)
-            )
-            self.cur.execute(create_table_query)
-            self.conn.commit()
-
-            for row in reader:
-                insert_query = sql.SQL("INSERT INTO {} VALUES ({})").format(
-                    sql.Identifier(table_name),
-                    sql.SQL(", ").join(map(sql.Literal, row)),
+        table_name = os.path.splitext(os.path.basename(csv_file_path))[0]
+        with self.cur as cursor:
+            # Check if the table already exists
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = %s
+                );
+            """, (table_name,))
+            table_exists = cursor.fetchone()[0]
+            
+            if not table_exists:
+                print(f"Table '{table_name}' does not exist. Creating...")
+                # Read the CSV header to infer column names
+                with open(csv_file_path, 'r', encoding='utf-8') as csvfile:
+                    reader = csv.reader(csvfile)
+                    header = next(reader)
+                    
+                    # Dynamically create column definitions (all as TEXT for simplicity)
+                    columns = [f"{col.strip()} TEXT" for col in header]
+                    create_table_query = sql.SQL("""
+                        CREATE TABLE {table} (
+                            {fields}
+                        );
+                    """).format(
+                        table=sql.Identifier(table_name),
+                        fields=sql.SQL(", ").join(map(sql.SQL, columns))
+                    )
+                    
+                    # Execute the CREATE TABLE query
+                    cursor.execute(create_table_query)
+                    print(f"Table '{table_name}' created successfully.")
+            
+            # Use COPY to load data from the CSV into the table
+            with open(csv_file_path, 'r', encoding='utf-8') as csvfile:
+                cursor.copy_expert(
+                    sql.SQL("COPY {} FROM STDIN WITH CSV HEADER").format(sql.Identifier(table_name)),
+                    csvfile
                 )
-                self.cur.execute(insert_query)
-            self.conn.commit()
+            print(f"Data loaded into '{table_name}' successfully.")
+    
+        # Commit the transaction
+        self.conn.commit()
 
     def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun) -> List[Document]:
         sql_query = self.compute_query(query)
@@ -97,25 +145,8 @@ class PostgresText2SQLRetriever(BaseRetriever):
         self.conn.close()
 
 
-class SQLGenerator:
-    def __init__(self, model_name="cssupport/t5-small-awesome-text-to-sql"):
-        self.tokenizer = T5Tokenizer.from_pretrained("t5-small")
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = T5ForConditionalGeneration.from_pretrained(model_name)
-        self.model = self.model.to(self.device)
-        self.model.eval()
 
-    def generate_sql(self, input_prompt):
-        # Tokenize the input prompt
-        inputs = self.tokenizer(
-            input_prompt, padding=True, truncation=True, return_tensors="pt"
-        ).to(self.device)
 
-        # Forward pass
-        with torch.no_grad():
-            outputs = self.model.generate(**inputs, max_length=512)
-
-        # Decode the output IDs to a string (SQL query in this case)
-        generated_sql = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-        return generated_sql
+#uri = "postgresql://user:pass@localhost:5432/text2sql"
+#retriever = PostgresText2SQLRetriever(connection_uri=uri)
+#retriever.setup_table("/home/markiemark/JADS/NLP/assignment3/RAGMeUp/data/leagues.csv")
