@@ -59,8 +59,8 @@ class PostgresText2SQLRetriever(BaseRetriever):
         self.conn.autocommit = True
         self.cur = self.conn.cursor()
         self.setup_database()
-        #self.sql_generator = SQLGenerator()
-        #self.tables = os.getenv("tables")
+        self.sql_generator = SQLGenerator()
+        self.tables = os.getenv("tables")
 
     def setup_database(self):
         new_db_name = "text2sql"
@@ -107,13 +107,13 @@ class PostgresText2SQLRetriever(BaseRetriever):
                     cursor.execute(create_table_query)
                     print(f"Table '{table_name}' created successfully.")
             
-            # Use COPY to load data from the CSV into the table
-            with open(csv_file_path, 'r', encoding='utf-8') as csvfile:
-                cursor.copy_expert(
-                    sql.SQL("COPY {} FROM STDIN WITH CSV HEADER").format(sql.Identifier(table_name)),
-                    csvfile
-                )
-            print(f"Data loaded into '{table_name}' successfully.")
+                # Use COPY to load data from the CSV into the table
+                with open(csv_file_path, 'r', encoding='utf-8') as csvfile:
+                    cursor.copy_expert(
+                        sql.SQL("COPY {} FROM STDIN WITH CSV HEADER").format(sql.Identifier(table_name)),
+                        csvfile
+                    )
+                print(f"Data loaded into '{table_name}' successfully.")
     
         # Commit the transaction
         self.conn.commit()
@@ -146,6 +146,6 @@ class PostgresText2SQLRetriever(BaseRetriever):
         self.conn.close()
 
 
-#uri = "postgresql://user:pass@localhost:5432/text2sql"
-#retriever = PostgresText2SQLRetriever(connection_uri=uri)
-#retriever.setup_table("/home/markiemark/JADS/NLP/assignment3/RAGMeUp/data/shots.csv")
+uri = "postgresql://user:pass@localhost:5432/text2sql"
+retriever = PostgresText2SQLRetriever(connection_uri=uri)
+retriever.setup_table("/home/markiemark/JADS/NLP/assignment3/RAGMeUp/data/shots.csv")
