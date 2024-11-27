@@ -146,6 +146,6 @@ class PostgresText2SQLRetriever(BaseRetriever):
         self.conn.close()
 
 
-uri = "postgresql://user:pass@localhost:5432/text2sql"
-retriever = PostgresText2SQLRetriever(connection_uri=uri)
-retriever.setup_table("/home/markiemark/JADS/NLP/assignment3/RAGMeUp/data/shots.csv")
+#uri = "postgresql://user:pass@localhost:5432/text2sql"
+#retriever = PostgresText2SQLRetriever(connection_uri=uri)
+#retriever.setup_table("/home/markiemark/JADS/NLP/assignment3/RAGMeUp/data/shots.csv")
