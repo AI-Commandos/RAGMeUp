@@ -14,6 +14,7 @@ from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
 from psycopg2 import sql
 from transformers import T5ForConditionalGeneration, T5Tokenizer
+from pydantic import Field
 
 
 logger = logging.getLogger(__name__)
@@ -46,8 +47,8 @@ class SQLGenerator:
 
 class PostgresText2SQLRetriever(BaseRetriever):
     connection_uri: str
-    sql_generator: SQLGenerator
-    tables: str
+    sql_generator: SQLGenerator = Field(default_factory=SQLGenerator)
+    tables: str = Field(..., env="TABLES")
     conn: psycopg2.extensions.connection = None
     cur: psycopg2.extensions.cursor = None
 
@@ -58,8 +59,8 @@ class PostgresText2SQLRetriever(BaseRetriever):
         self.conn.autocommit = True
         self.cur = self.conn.cursor()
         self.setup_database()
-        self.sql_generator = SQLGenerator()
-        self.tables = os.getenv("tables")
+        #self.sql_generator = SQLGenerator()
+        #self.tables = os.getenv("tables")
 
     def setup_database(self):
         new_db_name = "text2sql"
@@ -149,4 +150,4 @@ class PostgresText2SQLRetriever(BaseRetriever):
 
 #uri = "postgresql://user:pass@localhost:5432/text2sql"
 #retriever = PostgresText2SQLRetriever(connection_uri=uri)
-#retriever.setup_table("/home/markiemark/JADS/NLP/assignment3/RAGMeUp/data/leagues.csv")
+#retriever.setup_table("/home/markiemark/JADS/NLP/assignment3/RAGMeUp/data/shots.csv")
