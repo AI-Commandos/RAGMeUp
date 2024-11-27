@@ -26,6 +26,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
 
     def __init__(self, **data):
         super().__init__(**data)
+        logger.info(f"Connection URI: {self.connection_uri}")
         self.conn = psycopg2.connect(self.connection_uri)
         self.cur = self.conn.cursor()
         self.setup_database()
