@@ -32,4 +32,4 @@ class RAGHelperSQL(RAGHelperLocal):
     def load_data(self):
         csv_file_paths = os.listdir(self.data_dir)
         for csv_file_path in csv_file_paths:
-            self.ensemble_retriever.setup_table(csv_file_path)
+            self.ensemble_retriever.setup_table(self.data_dir + csv_file_path)
