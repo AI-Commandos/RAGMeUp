@@ -76,22 +76,30 @@ class RAGHelper:
         Formats the documents for better readability.
 
         Args:
-            docs (list): List of Document objects.
+            docs (list): List of Document or TextNode objects.
 
         Returns:
             str: Formatted string representation of documents.
         """
         doc_strings = []
         for i, doc in enumerate(docs):
-            metadata_string = ", ".join([f"{md}: {doc.metadata[md]}" for md in doc.metadata.keys()])
-            doc_strings.append(f"Document {i} content: {doc.page_content}\nDocument {i} metadata: {metadata_string}")
+            # Handle LangChain Document
+            if hasattr(doc, 'page_content'):
+                content = doc.page_content
+                metadata = doc.metadata
+            # Handle LlamaIndex TextNode
+            elif hasattr(doc, 'text'):
+                content = doc.text
+                metadata = doc.metadata if hasattr(doc, 'metadata') else {}
+            else:
+                raise AttributeError(f"Unknown document type: {type(doc)}")
+
+            # Format metadata as a string
+            metadata_string = ", ".join([f"{key}: {value}" for key, value in metadata.items()])
+            doc_strings.append(f"Document {i} content: {content}\nDocument {i} metadata: {metadata_string}")
+        
         return "\n\n<NEWDOC>\n\n".join(doc_strings)
 
-    def _load_chunked_documents(self):
-        """Loads previously chunked documents from a pickle file."""
-        with open(self.document_chunks_pickle, 'rb') as f:
-            self.logger.info("Loading chunked documents.")
-            self.chunked_documents = pickle.load(f)
 
     def _load_json_files(self):
         """

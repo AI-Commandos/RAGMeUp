@@ -271,11 +271,25 @@ class RAGHelperCloud(RAGHelper):
             # Build provenance scores based on reranked docs
             provenance_scores = []
             for doc in context:
+                # Determine content attribute based on type
+                doc_content = getattr(doc, 'page_content', None) or getattr(doc, 'text', None)
+                if doc_content is None:
+                    self.logger.warning(f"Unknown document type: {type(doc)}")
+                    provenance_scores.append(None)
+                    continue
+
+                # Find reranked score
                 reranked_score = next(
-                    (d.metadata['relevance_score'] for d in reranked_docs if d.page_content == doc.page_content), None)
+                    (d.metadata['relevance_score'] for d in reranked_docs
+                    if (getattr(d, 'page_content', None) or getattr(d, 'text', None)) == doc_content),
+                    None
+                )
+
                 if reranked_score is None:
-                    self.logger.warning(f"Document not found in reranked docs: {doc.page_content}")
+                    self.logger.warning(f"Document not found in reranked docs: {doc_content}")
+
                 provenance_scores.append(reranked_score)
+
             self.logger.debug("Provenance scores computed using reranked documents.")
 
         # Use similarity-based provenance if method is 'similarity'
