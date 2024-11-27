@@ -120,8 +120,6 @@ def chat():
     original_docs = json_data.get('docs', [])
     docs = original_docs
 
-    prompt = raghelper.apply_hyde_if_enabled(prompt)
-
     # Get the LLM response
     (new_history, response) = raghelper.handle_user_interaction(prompt, history)
     if not docs or 'docs' in response:

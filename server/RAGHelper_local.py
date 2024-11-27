@@ -197,6 +197,10 @@ class RAGHelperLocal(RAGHelper):
         Returns:
             tuple: The conversation thread and the LLM response with potential provenance scores.
         """
+        # Apply HyDE if enabled
+        if os.getenv("hyde_enabled", "False").lower() == "true":
+            user_query = self.apply_hyde_if_enabled(user_query)
+
         fetch_new_documents = self._should_fetch_new_documents(user_query, history)
         thread = self._prepare_conversation_thread(history, fetch_new_documents)
         input_variables = self._determine_input_variables(fetch_new_documents)

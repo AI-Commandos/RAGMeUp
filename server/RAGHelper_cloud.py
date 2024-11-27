@@ -143,6 +143,10 @@ class RAGHelperCloud(RAGHelper):
         Returns:
             tuple: A tuple containing the conversation thread and the reply.
         """
+        # Apply HyDE if enabled
+        if os.getenv("hyde_enabled", "False").lower() == "true":
+            user_query = self.apply_hyde_if_enabled(user_query)
+
         fetch_new_documents = self.should_fetch_new_documents(user_query, history)
 
         thread = self.create_interaction_thread(history, fetch_new_documents)
