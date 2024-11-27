@@ -12,6 +12,7 @@ from RAGHelper_local import RAGHelperLocal
 
 class RAGHelperSQL(RAGHelperLocal):
     def __init__(self, logger):
+        RAGHelper.__init__(self, logger)
         self.logger = logger
         self.tokenizer, self.model = self._initialize_llm()
         self.llm = self._create_llm_pipeline()
