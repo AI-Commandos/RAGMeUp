@@ -110,6 +110,30 @@ class HomeController @Inject()(
   }
 
   def feedback() = Action { implicit request: Request[AnyContent] =>
-    Ok(Json.obj())
+    val feedbackData = request.body
+    val colabApiUrl = "server_url"
+
+    ws.url(colabApiUrl).post(feedbackData).map { response =>
+      Ok(Json.obj("status" -> "success", "message" -> "Feedback saved in Colab"))
+    }.recover {
+      case _ => InternalServerError(Json.obj("status" -> "error", "message" -> "Failed to save feedback"))
+    }
+    // Ok(Json.obj("status" -> "success", "message" -> "Feedback saved!"))
+    // .as("application/json")
+    // Ok(request.body.asJson.getOrElse(Json.obj()))
+    // request.body.asJson.map { json =>
+    //   // Save the JSON body to a file or database
+    //   val dataFolder = config.get[String]("data_folder")
+    //   val feedbackFile = new java.io.File(s"$dataFolder/feedback.json")
+    //   val writer = new java.io.PrintWriter(feedbackFile)
+    //   try {
+    //     writer.write(Json.prettyPrint(json))
+    //   } finally {
+    //     writer.close()
+    //   }
+    //   Ok("Feedback saved successfully")
+    // }.getOrElse {
+    //   BadRequest("Invalid JSON")
+    // }
   }
 }

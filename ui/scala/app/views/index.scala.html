@@ -87,30 +87,73 @@
         $(container).append(label);
 
         if (!isHuman) {
-          var feedbackPos = $('<i class="fa-regular fa-thumbs-up" style="color: #999; font-size: 1.5em; padding-right: 5px;"></i>');
-          var feedbackNeg = $('<i class="fa-regular fa-thumbs-down" style="color: #999; font-size: 1.5em; "></i>');
-          $(feedbackPos).on('click', function() {
+          // Create thumbs-up and thumbs-down icons
+          var feedbackPos = $('<i class="fa-regular fa-thumbs-up" style="color: #438c4f; font-size: 1.5em; padding-right: 5px; cursor: pointer;"></i>');
+          var feedbackNeg = $('<i class="fa-regular fa-thumbs-down" style="color: #a15047; font-size: 1.5em; cursor: pointer;"></i>');
+
+          // Function to handle feedback submission and disable buttons
+          function handleFeedback(feedbackType) {
+            // $.post({
+            //   url: "@controllers.routes.HomeController.feedback()",
+            //   data: JSON.stringify({
+            //     query: "example query",
+            //     answer: "example answer",
+            //     document_id: "12345",
+            //     rating: 1
+            //   }),
+            //   contentType: "application/json; charset=utf-8",
+            //   dataType: "json"
+            // })
+            // .done(function(response) {
+            //   console.log("Success:", response);
+            // })
+            // .fail(function(xhr, status, error) {
+            //   console.error("Error:", error);
+            // });
             $.post({
               url: "@controllers.routes.HomeController.feedback()",
-              data: JSON.stringify(),
+              data: JSON.stringify({ 
+                query: "example query",
+                answer: "example answer",
+                document_id: "12345",
+                rating: 1 ,
+                timestamp: new Date().toISOString()}),
               contentType: "application/json; charset=utf-8",
               dataType: "json"
             })
-            .done(function(response) {
-              console.log("Success:", response);
-            })
-            .fail(function(xhr, status, error) {
-              console.error("Error:", error);
-            });
+            .done(function() {
+              // Display thank-you message
+              var message = $('<span style="margin-left: 10px; font-weight: bold; white-space: nowrap;">Thank you for your feedback!</span>');
+              feedbackRow.append($("<div class='col-md-1 offset-11 d-flex justify-content-end'>").append(message));
 
-          });
-          $(feedbackNeg).on('click', function() {
-          });
+              // Highlight the clicked button and disable both
+              if (feedbackType === "positive") {
+                // Disable both buttons highlighting the positive one
+                feedbackPos.css("pointer-events", "none").css("opacity", "0.8");
+                feedbackNeg.css("pointer-events", "none").css("opacity", "0.3");
+              } else {
+                // Disable both buttons highlighting the negative one
+                feedbackPos.css("pointer-events", "none").css("opacity", "0.3");
+                feedbackNeg.css("pointer-events", "none").css("opacity", "0.8");
+              }
+            })
+            .fail(function() {
+              alert("An error occurred. Please try again later.");
+            });
+          }
+
+          // Add event listeners to the feedback icons
+          feedbackPos.on('click', function() { handleFeedback("positive"); });
+          feedbackNeg.on('click', function() { handleFeedback("negative"); });
+
+          // Create a feedback row and append the buttons
           var feedbackRow = $("<div class='row'>")
             .append($("<div class='col-md-1 offset-11'>")
               .append(feedbackPos)
               .append(feedbackNeg)
             );
+
+          // Append the feedback row to the container
           $(container).append(feedbackRow);
         }
 
