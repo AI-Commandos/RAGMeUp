@@ -1,5 +1,6 @@
 import csv
 import json
+import logging
 import os
 import re
 import uuid
@@ -13,6 +14,9 @@ from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
 from psycopg2 import sql
 from transformers import T5ForConditionalGeneration, T5Tokenizer
+
+
+logger = logging.getLogger(__name__)
 
 
 class PostgresText2SQLRetriever(BaseRetriever):
@@ -62,6 +66,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
     def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun) -> List[Document]:
         sql_query = self.compute_query(query)
         # Get data with a prompt and return the result as a json object
+        logger.info(f"SQL Query: {sql_query}")
         self.cur.execute(sql_query)
         rows = self.cur.fetchmany(50)
         documents = self._format_results_as_documents(rows)
