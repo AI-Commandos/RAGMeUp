@@ -87,7 +87,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
         if not table_exists:
             print(f"Table '{table_name}' does not exist. Creating...")
             # Read the CSV header to infer column names
-            with open(csv_file_path, 'r', encoding='utf-8') as csvfile:
+            with open(csv_file_path, 'r', encoding='utf-8', errors='ignore') as csvfile:
                 reader = csv.reader(csvfile)
                 header = next(reader)
                 
@@ -107,7 +107,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
                 print(f"Table '{table_name}' created successfully.")
         
             # Use COPY to load data from the CSV into the table
-            with open(csv_file_path, 'r', encoding='utf-8') as csvfile:
+            with open(csv_file_path, 'r', encoding='utf-8', errors='ignore') as csvfile:
                 self.cur.copy_expert(
                     sql.SQL("COPY {} FROM STDIN WITH CSV HEADER").format(sql.Identifier(table_name)),
                     csvfile
@@ -147,4 +147,4 @@ class PostgresText2SQLRetriever(BaseRetriever):
 
 #uri = "postgresql://user:pass@localhost:5432/text2sql"
 #retriever = PostgresText2SQLRetriever(connection_uri=uri)
-#retriever.setup_table("/home/markiemark/JADS/NLP/assignment3/RAGMeUp/data/teams.csv")
+#retriever.setup_table("/home/markiemark/JADS/NLP/assignment3/RAGMeUp/data/players.csv")
