@@ -74,7 +74,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
             )
 
     def setup_table(self, csv_file_path):
-        table_name = os.path.splitext(os.path.basename(csv_file_path))[0]
+        table_name = os.path.splitext(os.path.basename(csv_file_path))[0].lower()
         # Check if the table already exists
         self.cur.execute("""
             SELECT EXISTS (
