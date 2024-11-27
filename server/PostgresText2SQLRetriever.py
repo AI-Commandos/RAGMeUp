@@ -17,6 +17,7 @@ from transformers import T5ForConditionalGeneration, T5Tokenizer
 
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class PostgresText2SQLRetriever(BaseRetriever):
