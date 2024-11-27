@@ -75,45 +75,44 @@ class PostgresText2SQLRetriever(BaseRetriever):
 
     def setup_table(self, csv_file_path):
         table_name = os.path.splitext(os.path.basename(csv_file_path))[0]
-        with self.cur as cursor:
-            # Check if the table already exists
-            cursor.execute("""
-                SELECT EXISTS (
-                    SELECT FROM information_schema.tables 
-                    WHERE table_name = %s
-                );
-            """, (table_name,))
-            table_exists = cursor.fetchone()[0]
-            
-            if not table_exists:
-                print(f"Table '{table_name}' does not exist. Creating...")
-                # Read the CSV header to infer column names
-                with open(csv_file_path, 'r', encoding='utf-8') as csvfile:
-                    reader = csv.reader(csvfile)
-                    header = next(reader)
-                    
-                    # Dynamically create column definitions (all as TEXT for simplicity)
-                    columns = [f"{col.strip()} TEXT" for col in header]
-                    create_table_query = sql.SQL("""
-                        CREATE TABLE {table} (
-                            {fields}
-                        );
-                    """).format(
-                        table=sql.Identifier(table_name),
-                        fields=sql.SQL(", ").join(map(sql.SQL, columns))
-                    )
-                    
-                    # Execute the CREATE TABLE query
-                    cursor.execute(create_table_query)
-                    print(f"Table '{table_name}' created successfully.")
-            
-                # Use COPY to load data from the CSV into the table
-                with open(csv_file_path, 'r', encoding='utf-8') as csvfile:
-                    cursor.copy_expert(
-                        sql.SQL("COPY {} FROM STDIN WITH CSV HEADER").format(sql.Identifier(table_name)),
-                        csvfile
-                    )
-                print(f"Data loaded into '{table_name}' successfully.")
+        # Check if the table already exists
+        self.cur.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = %s
+            );
+        """, (table_name,))
+        table_exists = self.cur.fetchone()[0]
+        
+        if not table_exists:
+            print(f"Table '{table_name}' does not exist. Creating...")
+            # Read the CSV header to infer column names
+            with open(csv_file_path, 'r', encoding='utf-8') as csvfile:
+                reader = csv.reader(csvfile)
+                header = next(reader)
+                
+                # Dynamically create column definitions (all as TEXT for simplicity)
+                columns = [f"{col.strip()} TEXT" for col in header]
+                create_table_query = sql.SQL("""
+                    CREATE TABLE {table} (
+                        {fields}
+                    );
+                """).format(
+                    table=sql.Identifier(table_name),
+                    fields=sql.SQL(", ").join(map(sql.SQL, columns))
+                )
+                
+                # Execute the CREATE TABLE query
+                self.cur.execute(create_table_query)
+                print(f"Table '{table_name}' created successfully.")
+        
+            # Use COPY to load data from the CSV into the table
+            with open(csv_file_path, 'r', encoding='utf-8') as csvfile:
+                self.cur.copy_expert(
+                    sql.SQL("COPY {} FROM STDIN WITH CSV HEADER").format(sql.Identifier(table_name)),
+                    csvfile
+                )
+            print(f"Data loaded into '{table_name}' successfully.")
     
         # Commit the transaction
         self.conn.commit()
@@ -148,4 +147,4 @@ class PostgresText2SQLRetriever(BaseRetriever):
 
 #uri = "postgresql://user:pass@localhost:5432/text2sql"
 #retriever = PostgresText2SQLRetriever(connection_uri=uri)
-#retriever.setup_table("/home/markiemark/JADS/NLP/assignment3/RAGMeUp/data/shots.csv")
+#retriever.setup_table("/home/markiemark/JADS/NLP/assignment3/RAGMeUp/data/teams.csv")
