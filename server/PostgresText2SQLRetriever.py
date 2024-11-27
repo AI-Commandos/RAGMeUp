@@ -136,7 +136,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
         return documents
 
     def compute_query(self, prompt):
-        input_prompt = "tables:\n" + self.tables + "\n" + "query for:" + prompt
+        input_prompt = "tables:\n" + self.tables + "\n" + "query for: " + prompt
         logger.info(f"Input Prompt: {input_prompt}")
         generated_sql = self.sql_generator.generate_sql(input_prompt)
         return generated_sql
