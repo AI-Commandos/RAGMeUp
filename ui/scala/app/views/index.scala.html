@@ -224,6 +224,7 @@
         $("#loader").show();
         $(dialogue).show();
 
+        // # TODO handle graphrag response here as well
         $.ajax({
             type: "POST",
             url: "@controllers.routes.HomeController.search()",
