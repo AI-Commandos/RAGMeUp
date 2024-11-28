@@ -57,9 +57,15 @@ class RAGHelper:
         self.splitter_type = os.getenv('splitter')
         self.vector_store = os.getenv("vector_store")
         self.vector_store_initial_load = os.getenv("vector_store_initial_load") == "True"
+        # Load configuration from .env
         self.hyde_enabled = os.getenv("hyde_enabled", "False").lower() == "true"
         self.hyde_multi_generations = int(os.getenv("hyde_multi_generations", 1))
-        self.hyde_task_type = os.getenv("hyde_task_type")
+        self.hyde_general_template = os.getenv("hyde_general_template", "").strip()
+        self.hyde_custom_template = os.getenv("hyde_custom_template", "").strip()
+        self.hyde_default_context_type = os.getenv("hyde_default_context_type", "").strip()
+        self.hyde_default_action = os.getenv("hyde_default_action", "").strip()
+        self.hyde_default_additional_context = os.getenv("hyde_default_additional_context", "").strip()
+        self.hyde_prompt_template = None
         self.hyde_embeddings = None
         self.rerank = os.getenv("rerank") == "True"
         self.rerank_model = os.getenv("rerank_model")
@@ -452,18 +458,37 @@ class RAGHelper:
         return prompt
 
     def _create_hyde_prompt(self):
-        """Create a custom HyDE prompt based on .env configurations."""
-        # Retrieve configuration values from the .env file
-        task_type = os.getenv("hyde_task_type")
-        context_instruction = os.getenv("hyde_context_instruction")
-        domain = os.getenv("domain")
+        """
+        Create the HyDE prompt template entirely based on .env configurations.
 
-        # Format the instruction with the domain or task-specific context
-        formatted_instruction = context_instruction.format(context=domain)
+        Returns:
+            PromptTemplate: The dynamically created prompt template.
+        """
+        # Check if a custom template is defined in the .env
+        if self.hyde_custom_template:
+            self.logger.info("Using .env custom HyDE template.")
+            return PromptTemplate(
+                input_variables=["question"],
+                template=self.hyde_custom_template
+            )
+
+        # Validate that a general template exists
+        if not self.hyde_general_template:
+            raise ValueError("HyDE general template is not defined in the .env file.")
+
+        # Format the general template using default values from .env
+        self.logger.info("Using .env generalized HyDE template with configured defaults.")
+
+        # Build the instruction from environment variables
+        formatted_instruction = self.hyde_general_template.format(
+            context_type=self.hyde_default_context_type,
+            action=self.hyde_default_action,
+            additional_context=self.hyde_default_additional_context
+        )
 
         return PromptTemplate(
             input_variables=["question"],
-            template=f"{formatted_instruction}\nTask Type: {task_type}\nQuestion: {{question}}\nAnswer:"
+            template=f"{formatted_instruction}\nQuestion: {{question}}\nAnswer:"
         )
 
     def _initialize_hyde_embeddings(self):
