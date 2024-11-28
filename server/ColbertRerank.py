@@ -2,7 +2,7 @@ from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
 from llama_index.core import Document as LlamaDocument
 from llama_index.postprocessor.colbert_rerank import ColbertRerank
 
-from langchain_core.callbacks import Callbacks
+# from langchain_core.callbacks import Callbacks
 from langchain_core.documents import Document
 from typing import Optional, Sequence
 
@@ -11,23 +11,21 @@ from langchain.retrievers.document_compressors.cross_encoder import BaseCrossEnc
 
 from langchain_core.documents import BaseDocumentCompressor, Document
 
-class ColbertR(BaseDocumentCompressor):
+class ColbertR():
 
-    model: BaseCrossEncoder
-    """CrossEncoder model to use for scoring similarity
-      between the query and documents."""
+    # model: BaseCrossEncoder
+    # """CrossEncoder model to use for scoring similarity
+    #   between the query and documents."""
     top_n: int = 3
     """Number of documents to return."""
 
-    class Config:
-        arbitrary_types_allowed = True
-        extra = "forbid"
+    # class Config:
+    #     arbitrary_types_allowed = True
+    #     extra = "forbid"
 
     def compress_documents(
-        self,
         documents: Sequence[Document],
         query: str,
-        callbacks: Optional[Callbacks] = None,
     ) -> Sequence[Document]:
         
         """
