@@ -39,4 +39,5 @@ pydantic==2.7.4
 pydantic_core==2.18.4
 psycopg2-binary==2.9.9
 colbert-ir==0.2.14  # Added for ColBERT reranking
-fsspec==2024.10.0
+fsspec==2024.9.0
+ragatouille
