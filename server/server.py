@@ -5,7 +5,7 @@ import os
 from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper_local import RAGHelperLocal
 from pymilvus import Collection, connections
-
+from werkzeug.utils import secure_filename
 
 def load_bashrc():
     """
@@ -57,13 +57,25 @@ def add_document():
     Returns:
         JSON response with the filename and HTTP status code 200.
     """
-    json_data = request.get_json()
-    filename = json_data.get('filename')
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part in the request"}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+    
+    if file:
+        filename = secure_filename(file.filename)
+        
+        logger.info(f"Adding document {filename}")
+        data_dir = os.getenv("data_directory")
+        location = f"{data_dir}/{file.filename}"
 
-    if not filename:
-        return jsonify({"error": "Filename is required"}), 400
-    logger.info(f"Adding document {filename}")
-    raghelper.add_document(filename)
+        # Copy over file
+        file.save(location)
+        raghelper.add_document(location)
+    else:
+        return jsonify({"error": "File is required"}), 400
 
     return jsonify({"filename": filename}), 200
 
