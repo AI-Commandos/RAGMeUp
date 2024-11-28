@@ -1,15 +1,13 @@
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
+from llama_index.core import VectorStoreIndex
 from llama_index.core import Document as LlamaDocument
 from llama_index.postprocessor.colbert_rerank import ColbertRerank
 
-# from langchain_core.callbacks import Callbacks
-from langchain_core.documents import Document
-from typing import Optional, Sequence
-
-import operator
-from langchain.retrievers.document_compressors.cross_encoder import BaseCrossEncoder
 from langchain_core.callbacks import Callbacks
 from langchain_core.documents import BaseDocumentCompressor, Document
+
+from typing import Optional, Sequence
+import operator
+
 
 class ColbertReranker(BaseDocumentCompressor):
 

@@ -436,7 +436,7 @@ class RAGHelper:
         if self.rerank_model == "flashrank":
             self.logger.info("Setting up the FlashrankRerank.")
             self.compressor = FlashrankRerank(top_n=self.rerank_k)
-        elif self.rerank_model == "ColbertRerank":       
+        elif self.rerank_model == "ColbertReranker":       
             self.logger.info("Setting up the ColBERTReranker.")
             self.compressor = ColBERTReranker()
 
