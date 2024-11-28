@@ -14,13 +14,13 @@ class ColBERTReranker(BaseDocumentCompressor):
     """
 
     def __init__(
-            self,
-            model_name: str = "colbert-ir/colbertv2.0",
-            top_n: int = 5,
-            device: str = "cuda" if torch.cuda.is_available() else "cpu",
-            nbits: int = 2,
-            doc_maxlen: int = 180,
-            query_maxlen: int = 32,
+        self,
+        model_name: str = "colbert-ir/colbertv2.0",
+        top_n: int = 5,
+        device: str = "cuda" if torch.cuda.is_available() else "cpu",
+        nbits: int = 2,
+        doc_maxlen: int = 180,
+        query_maxlen: int = 32,
     ):
         """
         Initialize the ColBERT reranker.
@@ -36,7 +36,7 @@ class ColBERTReranker(BaseDocumentCompressor):
         super().__init__()
 
     def compress_documents(
-            self, documents: List[Document], query: str, callbacks=None
+        self, documents: List[Document], query: str, callbacks=None
     ) -> List[Document]:
         """
         Rerank the documents using ColBERT.
@@ -56,13 +56,25 @@ class ColBERTReranker(BaseDocumentCompressor):
         doc_texts = [doc.page_content for doc in documents]
         doc_ids = [str(i) for i in range(len(documents))]
 
-        kutding = RAGPretrainedModel.from_pretrained("colbert-ir/colbertv2.0")
-        kutding.index(index_name='/content/RAGMeUp/server/indexed',
-                      collection=doc_texts,
-                      document_ids=doc_ids,
-                      document_metadatas=[doc.metadata for doc in documents])
-        results = kutding.search(query)
+        colbert = RAGPretrainedModel.from_pretrained("colbert-ir/colbertv2.0")
+        colbert.index(
+            index_name="/content/RAGMeUp/server/indexed",
+            collection=doc_texts,
+            document_ids=doc_ids,
+            document_metadatas=[doc.metadata for doc in documents],
+        )
+        results = colbert.search(query)
 
         # Return top_n documents
-        return [{'page_content': result['content'],'metadata': {**result['document_metadata'], 'relevance_score': result['score']}} for result in
-                sorted(results, key=lambda x: x['score'], reverse = True)[:self.top_n]]
+        return [
+            {
+                "page_content": result["content"],
+                "metadata": {
+                    **result["document_metadata"],
+                    "relevance_score": result["score"],
+                },
+            }
+            for result in sorted(results, key=lambda x: x["score"], reverse=True)[
+                : self.top_n
+            ]
+        ]
