@@ -13,27 +13,8 @@ class ColBERTReranker(BaseDocumentCompressor):
     A document compressor that uses ColBERT for reranking documents.
     """
 
-    def __init__(
-        self,
-        model_name: str = "colbert-ir/colbertv2.0",
-        top_n: int = 5,
-        device: str = "cuda" if torch.cuda.is_available() else "cpu",
-        nbits: int = 2,
-        doc_maxlen: int = 180,
-        query_maxlen: int = 32,
-    ):
-        """
-        Initialize the ColBERT reranker.
-
-        Args:
-            model_name (str): Name or path of the ColBERT model to use
-            top_n (int): Number of documents to return after reranking
-            device (str): Device to run the model on ('cuda' or 'cpu')
-            nbits (int): Number of bits for quantization
-            doc_maxlen (int): Maximum document length
-            query_maxlen (int): Maximum query length
-        """
-        super().__init__()
+    top_n: int = 5
+    model: str = "colbert-ir/colbertv2.0"
 
     def compress_documents(
         self, documents: List[Document], query: str, callbacks=None
@@ -56,7 +37,7 @@ class ColBERTReranker(BaseDocumentCompressor):
         doc_texts = [doc.page_content for doc in documents]
         doc_ids = [str(i) for i in range(len(documents))]
 
-        colbert = RAGPretrainedModel.from_pretrained("colbert-ir/colbertv2.0")
+        colbert = RAGPretrainedModel.from_pretrained(self.model)
         colbert.index(
             index_name="/content/RAGMeUp/server/indexed",
             collection=doc_texts,
