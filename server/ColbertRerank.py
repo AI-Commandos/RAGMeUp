@@ -11,7 +11,7 @@ from langchain.retrievers.document_compressors.cross_encoder import BaseCrossEnc
 
 from langchain_core.documents import BaseDocumentCompressor, Document
 
-class ColbertR():
+class ColbertRerank():
 
     # model: BaseCrossEncoder
     # """CrossEncoder model to use for scoring similarity
