@@ -11,15 +11,8 @@ import operator
 
 class ColbertReranker(BaseDocumentCompressor):
 
-    # model: BaseCrossEncoder
-    # """CrossEncoder model to use for scoring similarity
-    #   between the query and documents."""
     top_n: int = 3
     """Number of documents to return."""
-
-    # class Config:
-    #     arbitrary_types_allowed = True
-    #     extra = "forbid"
 
     def compress_documents(
         self,
