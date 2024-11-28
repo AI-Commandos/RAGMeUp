@@ -21,7 +21,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from lxml import etree
 from PostgresBM25Retriever import PostgresBM25Retriever
 from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
-from ColbertReranker import ColBERTReranker
+from server.ColbertReranker import ColBERTReranker
 from tqdm import tqdm
 
 
@@ -97,7 +97,12 @@ class RAGHelper:
             doc_strings.append(f"Document {i} content: {content}\nDocument {i} metadata: {metadata_string}")
         
         return "\n\n<NEWDOC>\n\n".join(doc_strings)
-
+    
+    def _load_chunked_documents(self):
+        """Loads previously chunked documents from a pickle file."""
+        with open(self.document_chunks_pickle, 'rb') as f:
+            self.logger.info("Loading chunked documents.")
+            self.chunked_documents = pickle.load(f)
 
     def _load_json_files(self):
         """
@@ -432,7 +437,7 @@ class RAGHelper:
             self.logger.info("Setting up the FlashrankRerank.")
             self.compressor = FlashrankRerank(top_n=self.rerank_k)
         elif self.rerank_model == "ColbertRerank":       
-            self.logger.info("Setting up the ColBERTR.")
+            self.logger.info("Setting up the ColBERTReranker.")
             self.compressor = ColBERTReranker()
 
             # Log the successful setup
@@ -443,7 +448,7 @@ class RAGHelper:
                 model=HuggingFaceCrossEncoder(model_name=self.rerank_model),
                 top_n=self.rerank_k
             )
-            self.logger.info("Setting up the ContextualCompressionRetriever.")
+        self.logger.info("Setting up the ContextualCompressionRetriever.")
 
         self.rerank_retriever = ContextualCompressionRetriever(
             base_compressor=self.compressor, base_retriever=self.ensemble_retriever
