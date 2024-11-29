@@ -368,10 +368,10 @@ class RAGHelperLocal(RAGHelper):
         """Track the provenance of the LLM response and annotate documents with provenance scores."""
         provenance_method = os.getenv("provenance_method")
         if provenance_method in ['rerank', 'attention', 'similarity', 'llm']:
-            answer = self._extract_reply(reply)
+            answer = reply.get('answer')
             new_history = [{"role": msg["role"], "content": msg["content"].format_map(reply)} for msg in thread]
             new_history.append({"role": "assistant", "content": answer})
-            context = RAGHelper.format_documents(reply['docs']).split("\n\n<NEWDOC>\n\n")
+            context = reply.get("context")#RAGHelper.format_documents(reply['docs']).split("\n\n<NEWDOC>\n\n")
 
             provenance_scores = self._compute_provenance(provenance_method, user_query, reply, context, answer, new_history)
             for i, score in enumerate(provenance_scores):
