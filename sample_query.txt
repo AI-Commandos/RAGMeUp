@@ -1,0 +1,85 @@
+-- Create the users table
+CREATE TABLE users (
+    user_id SERIAL PRIMARY KEY,             -- Unique identifier for each user
+    name VARCHAR(100) NOT NULL,             -- User's name
+    email VARCHAR(150) NOT NULL UNIQUE,     -- User's email address
+    signup_date DATE NOT NULL               -- The date the user signed up
+);
+
+-- Create the orders table
+CREATE TABLE orders (
+    order_id SERIAL PRIMARY KEY,            -- Unique identifier for each order
+    user_id INT NOT NULL,                   -- Foreign key to users table
+    order_date DATE NOT NULL,               -- Date of the order
+    total_amount NUMERIC(10, 2) NOT NULL,   -- Total order amount
+    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+-- Create the categories table
+CREATE TABLE categories (
+    category_id SERIAL PRIMARY KEY,         -- Unique identifier for each category
+    category_name VARCHAR(100) NOT NULL UNIQUE -- Name of the category
+);
+-- Create the products table
+CREATE TABLE products (
+    product_id SERIAL PRIMARY KEY,          -- Unique identifier for each product
+    product_name VARCHAR(200) NOT NULL,     -- Name of the product
+    category_id INT NOT NULL,               -- Foreign key to categories table
+    price NUMERIC(10, 2) NOT NULL,          -- Price of the product
+    CONSTRAINT fk_category FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE CASCADE
+);
+
+-- Create the order_items table
+CREATE TABLE order_items (
+    item_id SERIAL PRIMARY KEY,             -- Unique identifier for each item
+    order_id INT NOT NULL,                  -- Foreign key to orders table
+    product_id INT NOT NULL,                -- Foreign key to products table
+    quantity INT NOT NULL,                  -- Quantity of the product
+    price NUMERIC(10, 2) NOT NULL,          -- Price of the product per unit
+    CONSTRAINT fk_order FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
+    CONSTRAINT fk_product FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE
+);
+
+
+-- Insert sample data into the categories table
+INSERT INTO categories (category_name) VALUES 
+('Electronics'),
+('Books'),
+('Clothing'),
+('Home & Kitchen');
+
+-- Insert sample data into the products table
+INSERT INTO products (product_name, category_id, price) VALUES 
+('Smartphone', 1, 699.99),
+('Laptop', 1, 1299.99),
+('Fiction Book', 2, 15.99),
+('Cookbook', 2, 25.99),
+('T-shirt', 3, 9.99),
+('Jeans', 3, 49.99),
+('Blender', 4, 39.99),
+('Coffee Maker', 4, 79.99);
+
+-- Insert sample data into the users table
+INSERT INTO users (name, email, signup_date) VALUES 
+('Alice Johnson', 'alice.johnson@example.com', '2024-01-15'),
+('Bob Smith', 'bob.smith@example.com', '2024-02-10'),
+('Carol Lee', 'carol.lee@example.com', '2024-03-05');
+
+-- Insert sample data into the orders table
+INSERT INTO orders (user_id, order_date, total_amount) VALUES 
+(1, '2024-03-10', 759.97),
+(1, '2024-03-15', 59.98),
+(2, '2024-03-20', 1309.99),
+(3, '2024-03-25', 89.98);
+
+-- Insert sample data into the order_items table
+INSERT INTO order_items (order_id, product_id, quantity, price) VALUES 
+(1, 1, 1, 699.99),  -- Alice buys a Smartphone
+(1, 5, 2, 9.99),    -- Alice buys 2 T-shirts
+(2, 3, 1, 15.99),   -- Alice buys a Fiction Book
+(2, 4, 1, 25.99),   -- Alice buys a Cookbook
+(3, 2, 1, 1299.99), -- Bob buys a Laptop
+(4, 7, 1, 39.99),   -- Carol buys a Blender
+(4, 8, 1, 79.99);   -- Carol buys a Coffee Maker
+
+
+
