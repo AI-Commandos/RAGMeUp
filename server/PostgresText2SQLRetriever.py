@@ -152,7 +152,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
 
         match = re.search(r"SELECT.*?;", generated_text, re.DOTALL)
         if match:
-            generated_text = match.group(1).replace('\n', ' ').strip()
+            generated_text = match.group(0).replace("\n", " ").strip()  # This is the matched SQL query
 
         sql_query = generated_text
         return sql_query
@@ -214,3 +214,28 @@ class PostgresText2SQLRetriever(BaseRetriever):
 #schema = retriever.get_database_schema()
 #print(type(schema))
 #print(schema)
+
+import re
+
+# Example long string containing SQL statement
+long_string = """
+Here is some random text before the SQL query. 
+SELECT column1, column2 
+FROM table WHERE condition = 'value'; 
+More text follows here.
+"""
+
+# Regular expression to find a SQL query starting with SELECT and ending with a semicolon
+sql_pattern = r"SELECT.*?;"
+
+# Replace newlines with spaces in the long string
+long_string = long_string.replace("\n", " ")
+
+# Use re.search to find the SQL query
+match = re.search(sql_pattern, long_string, re.DOTALL)  # re.DOTALL allows '.' to match newlines
+
+if match:
+    sql_statement = match.group(0).replace("\n", " ").strip()  # This is the matched SQL query
+    print("Extracted SQL statement:", sql_statement)
+else:
+    print("No SQL statement found.")
