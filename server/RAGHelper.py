@@ -21,7 +21,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from lxml import etree
 from PostgresBM25Retriever import PostgresBM25Retriever
 from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
-from server.ColbertReranker import ColBERTReranker
+from ColbertReranker import ColbertReranker
 from tqdm import tqdm
 
 
@@ -438,7 +438,7 @@ class RAGHelper:
             self.compressor = FlashrankRerank(top_n=self.rerank_k)
         elif self.rerank_model == "ColbertReranker":       
             self.logger.info("Setting up the ColBERTReranker.")
-            self.compressor = ColBERTReranker()
+            self.compressor = ColbertReranker()
 
             # Log the successful setup
             self.logger.info(f"ColBERTReranker initialized")
