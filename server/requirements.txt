@@ -63,7 +63,6 @@ google-auth==2.36.0
 google-auth-httplib2==0.2.0
 google-generativeai==0.7.2
 googleapis-common-protos==1.66.0
-graphrag==0.5.0
 graspologic==3.4.1
 graspologic-native==1.2.1
 grpcio==1.63.0
