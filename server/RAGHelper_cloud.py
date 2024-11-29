@@ -145,7 +145,89 @@ class RAGHelperCloud(RAGHelper):
         """
         # Apply HyDE if enabled
         if os.getenv("hyde_enabled", "False").lower() == "true":
+            hyde_query = self.apply_hyde_if_enabled(user_query)
+            retrieval_query = hyde_query  # Use HyDE query for retrieval
+        else:
+            retrieval_query = user_query  # Use original query if HyDE is disabled
+
+        fetch_new_documents = self.should_fetch_new_documents(user_query, history)
+
+        thread = self.create_interaction_thread(history, fetch_new_documents)
+        # Create prompt from prompt template
+        prompt = ChatPromptTemplate.from_messages(thread)
+
+        # Create llm chain
+        llm_chain = prompt | self.llm
+
+        if fetch_new_documents:
+            context_retriever = self.ensemble_retriever if self.rerank else self.rerank_retriever
+
+            # First, get documents using the HyDE query
+            retrieved_docs = context_retriever.invoke(retrieval_query)
+            formatted_docs = RAGHelper.format_documents(retrieved_docs)
+
+            retriever_chain = {
+                "context": lambda x: formatted_docs,
+                "question": RunnablePassthrough()
+            }
+            llm_chain = prompt | self.llm | StrOutputParser()
+            rag_chain = (
+                retriever_chain
+                | RunnablePassthrough.assign(
+                    answer=lambda x: llm_chain.invoke(
+                        {"context": x["context"], "question": x["question"]}
+                    ))
+                | combine_results
+            )
+        else:
+            retriever_chain = {"question": RunnablePassthrough()}
+            llm_chain = prompt | self.llm | StrOutputParser()
+            rag_chain = (
+                retriever_chain
+                | RunnablePassthrough.assign(
+                    answer=lambda x: llm_chain.invoke(
+                        {"question": x["question"]}
+                    ))
+                | combine_results
+            )
+
+        user_query = self.handle_rewrite(user_query)
+        # Check if we need to apply Re2 to mention the question twice
+        if os.getenv("use_re2") == "True":
+            user_query = f'{user_query}\n{os.getenv("re2_prompt")}{user_query}'
+
+        # Invoke RAG pipeline
+        reply = rag_chain.invoke(user_query)
+
+
+
+        # Track provenance if needed
+        if fetch_new_documents and os.getenv("provenance_method") in ['rerank', 'attention', 'similarity', 'llm']:
+            # Previously docs was in the reply. but since the documents are now retrieved outside the chain,
+            # they are no more in the reply
+            if "docs" not in reply:
+                reply["docs"] = retrieved_docs
+                reply["context"] = formatted_docs
+
+            self.track_provenance(reply=reply,
+                                  user_query=user_query)
+
+        return (thread, reply)
+
+    def handle_user_interaction_before_mehdi(self, user_query: str, history: list) -> tuple:
+        """Handle user interaction by processing their query and maintaining conversation history.
+
+        Args:
+            user_query (str): The user's query.
+            history (list): The history of previous interactions.
+
+        Returns:
+            tuple: A tuple containing the conversation thread and the reply.
+        """
+        # Apply HyDE if enabled
+        if os.getenv("hyde_enabled", "False").lower() == "true":
             user_query = self.apply_hyde_if_enabled(user_query)
+
 
         fetch_new_documents = self.should_fetch_new_documents(user_query, history)
 
@@ -247,17 +329,18 @@ class RAGHelperCloud(RAGHelper):
         """
         return retriever_chain | llm_chain
 
-    def track_provenance(self, reply: str, user_query: str) -> None:
+    def track_provenance(self, reply: dict, user_query: str) -> None:
         """Track the provenance of the response if applicable.
 
         Args:
             reply (str): The response from the LLM.
             user_query (str): The original user query.
+            retrieved_documents: the documents that are retrieved by the RAG
         """
         # Add the user question and the answer to our thread for provenance computation
         # Retrieve answer and context
         answer = reply.get('answer')
-        context = reply.get('docs')
+        context = reply.get("docs")
 
         provenance_method = os.getenv("provenance_method")
         self.logger.info(f"Provenance method: {provenance_method}")
