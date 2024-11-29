@@ -14,12 +14,18 @@ from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
 from psycopg2 import sql
 from transformers import T5ForConditionalGeneration, T5Tokenizer
-from pydantic import Field
+from pydantic import Field, BaseModel
 from langchain_huggingface.llms import HuggingFacePipeline
 
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+
+class SQLQuery(BaseModel):
+    table: str          # The name of the table being queried.
+    columns: List[str]  # The list of column names to include in the SELECT statement.
+    conditions: str     # The WHERE clause conditions for filtering data.
 
 
 class SQLGenerator:
@@ -143,7 +149,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
         input_prompt = self.prompt.format(query=prompt, schema=self.db_schema)
         logger.info(f"Input Prompt: {input_prompt}")
         generated_text = self.llama(input_prompt)
-        sql_query = generated_text.split("SQL query:")[-1].strip()
+        sql_query = generated_text
         return sql_query
     
     def get_database_schema(self):
