@@ -178,6 +178,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
             if table_name not in schema:
                 schema[table_name] = []
             schema[table_name].append({"column_name": column_name, "data_type": data_type})
+        logger.info(schema)
         self.schema = self.format_schema(schema)
 
     @staticmethod
