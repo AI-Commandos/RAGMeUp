@@ -142,7 +142,8 @@ class PostgresText2SQLRetriever(BaseRetriever):
     def _compute_query(self, prompt):
         input_prompt = self.prompt.format(query=prompt, schema=self.db_schema)
         logger.info(f"Input Prompt: {input_prompt}")
-        sql_query = self.llama(input_prompt)
+        generated_text = self.llama(input_prompt)
+        sql_query = generated_text.split("SQL query:")[-1].strip()
         return sql_query
     
     def get_database_schema(self):
