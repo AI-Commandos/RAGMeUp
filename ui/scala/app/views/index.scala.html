@@ -19,7 +19,7 @@
     </div>
   </div>
 </div>
-<div class="form-check form-switch" style="position: absolute; top: 10px; left: 10px; z-index: 10;"">
+<div class="form-check form-switch" style="position: absolute; top: 10px; right: 10px; z-index: 10; ;">
   <input class="form-check-input" type="checkbox" id="text2sqlToggle">
   <label class="form-check-label" for="text2sqlToggle">Enable Text-to-SQL</label>
 </div>
@@ -245,19 +245,33 @@
                 $("#loader").hide();
                 $("#mainContainer").remove();
 
-
-
-                if (data['rewritten']) {
-                  var msg = '<span style="color: #ccc; font-style: italic; font-weight: 300;">Your message has been rewritten to this:</span>\n\n' + data['question'];
-                  addMessage(msg, true);
+              
+                if (data['results']){
+                  if(data['results']['error']){
+                    addMessage(data['results']['error'], false);
+                  }
+                  else{
+                    var msg = "Your answer is found using the following SQL query: <br><br>" + data['sql_query']+ "<br><br> from the columns: "+data['results']['columns'];
+                    addMessage(msg, false);
+                    msg = "The answer is: <br><br>" + data['results']['rows'];
+                    addMessage(msg, false);
+                  }
                 }
+                else{
+                  if (data['rewritten']) {
+                    var msg = '<span style="color: #ccc; font-style: italic; font-weight: 300;">Your message has been rewritten to this:</span>\n\n' + data['question'];
+                    addMessage(msg, true);
+                  }
 
-                documents = data['documents'];
-                addMessage(data['reply'], false, data);
-                if (documents.length > 0 && data['fetched_new_documents']) {
-                  presentDocuments(documents);
+                  documents = data['documents'];
+                  addMessage(data['reply'], false, data);
+                  if (documents.length > 0 && data['fetched_new_documents']) {
+                    presentDocuments(documents);
+                  }
                 }
-                chathistory = data['history'];
+                const chathistory = 'history' in data ? data['history'] : [];
+
+
 
                 $("#inputbar").show();
                 $("#query").val('');
