@@ -63,6 +63,10 @@ class GraphRAGHelper(RAGHelper):
             docs = self._load_documents()
             self.logger.info("chunking the documents.")
             self._split_and_store_documents(docs)
+        
+        # Store knowledge graph in Neo4j
+        self.construct_graph(self.chunked_documents)
+        self.save_graph_to_neo4j()
 
     def _initialize_llm(self):
         """Initialize the LLM based on the available hardware and configurations."""
@@ -143,8 +147,6 @@ class GraphRAGHelper(RAGHelper):
         rewrite_ask_llm_chain = LLMChain(llm=self.llm, prompt=rewrite_ask_prompt)
 
         return {"context": self.retrieve_documents, "question": RunnablePassthrough()} | rewrite_ask_llm_chain
-
-        # TODO: recreate cypher query and traverse the knowledge graph again
 
     def _create_rewrite_chain(self):
         """Create and return the rewrite chain."""
@@ -287,7 +289,7 @@ class GraphRAGHelper(RAGHelper):
         new_chunks = self._split_documents(new_docs)
         self._update_chunked_documents(new_chunks)
         self._add_to_vector_database(new_chunks)
-        self.construct_graph(new_docs)
+        self.construct_graph(new_chunks)
         self.save_graph_to_neo4j()
 
     def delete_document(self, filename):
