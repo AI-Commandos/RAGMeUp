@@ -19,6 +19,22 @@ from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_huggingface.llms import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
+
+
+def combine_results(inputs: dict) -> dict:
+    """Combine the results of the user query processing.
+
+    Args:
+        inputs (dict): The input results.
+
+    Returns:
+        dict: A dictionary containing the answer, context, and question.
+    """
+    combined = {"answer": inputs["answer"], "question": inputs["question"]}
+    if "context" in inputs and "docs" in inputs:
+        combined.update({"docs": inputs["docs"], "context": inputs["context"]})
+    return combined
 
 
 class RAGHelperLocal(RAGHelper):
@@ -188,6 +204,80 @@ class RAGHelperLocal(RAGHelper):
             return user_query
 
     def handle_user_interaction(self, user_query, history):
+        """Handle user interaction, fetching documents and managing query rewriting, document provenance, and LLM response.
+
+        Args:
+            user_query (str): The user's query.
+            history (list): A list of previous conversation history.
+
+        Returns:
+            tuple: The conversation thread and the LLM response with potential provenance scores.
+        """
+        # Apply HyDE if enabled
+        # Apply HyDE if enabled
+        if os.getenv("hyde_enabled", "False").lower() == "true":
+            hyde_query = self.apply_hyde_if_enabled(user_query)
+            retrieval_query = hyde_query  # Use HyDE query for retrieval
+        else:
+            retrieval_query = user_query  # Use original query if HyDE is disabled
+
+        fetch_new_documents = self._should_fetch_new_documents(user_query, history)
+        thread = self._prepare_conversation_thread(history, fetch_new_documents)
+        input_variables = self._determine_input_variables(fetch_new_documents)
+        prompt = self._create_prompt_template(thread, input_variables)
+
+        # Create llm chain
+        llm_chain = prompt | self.llm
+
+        if fetch_new_documents:
+            context_retriever = self.ensemble_retriever if self.rerank else self.rerank_retriever
+
+            # First, get documents using the HyDE query
+            retrieved_docs = context_retriever.invoke(retrieval_query)
+            formatted_docs = RAGHelper.format_documents(retrieved_docs)
+
+            retriever_chain = {
+                "context": lambda x: formatted_docs,
+                "question": RunnablePassthrough()
+            }
+            llm_chain = prompt | self.llm | StrOutputParser()
+            rag_chain = (
+                    retriever_chain
+                    | RunnablePassthrough.assign(
+                answer=lambda x: llm_chain.invoke(
+                    {"context": x["context"], "question": x["question"]}
+                ))
+                    | combine_results
+            )
+        else:
+            retriever_chain = {"question": RunnablePassthrough()}
+            llm_chain = prompt | self.llm | StrOutputParser()
+            rag_chain = (
+                    retriever_chain
+                    | RunnablePassthrough.assign(
+                answer=lambda x: llm_chain.invoke(
+                    {"question": x["question"]}
+                ))
+                    | combine_results
+            )
+
+        user_query = self.handle_rewrite(user_query)
+        # Check if we need to apply Re2 to mention the question twice
+        if os.getenv("use_re2") == "True":
+            user_query = f'{user_query}\n{os.getenv("re2_prompt")}{user_query}'
+
+        # Invoke RAG pipeline
+        reply = rag_chain.invoke(user_query)
+
+        if fetch_new_documents:
+            if "docs" not in reply:
+                reply["docs"] = retrieved_docs
+                reply["context"] = formatted_docs
+            self._track_provenance(user_query, reply, thread)
+
+        return thread, reply
+
+    def handle_user_interaction_before_mehdi(self, user_query, history):
         """Handle user interaction, fetching documents and managing query rewriting, document provenance, and LLM response.
 
         Args:
