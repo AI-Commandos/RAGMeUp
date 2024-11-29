@@ -150,7 +150,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
         logger.info(f"Input Prompt: {input_prompt}")
         generated_text = self.llama(input_prompt)
 
-        match = re.search(r"```sql\n(.*?)```", generated_text, re.DOTALL)
+        match = re.search(r"SELECT.*?;", generated_text, re.DOTALL)
         if match:
             generated_text = match.group(1).replace('\n', ' ').strip()
 
