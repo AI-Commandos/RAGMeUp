@@ -17,7 +17,7 @@ class RAGHelperSQL(RAGHelperLocal):
         self.tokenizer, self.model = self._initialize_llm()
         self.llm = self._create_llm_pipeline()
         self.text2sql_uri = os.getenv("TEXT2SQL_DB_URI")
-        self.ensemble_retriever = PostgresText2SQLRetriever(connection_uri=self.text2sql_uri)
+        self.ensemble_retriever = PostgresText2SQLRetriever(connection_uri=self.text2sql_uri, llama=self.llm)
 
         # Load the data
         self.load_data()
@@ -33,3 +33,4 @@ class RAGHelperSQL(RAGHelperLocal):
         csv_file_paths = os.listdir(self.data_dir)
         for csv_file_path in csv_file_paths:
             self.ensemble_retriever.setup_table(self.data_dir + csv_file_path)
+        self.ensemble_retriever.get_database_schema()

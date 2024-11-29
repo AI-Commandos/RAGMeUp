@@ -15,6 +15,7 @@ from langchain_core.retrievers import BaseRetriever
 from psycopg2 import sql
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 from pydantic import Field
+from langchain_huggingface.llms import HuggingFacePipeline
 
 
 logger = logging.getLogger(__name__)
@@ -47,10 +48,11 @@ class SQLGenerator:
 
 class PostgresText2SQLRetriever(BaseRetriever):
     connection_uri: str
-    sql_generator: SQLGenerator = Field(default_factory=SQLGenerator)
-    tables: str = Field(..., env="TABLES")
+    prompt: str = Field(..., env="text2sql_prompt")
     conn: psycopg2.extensions.connection = None
     cur: psycopg2.extensions.cursor = None
+    schema: str = None
+    llama: HuggingFacePipeline
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -59,8 +61,9 @@ class PostgresText2SQLRetriever(BaseRetriever):
         self.conn.autocommit = True
         self.cur = self.conn.cursor()
         self.setup_database()
-        self.sql_generator = SQLGenerator()
-        self.tables = os.getenv("tables")
+        self.llama = self.llama
+        self.prompt = os.getenv("text2sql_prompt")
+        self.schema = None
 
     def setup_database(self):
         new_db_name = "text2sql"
@@ -118,12 +121,13 @@ class PostgresText2SQLRetriever(BaseRetriever):
         self.conn.commit()
 
     def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun) -> List[Document]:
-        sql_query = self.compute_query(query)
+        sql_query = self._compute_query(query)
         # Get data with a prompt and return the result as a json object
         logger.info(f"SQL Query: {sql_query}")
         self.cur.execute(sql_query)
         rows = self.cur.fetchmany(50)
         documents = self._format_results_as_documents(rows)
+        logger.info(f"Documents: {documents}")
         return documents
 
     def _format_results_as_documents(self, results):
@@ -135,11 +139,56 @@ class PostgresText2SQLRetriever(BaseRetriever):
             documents.append(Document(page_content=content, metadata=metadata))
         return documents
 
-    def compute_query(self, prompt):
-        input_prompt = "tables:\n" + self.tables + "\n" + "query for: " + prompt
+    def _compute_query(self, prompt):
+        input_prompt = self.prompt.format(query=prompt, schema=self.schema)
         logger.info(f"Input Prompt: {input_prompt}")
-        generated_sql = self.sql_generator.generate_sql(input_prompt)
-        return generated_sql
+        generated_output = self.llama(input_prompt)
+        sql_query = generated_output[0]['generated_text'].split("SQL Query:")[-1].strip()
+        return sql_query
+    
+    def get_database_schema(self):
+        schema = {}
+    
+        query = """
+        SELECT
+            table_schema,
+            table_name,
+            column_name,
+            data_type
+        FROM
+            information_schema.columns
+        WHERE
+            table_schema NOT IN ('information_schema', 'pg_catalog')
+        ORDER BY
+            table_schema,
+            table_name,
+            ordinal_position;
+        """
+        
+        # Execute the query
+        self.cur.execute(query)
+        
+        # Process the results
+        rows = self.cur.fetchall()
+        for row in rows:
+            table_name = row[1]
+            column_name = row[2]
+            data_type = row[3]
+            
+            if table_name not in schema:
+                schema[table_name] = []
+            schema[table_name].append({"column_name": column_name, "data_type": data_type})
+        self.schema = self.format_schema(schema)
+
+    @staticmethod
+    def format_schema(input_data):
+        result = "Schema:\n"
+        for table_name, columns in input_data.items():
+            # Get column names as a comma-separated string
+            column_names = ", ".join([col['column_name'] for col in columns])
+            # Append the formatted table information to the result
+            result += f"- Table: {table_name} ({column_names})\n"
+        return result
 
     def close(self):
         self.cur.close()
@@ -149,3 +198,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
 #uri = "postgresql://user:pass@localhost:5432/text2sql"
 #retriever = PostgresText2SQLRetriever(connection_uri=uri)
 #retriever.setup_table("/home/markiemark/JADS/NLP/assignment3/RAGMeUp/data/StudentGradesAndPrograms.csv")
+
+#schema = retriever.get_database_schema()
+#print(type(schema))
+#print(schema)
