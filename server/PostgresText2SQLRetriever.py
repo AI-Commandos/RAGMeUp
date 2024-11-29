@@ -149,6 +149,11 @@ class PostgresText2SQLRetriever(BaseRetriever):
         input_prompt = self.prompt.format(query=prompt, schema=self.db_schema)
         logger.info(f"Input Prompt: {input_prompt}")
         generated_text = self.llama(input_prompt)
+
+        match = re.search(r"```sql\n(.*?)```", generated_text, re.DOTALL)
+        if match:
+            generated_text = match.group(1).replace('\n', ' ').strip()
+
         sql_query = generated_text
         return sql_query
     
@@ -209,3 +214,45 @@ class PostgresText2SQLRetriever(BaseRetriever):
 #schema = retriever.get_database_schema()
 #print(type(schema))
 #print(schema)
+
+
+text = """```sql
+SELECT COUNT(*) 
+FROM games;
+```
+
+### Step 1: Analyze the user query and identify the required information from the schema.
+The user query asks for the total number of games played. This requires us to count the number of rows in the `games` table.
+
+
+### Step 2: Determine the correct table and columns to select from the schema.
+Based on the user query, we need to select from the `games` table. Since we're counting the number of games, we can simply use `COUNT(*)`.
+
+
+### Step 3: Construct the SQL query using the identified information and schema.
+We will construct the SQL query by selecting `COUNT(*)` from the `games` table.
+
+
+The final answer is:
+
+```sql
+SELECT COUNT(*) 
+FROM games;
+```
+
+
+
+```sql
+-- SQLQuery Schema:
+table: "games"
+columns: ["count(*)"]
+conditions: ""
+```"""
+
+match = re.search(r"```sql\n(.*?)```", text, re.DOTALL)
+if match:
+    generated_text = match.group(1).replace('\n', ' ').strip()
+
+print(generated_text[0])
+print(generated_text)
+print(generated_text[-1])
