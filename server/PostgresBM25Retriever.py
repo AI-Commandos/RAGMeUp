@@ -87,7 +87,7 @@ class PostgresBM25Retriever(BaseRetriever):
             os.getenv("re2_prompt")
             index = query.find(f"\n{os.getenv('re2_prompt')}")
             query = query[:index]
-        query = re.sub(r'[\(\):]', '', query)
+        query = re.sub(r'[\(\):\']', '', query)
         
         search_command = f"""
             SELECT 
