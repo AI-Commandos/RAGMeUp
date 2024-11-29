@@ -19,6 +19,7 @@ from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_huggingface.llms import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
+from langchain.chains import GraphQAChain
 
 
 class RAGHelperLocal(RAGHelper):
@@ -38,6 +39,7 @@ class RAGHelperLocal(RAGHelper):
         
         if os.getenv('graph') == "True":
             self._initialize_graph_store()
+        self.graphrag_chain = GraphQAChain.from_llm(self.llm, graph=self.graph)
 
         # Initialize provenance method
         self.attributor = DocumentSimilarityAttribution() if os.getenv("provenance_method") == "similarity" else None
@@ -217,9 +219,11 @@ class RAGHelperLocal(RAGHelper):
         if fetch_new_documents:
             self._track_provenance(user_query, reply, thread)
             
-        # TODO: also probe self.graph (the type of self.graph is langchain_community.graphs.networkx_graph.NetworkxEntityGraph)
+        graph_reply = ""
+        if os.getenv("graph") == "True":
+            graph_reply = self.graphrag_chain.run(user_query)
 
-        return thread, reply
+        return thread, reply, graph_reply
 
     def _should_fetch_new_documents(self, user_query, history):
         """Determine whether to fetch new documents based on the user's query and conversation history."""

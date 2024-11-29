@@ -169,5 +169,5 @@ server/*.pickle
 
 data
 run_RAG_server.ipynb
-graph_plot.svg
+graph.svg
 graph_file.gml

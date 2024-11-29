@@ -13,6 +13,7 @@ from provenance import (DocumentSimilarityAttribution,
                         compute_llm_provenance_cloud,
                         compute_rerank_provenance)
 from RAGHelper import RAGHelper
+from langchain.chains import GraphQAChain
 
 
 def combine_results(inputs: dict) -> dict:
@@ -50,6 +51,7 @@ class RAGHelperCloud(RAGHelper):
         
         if (os.getenv("graph") == "True"):
             self._initialize_graph_store()
+        self.graphrag_chain = GraphQAChain.from_llm(self.llm, graph=self.graph)
 
     def initialize_llm(self):
         """Initialize the Language Model based on environment configurations."""
@@ -199,9 +201,12 @@ class RAGHelperCloud(RAGHelper):
         if fetch_new_documents and os.getenv("provenance_method") in ['rerank', 'attention', 'similarity', 'llm']:
             self.track_provenance(reply, user_query)
 
-        # TODO: also probe self.graph (the type of self.graph is langchain_community.graphs.networkx_graph.NetworkxEntityGraph)
+        graph_reply = ""
+        if os.getenv("graph") == "True":
+            graph_reply = self.graphrag_chain.run(user_query)
 
-        return (thread, reply)
+
+        return thread, reply, graph_reply
 
     def should_fetch_new_documents(self, user_query: str, history: list) -> bool:
         """Determine if new documents should be fetched based on user query and history.

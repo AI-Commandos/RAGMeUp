@@ -87,7 +87,13 @@ def chat():
     docs = original_docs
 
     # Get the LLM response
-    (new_history, response) = raghelper.handle_user_interaction(prompt, history)
+    (new_history, response, graph_response) = raghelper.handle_user_interaction(prompt, history)
+    
+    print(response)
+    print('\n')    
+    print(graph_response)
+    # TODO: we print the graph response here, now we just need to process it and then we can send it to the client
+    
     if not docs or 'docs' in response:
         docs = response['docs']
 
