@@ -64,8 +64,7 @@ class Graph_whisperer:
                         }
                     )
             # Execute all queries in the payload
-            for instance in payloads:
-                self._create_instance(self, instance)
+            self._create_instance(self, payloads)
             return {
                 "message": f"Successfully loaded {len(payloads)} records into Neo4j."
             }
