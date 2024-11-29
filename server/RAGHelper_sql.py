@@ -8,6 +8,8 @@ from PostgresText2SQLRetriever import PostgresText2SQLRetriever
 from provenance import DocumentSimilarityAttribution
 from RAGHelper import RAGHelper
 from RAGHelper_local import RAGHelperLocal
+from transformers import pipeline
+from langchain_huggingface.llms import HuggingFacePipeline
 
 
 class RAGHelperSQL(RAGHelperLocal):
@@ -34,3 +36,18 @@ class RAGHelperSQL(RAGHelperLocal):
         for csv_file_path in csv_file_paths:
             self.ensemble_retriever.setup_table(self.data_dir + csv_file_path)
         self.ensemble_retriever.get_database_schema()
+
+    def _create_llm_pipeline(self):
+        text_generation_pipeline = pipeline(
+            model=self.model,
+            tokenizer=self.tokenizer,
+            task="text-generation",
+            temperature=float(os.getenv('temperature')),
+            repetition_penalty=float(os.getenv('repetition_penalty')),
+            return_full_text=False,
+            max_new_tokens=int(os.getenv('max_new_tokens')),
+            model_kwargs={
+                'device_map': 'auto',
+            }
+        )
+        return HuggingFacePipeline(pipeline=text_generation_pipeline)
