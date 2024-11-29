@@ -51,7 +51,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
     prompt: str = Field(..., env="text2sql_prompt")
     conn: psycopg2.extensions.connection = None
     cur: psycopg2.extensions.cursor = None
-    schema: str = None
+    db_schema: str = None
     llama: HuggingFacePipeline
 
     def __init__(self, **data):
@@ -63,7 +63,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
         self.setup_database()
         self.llama = self.llama
         self.prompt = os.getenv("text2sql_prompt")
-        self.schema = None
+        self.db_schema = None
 
     def setup_database(self):
         new_db_name = "text2sql"
@@ -140,7 +140,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
         return documents
 
     def _compute_query(self, prompt):
-        input_prompt = self.prompt.format(query=prompt, schema=self.schema)
+        input_prompt = self.prompt.format(query=prompt, schema=self.db_schema)
         logger.info(f"Input Prompt: {input_prompt}")
         generated_output = self.llama(input_prompt)
         sql_query = generated_output[0]['generated_text'].split("SQL Query:")[-1].strip()
@@ -179,7 +179,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
                 schema[table_name] = []
             schema[table_name].append({"column_name": column_name, "data_type": data_type})
         logger.info(schema)
-        self.schema = self.format_schema(schema)
+        self.db_schema = self.format_schema(schema)
 
     @staticmethod
     def format_schema(input_data):
