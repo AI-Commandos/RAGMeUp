@@ -57,7 +57,6 @@ class RAGHelper:
         self.splitter_type = os.getenv('splitter')
         self.vector_store = os.getenv("vector_store")
         self.vector_store_initial_load = os.getenv("vector_store_initial_load") == "True"
-        # Load configuration from .env
         self.hyde_enabled = os.getenv("hyde_enabled", "False").lower() == "true"
         self.hyde_multi_generations = int(os.getenv("hyde_multi_generations", 1))
         self.hyde_general_template = os.getenv("hyde_general_template", "").strip()

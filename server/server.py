@@ -46,20 +46,25 @@ else:
     raghelper = RAGHelperLocal(logger)
 
 
-@app.route("/test_hyde", methods=['GET'])
+@app.route("/test_hyde", methods=['POST'])
 def test_hyde():
     """
-    Test the HyDE embedding functionality with a predefined query.
+    Test the HyDE embedding functionality with a user-provided query.
 
-    This endpoint generates a hypothetical document embedding for a predefined query
+    This endpoint generates a hypothetical document embedding for a user-provided query
     and returns the embedding vector.
 
     Returns:
         JSON response with the embedding vector and dimension.
     """
-    # Hardcoded test query
-    query = "What are the main adversarial conditions used to evaluate the robustness of Large Language Models (LLMs) according to the study?"
-    logger.info(f"Testing HyDE embedding with predefined query: {query}")
+    # Parse the JSON payload
+    json_data = request.get_json()
+    query = json_data.get("query", "").strip()
+
+    if not query:
+        return jsonify({"error": "The 'query' field is required in the request body."}), 400
+
+    logger.info(f"Testing HyDE embedding with provided query: {query}")
 
     if not os.getenv("hyde_enabled", "False").lower() == "true":
         return jsonify({"error": "HyDE is not enabled in the configuration"}), 400
