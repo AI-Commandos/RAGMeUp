@@ -5,7 +5,9 @@ import os
 from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper_local import RAGHelperLocal
 from pymilvus import Collection, connections
-
+from deepeval import evaluate
+# Import and explicitly pass the same metrics used in DeepEval_eval.py
+from DeepEval_eval import metrics
 
 def load_bashrc():
     """
@@ -67,6 +69,33 @@ def add_document():
 
     return jsonify({"filename": filename}), 200
 
+@app.route("/deep_eval", methods=["POST"])
+def evaluate_deep_eval():
+    """
+    Evaluate the RAG pipeline using DeepEval metrics.
+    """
+    json_data = request.get_json()
+    question = json_data.get("question")
+    expected_answer = json_data.get("expected_answer")
+    context = json_data.get("context")
+
+    if not question or not expected_answer or not context:
+        return jsonify({"error": "Question, expected answer, and context are required"}), 400
+
+    # Generate response
+    response = raghelper.handle_user_interaction(question, [])["answer"]
+
+    # Create test case
+    test_case = {
+        "input": question,
+        "actual_output": response,
+        "expected_output": expected_answer,
+        "retrieval_context": context,
+    }
+
+    # Evaluate
+    results = evaluate([test_case], metrics)
+    return jsonify(results), 200
 
 @app.route("/chat", methods=['POST'])
 def chat():
