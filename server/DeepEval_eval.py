@@ -46,12 +46,23 @@ metrics = [
 ]
 
 # Sample documents for evaluation
-document_sample_size = int(os.getenv("ragas_sample_size"))
+document_sample_size = int(os.getenv("deepeval_sample_size"))
 document_chunk_count = int(os.getenv("vector_store_k"))
-qa_pairs_count = int(os.getenv("ragas_qa_pairs"))
+qa_pairs_count = int(os.getenv("deepeval_qa_pairs"))
 
+# Sample documents for evaluation
 documents = raghelper.chunked_documents
-document_sample = sample(documents, document_sample_size)
+
+# Debugging information
+logger.info(f"Number of available documents: {len(documents)}")
+logger.info(f"Requested document sample size: {document_sample_size}")
+
+# Ensure valid sample size
+if document_sample_size <= 0:
+    raise ValueError("Document sample size must be greater than 0.")
+
+# Dynamically adjust sample size
+document_sample = sample(documents, min(document_sample_size, len(documents)))
 
 # Prepare test cases
 qa_pairs = []
