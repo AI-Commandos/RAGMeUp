@@ -41,9 +41,9 @@ class PostgresBM25Retriever(BaseRetriever):
             BEGIN
                 IF NOT EXISTS (
                     SELECT 1
-                    FROM information_schema.tables
-                    WHERE table_schema = 'public'
-                    AND table_name = '{self.table_name}'
+                    FROM pg_indexes
+                    WHERE schemaname = 'public'
+                    AND indexname = '{self.table_name}_bm25'
                 ) THEN
                     CALL paradedb.create_bm25(
                         index_name => '{self.table_name}_bm25',
@@ -87,7 +87,7 @@ class PostgresBM25Retriever(BaseRetriever):
             os.getenv("re2_prompt")
             index = query.find(f"\n{os.getenv('re2_prompt')}")
             query = query[:index]
-        query = re.sub(r'[\(\):]', '', query)
+        query = re.sub(r'[\(\):\']', '', query)
         
         search_command = f"""
             SELECT 
