@@ -8,16 +8,8 @@ from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper import RAGHelper
 
 from deepeval import evaluate
-from deepeval.metrics import (
-    AnswerRelevancyMetric,
-    FaithfulnessMetric,
-    ContextualPrecisionMetric,
-    ContextualRecallMetric,
-    ContextualRelevancyMetric,
-    HallucinationMetric,
-    RagasMetric,
-    ToolCorrectnessMetric,
-)
+from deepeval.metrics import AnswerRelevancyMetric, FaithfulnessMetric, ContextualPrecisionMetric, ContextualRecallMetric, ContextualRelevancyMetric, HallucinationMetric, RagasMetric, ToolCorrectnessMetric
+
 
 # Load environment variables
 load_dotenv()
