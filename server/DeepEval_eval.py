@@ -8,7 +8,7 @@ from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper import RAGHelper
 
 from deepeval import evaluate
-from deepeval.metrics import AnswerRelevancyMetric, FaithfulnessMetric, ContextualPrecisionMetric, ContextualRecallMetric, ContextualRelevancyMetric, HallucinationMetric, RagasMetric, ToolCorrectnessMetric
+from deepeval.metrics import AnswerRelevancyMetric, FaithfulnessMetric, ContextualPrecisionMetric, ContextualRecallMetric, ContextualRelevancyMetric, HallucinationMetric, ToolCorrectnessMetric
 
 
 # Load environment variables
@@ -29,7 +29,7 @@ contextual_precision_threshold = float(os.getenv("deepeval_contextual_precision_
 contextual_recall_threshold = float(os.getenv("deepeval_contextual_recall_threshold", 0.7))
 contextual_relevancy_threshold = float(os.getenv("deepeval_contextual_relevancy_threshold", 0.7))
 hallucination_threshold = float(os.getenv("deepeval_hallucination_threshold", 0.5))
-ragas_threshold = float(os.getenv("deepeval_ragas_threshold", 0.5))
+
 
 # Set the LLM model
 llm_model = os.getenv("llm_model")
@@ -42,8 +42,7 @@ metrics = [
     ContextualRecallMetric(threshold=contextual_recall_threshold, model=llm_model),
     ContextualRelevancyMetric(threshold=contextual_relevancy_threshold, model=llm_model),
     HallucinationMetric(threshold=hallucination_threshold),
-    ToolCorrectnessMetric(),
-    RagasMetric(threshold=ragas_threshold, model=llm_model),
+    ToolCorrectnessMetric()
 ]
 
 # Sample documents for evaluation
