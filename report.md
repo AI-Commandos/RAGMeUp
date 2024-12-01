@@ -49,7 +49,6 @@ question in detail."
 ```plaintext
 hyde_enabled=True
 hyde_multi_generations=1
-hyde_default_input_type="Question"
 ```
 
 ### Environmental Variable Template
@@ -62,7 +61,6 @@ hyde_custom_template=""
 hyde_default_context_type="scientific"
 hyde_default_action="answer the following question"
 hyde_default_additional_context="Please provide references and ensure an academic tone."
-hyde_default_input_type="Question"
 ```
 ---
 
