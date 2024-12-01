@@ -75,27 +75,65 @@ def evaluate_deep_eval():
     Evaluate the RAG pipeline using DeepEval metrics.
     """
     json_data = request.get_json()
+
+    # Extract inputs from the POST request
     question = json_data.get("question")
     expected_answer = json_data.get("expected_answer")
     context = json_data.get("context")
 
+    # Validate inputs
     if not question or not expected_answer or not context:
         return jsonify({"error": "Question, expected answer, and context are required"}), 400
 
-    # Generate response
-    response = raghelper.handle_user_interaction(question, [])["answer"]
+    try:
+        # Check and format context
+        if isinstance(context, list):
+            formatted_context = [{"content": item} for item in context]  # Expecting list of dicts
+        else:
+            formatted_context = [{"content": context}]  # Wrap single string in a list
 
-    # Create test case
-    test_case = {
-        "input": question,
-        "actual_output": response,
-        "expected_output": expected_answer,
-        "retrieval_context": context,
-    }
+        # Debugging logs
+        print("Documents:", context)
+        print("Formatted Context:", formatted_context)
 
-    # Evaluate
-    results = evaluate([test_case], metrics)
-    return jsonify(results), 200
+        # Generate response using the RAG pipeline
+        rag_response = raghelper.llm({
+            "context": formatted_context,
+            "question": question
+        })
+
+        # Extract the response text
+        if isinstance(rag_response, dict):
+            response = rag_response.get("text", "No response text available")
+        elif hasattr(rag_response, "content"):  # Handle response as an object
+            response = rag_response.content
+        else:
+            response = str(rag_response)  # Fallback to ensure response is processed
+
+        # Debugging response
+        print("Generated Response:", response)
+
+        # Create the test case for DeepEval
+        test_case = {
+            "input": question,
+            "actual_output": response,
+            "expected_output": expected_answer,
+            "retrieval_context": context,  # Original context provided
+        }
+
+        # Evaluate the test case with metrics
+        results = evaluate([test_case], metrics)
+
+        # Return results in JSON format
+        return jsonify({
+            "success": True,
+            "results": results
+        }), 200
+    except Exception as e:
+        # Log and return any errors
+        app.logger.error(f"Error during evaluation: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route("/chat", methods=['POST'])
 def chat():

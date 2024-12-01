@@ -31,7 +31,7 @@ contextual_precision_threshold = float(os.getenv("deepeval_contextual_precision_
 contextual_recall_threshold = float(os.getenv("deepeval_contextual_recall_threshold", 0.7))
 contextual_relevancy_threshold = float(os.getenv("deepeval_contextual_relevancy_threshold", 0.7))
 hallucination_threshold = float(os.getenv("deepeval_hallucination_threshold", 0.5))
-
+correctness_threshold = float(os.getenv("deepeval_correctness_threshold", 0.5))
 
 # Set the LLM model
 llm_model = os.getenv("llm_model")
@@ -43,8 +43,8 @@ metrics = [
     ContextualPrecisionMetric(threshold=contextual_precision_threshold, model=llm_model),
     ContextualRecallMetric(threshold=contextual_recall_threshold, model=llm_model),
     ContextualRelevancyMetric(threshold=contextual_relevancy_threshold, model=llm_model),
-    HallucinationMetric(threshold=hallucination_threshold),
-    ToolCorrectnessMetric()
+    HallucinationMetric(threshold=hallucination_threshold, model=llm_model),
+    ToolCorrectnessMetric(threshold=correctness_threshold)
 ]
 
 # Sample documents for evaluation
