@@ -41,13 +41,16 @@ class PostgresBM25Retriever(BaseRetriever):
             BEGIN
                 IF NOT EXISTS (
                     SELECT 1
-                    FROM information_schema.tables
-                    WHERE table_schema = 'public'
-                    AND table_name = '{self.table_name}'
+                    FROM pg_indexes
+                    WHERE schemaname = 'public'
+                    AND indexname = '{self.table_name}_bm25'
                 ) THEN
-                    EXECUTE 'CREATE INDEX idx_sparse_vectors_bm25 ON {self.table_name} 
-                    USING bm25 (({self.table_name}.*))
-                    WITH (text_fields = ''{{\"content\": {{}}, \"metadata\": {{}}}}'')'::text;
+                    CALL paradedb.create_bm25(
+                        index_name => '{self.table_name}_bm25',
+                        table_name => '{self.table_name}',
+                        key_field => 'id',
+                        text_fields => paradedb.field('content') || paradedb.field('metadata')
+                    );
                 END IF;
             END $$;
         """)
@@ -84,7 +87,7 @@ class PostgresBM25Retriever(BaseRetriever):
             os.getenv("re2_prompt")
             index = query.find(f"\n{os.getenv('re2_prompt')}")
             query = query[:index]
-        query = re.sub(r'[\(\):]', '', query)
+        query = re.sub(r'[\(\):\']', '', query)
         
         search_command = f"""
             SELECT 

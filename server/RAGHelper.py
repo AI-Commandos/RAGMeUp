@@ -453,13 +453,14 @@ class RAGHelper:
 
     def _update_chunked_documents(self, new_chunks):
         """Update the chunked documents list and store them."""
-        if not self.chunked_documents:
-            if os.path.exists(self.document_chunks_pickle):
-                self.logger.info("documents chunk pickle exists, loading it.")
-                self._load_chunked_documents()
-        self.chunked_documents += new_chunks
-        with open(f"{self.vector_store_uri}_sparse.pickle", 'wb') as f:
-            pickle.dump(self.chunked_documents, f)
+        if self.vector_store == 'milvus':
+            if not self.chunked_documents:
+                if os.path.exists(self.document_chunks_pickle):
+                    self.logger.info("documents chunk pickle exists, loading it.")
+                    self._load_chunked_documents()
+            self.chunked_documents += new_chunks
+            with open(f"{self.vector_store_uri}_sparse.pickle", 'wb') as f:
+                pickle.dump(self.chunked_documents, f)
 
     def _add_to_vector_database(self, new_chunks):
         """Add the new document chunks to the vector database."""
@@ -471,7 +472,7 @@ class RAGHelper:
         self.db.add_documents(documents, ids=ids)
 
         if self.vector_store == "postgres":
-            self.sparse_retriever.add_documents(new_chunks)
+            self.sparse_retriever.add_documents(new_chunks, ids)
         else:
             # Recreate the in-memory store
             self._initialize_bm25retriever()
@@ -489,6 +490,13 @@ class RAGHelper:
         """Extract skills from the CV document."""
         # Implement your skill extraction logic here
         return []
+    
+    def _deduplicate_chunks(self):
+        """Ensure there are no duplicate entries in the data."""
+        self.chunked_documents = list({
+                doc.metadata["id"]: doc for doc in self.chunked_documents
+            }.values()
+        )
 
 
     def encode_file_to_base64(file_path):
@@ -509,6 +517,7 @@ class RAGHelper:
             self.logger.info("chunking the documents.")
             self._split_and_store_documents(docs)
 
+        self._deduplicate_chunks()
         self._initialize_vector_store()
         self._setup_retrievers()
 
@@ -564,7 +573,3 @@ class RAGHelper:
 
         # Add new chunks to the vector database
         self._add_to_vector_database(new_chunks)
-
-        # Handle reranking if required
-        if self.rerank:
-            self._initialize_reranker()

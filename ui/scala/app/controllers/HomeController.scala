@@ -1,16 +1,20 @@
 package controllers
 
+import org.apache.pekko.stream.scaladsl.{FileIO, Source}
+
 import javax.inject._
 import play.api._
 import play.api.http.HttpEntity
 
-import java.nio.file.Paths
+import java.nio.file.{Files, Paths}
 import play.api.libs.json._
 import play.api.mvc._
 import play.api.libs.ws._
+import play.api.mvc.MultipartFormData.{DataPart, FilePart}
 
+import java.io.File
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 
 @Singleton
@@ -84,17 +88,56 @@ class HomeController @Inject()(
       }
   }
 
-  def upload = Action(parse.multipartFormData) { implicit request =>
+  def upload = Action.async(parse.multipartFormData) { implicit request =>
     request.body.file("file").map { file =>
-      val filename = Paths.get(file.filename).getFileName
-      val dataFolder = config.get[String]("data_folder")
-      val filePath = new java.io.File(s"$dataFolder/$filename")
+    // Copy over file
+    val filename = Paths.get(file.filename).getFileName
+    val dataFolder = config.get[String]("data_folder")
+    val filePath = new java.io.File(s"$dataFolder/$filename")
 
-      file.ref.copyTo(filePath)
+    // Create folder if it doesn't exist yet
+    val dataFolderFile = new File(dataFolder)
+    if (!dataFolderFile.exists()) {
+      if (dataFolderFile.mkdirs()) {} else {
+        throw new RuntimeException(s"Failed to create directory $dataFolder.")
+      }
+    } else if (!dataFolderFile.isDirectory) {
+      throw new RuntimeException(s"$dataFolder exists but is not a directory.")
+    }
 
-      Redirect(routes.HomeController.add()).flashing("success" -> "Added CV to the database.")
+    file.ref.copyTo(filePath)
+
+    // Prepare the file as a FilePart
+    val filePart = FilePart(
+      key = "file",
+      filename = filePath.getName,
+      contentType = Some(Files.probeContentType(filePath.toPath)),
+      ref = FileIO.fromPath(filePath.toPath)
+    )
+
+    // Send the file as multipart/form-data
+    ws.url(s"${config.get[String]("server_url")}/add_document")
+      .withRequestTimeout(5.minutes)
+      .post(Source(List(filePart)))
+      .map { response =>
+        // Remove the file locally
+        filePath.delete()
+
+        response.status match {
+          case OK =>
+            Redirect(routes.HomeController.add()).flashing("success" -> "Added file to the database.")
+          case _ => Redirect(routes.HomeController.add()).flashing("error" -> "Adding file to database failed.")
+        }
+      }.recover {
+        case e: Exception => {
+          filePath.delete()
+          Redirect(routes.HomeController.add()).flashing("error" -> s"Internal server error: ${e.getMessage()}")
+        }
+      }
     }.getOrElse {
-      Redirect(routes.HomeController.add()).flashing("error" -> "Adding CV to database failed.")
+      Future.successful(Redirect(routes.HomeController.add()).flashing(
+        "error" -> "No file found to upload."
+      ))
     }
   }
 
