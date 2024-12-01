@@ -400,13 +400,32 @@ class RAGHelper:
                     # Update the progress bar by the size of the batch
                     pbar.update(len(batch))
 
+    # def _initialize_bm25retriever(self):
+    #     """Initializes in memory BM25Retriever."""
+    #     self.logger.info("Initializing BM25Retriever.")
+    #     self.sparse_retriever = BM25Retriever.from_texts(
+    #         [x.page_content for x in self.chunked_documents],
+    #         metadatas=[x.metadata for x in self.chunked_documents]
+    #     )
+
     def _initialize_bm25retriever(self):
-        """Initializes in memory BM25Retriever."""
-        self.logger.info("Initializing BM25Retriever.")
-        self.sparse_retriever = BM25Retriever.from_texts(
-            [x.page_content for x in self.chunked_documents],
-            metadatas=[x.metadata for x in self.chunked_documents]
-        )
+        """Initializes and dumps the BM25Retriever."""
+        # Check if BM25 retriever already exists
+        if os.path.exists(self.vector_store_sparse_uri):
+            self.logger.info(f"Loading existing BM25 index from {self.vector_store_sparse_uri}")
+            with open(self.vector_store_sparse_uri, 'rb') as f:
+                self.sparse_retriever = pickle.load(f)
+        else:
+            # Create a new BM25 retriever
+            self.logger.info("Creating new BM25 index.")
+            self.sparse_retriever = BM25Retriever.from_texts(
+                [x.page_content for x in self.chunked_documents],
+                metadatas=[x.metadata for x in self.chunked_documents]
+            )
+            # Save the BM25 retriever to disk
+            self.logger.info(f"Saving BM25 index to {self.vector_store_sparse_uri}")
+            with open(self.vector_store_sparse_uri, 'wb') as f:
+                pickle.dump(self.sparse_retriever, f)
 
     def _initialize_postgresbm25retriever(self):
         """Initializes in memory PostgresBM25Retriever."""
