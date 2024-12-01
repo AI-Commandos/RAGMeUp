@@ -9,6 +9,8 @@ from RAGHelper import RAGHelper
 
 from deepeval import evaluate
 from deepeval.metrics import AnswerRelevancyMetric, FaithfulnessMetric, ContextualPrecisionMetric, ContextualRecallMetric, ContextualRelevancyMetric, HallucinationMetric, ToolCorrectnessMetric
+from langchain.prompts import ChatPromptTemplate
+from langchain.schema import HumanMessage, AIMessage, SystemMessage
 
 
 # Load environment variables
@@ -62,23 +64,43 @@ if document_sample_size <= 0:
     raise ValueError("Document sample size must be greater than 0.")
 
 # Dynamically adjust sample size
-document_sample = sample(documents, min(document_sample_size, len(documents)))
+random.shuffle(documents)  # Shuffle the list in-place
+document_sample = documents[:min(document_sample_size, len(documents))]
+
 
 # Prepare test cases
 qa_pairs = []
-for _ in range(qa_pairs_count):
-    selected_docs = random.sample(document_sample, document_chunk_count)
+
+# System message for instruction
+system_message = SystemMessage(content="You are a helpful assistant answering questions based on the provided context.")
+# Shuffle the documents once at the beginning
+shuffled_documents = documents.copy()
+random.shuffle(shuffled_documents)
+
+for i in range(qa_pairs_count):
+    # Dynamically take a slice of the shuffled documents
+    start_idx = i * document_chunk_count
+    end_idx = start_idx + document_chunk_count
+    selected_docs = shuffled_documents[start_idx:end_idx]
+
+    # Ensure there are enough documents to continue
+    if not selected_docs:
+        break
+
+    # Format documents
     formatted_docs = RAGHelper.format_documents(selected_docs)
 
-    # Generate a sample question and response
-    question = "What if these shoes don't fit?"  # Replace with dynamic question generation if needed
-    ground_truth = "You can return the shoes for a full refund."  # Replace with expected answer
-    response = raghelper.llm({"context": formatted_docs, "question": question})["text"]
+    # Construct messages in ChatMessage format
+    question_message = HumanMessage(content=f"Context:\n{formatted_docs}\n\nQuestion:\nWhat if these shoes don't fit?")
+    messages = [system_message, question_message]
+
+    # Call the LLM with the structured messages
+    response = raghelper.llm(messages)
 
     qa_pairs.append({
-        "question": question,
-        "ground_truth": ground_truth,
-        "response": response,
+        "question": "What if these shoes don't fit?",
+        "ground_truth": "You can return the shoes for a full refund.",
+        "response": response.content,  # Access the content of the AI's response
         "context": [doc.page_content for doc in selected_docs],
     })
 
@@ -95,9 +117,3 @@ test_cases = [
 
 # Run DeepEval on the test cases
 results = evaluate(test_cases, metrics)
-
-# Print results
-for result in results:
-    print(f"Metric: {result['metric']}")
-    print(f"Score: {result['score']}")
-    print(f"Reason: {result['reason']}")
