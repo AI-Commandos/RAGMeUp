@@ -16,6 +16,9 @@ from langchain.schema.runnable import RunnablePassthrough
 from ragas import evaluate
 from ragas.metrics import context_precision, context_recall, faithfulness, answer_relevancy
 from ragas.run_config import RunConfig
+import time  # For latency calculation
+from sacrebleu.metrics import BLEU  # For BLEU evaluation
+from rouge_score import rouge_scorer  # For ROUGE evaluation
 
 load_dotenv()
 os.environ["use_rewrite_loop"] = "False"
@@ -87,8 +90,10 @@ for i in range(0, ragas_qa_pairs):
     selected_docs = random.sample(document_sample, min(ragas_use_n_documents, len(document_sample)))
     formatted_docs = RAGHelper.format_documents(selected_docs)
 
+    start_time = time.time()
     question_chain = ({"context": RunnablePassthrough()} | rag_question)
     response = question_chain.invoke(formatted_docs)
+
     if use_cloud:
         if hasattr(response, 'content'):
             question = response.content
@@ -98,9 +103,11 @@ for i in range(0, ragas_qa_pairs):
             question = response["answer"]
     else:
         question = response[response.rindex(end_string)+len(end_string):]
+    question_end_time = time.time()  # End latency timer for question
 
     answer_chain = ({"context": RunnablePassthrough(), "question": RunnablePassthrough()} | rag_answer)
     response = answer_chain.invoke({"context": formatted_docs, "question": question})
+    
     if use_cloud:
         if hasattr(response, 'content'):
             answer = response.content
@@ -110,8 +117,16 @@ for i in range(0, ragas_qa_pairs):
             answer = response["answer"]
     else:
         answer = response[response.rindex(end_string)+len(end_string):]
+    answer_end_time = time.time()  # End latency timer for answer
 
-    qa_pairs.append({"question": question, "ground_truth": answer})
+    # --- Append QA Pair ---
+    qa_pairs.append({
+        "question": question,
+        "ground_truth": answer,
+        "retrieval_time": question_end_time - start_time,
+        "answer_time": answer_end_time - question_end_time,
+        "user_feedback": random.choice(["positive", "negative"]),  # Simulated feedback
+    })
 
 # Now we invoke the actual RAG pipeline
 new_qa_pairs = []
@@ -144,4 +159,56 @@ ragas_data = [{
 # Create a Hugging Face Dataset
 dataset = Dataset.from_list(ragas_data)
 dataset.save_to_disk(os.getenv("ragas_dataset"))
+
 # Evaluate
+
+def evaluate_pipeline(ragas_data):
+    """Run evaluation metrics and log results."""
+    from ragas.metrics import context_precision, context_recall, faithfulness, answer_relevancy
+    from ragas.run_config import RunConfig
+
+    # --- RAGAS Metrics ---
+    run_config = RunConfig(
+        metrics=[context_precision, context_recall, faithfulness, answer_relevancy]
+    )
+    ragas_scores = evaluate(ragas_data, run_config)
+
+    # --- Latency Metrics ---
+    retrieval_times = [item['retrieval_time'] for item in ragas_data]
+    answer_times = [item['answer_time'] for item in ragas_data]
+
+    avg_retrieval_latency = sum(retrieval_times) / len(retrieval_times)
+    avg_answer_latency = sum(answer_times) / len(answer_times)
+
+    # --- NLG Metrics (Readability) ---
+    questions = [item['question'] for item in ragas_data]
+    answers = [item['answer'] for item in ragas_data]
+    ground_truths = [item['ground_truth'] for item in ragas_data]
+    readability_scores = {
+        "BLEU": BLEU(answers, ground_truths),  # Replace with library function
+        "ROUGE": rouge_scorer(answers, ground_truths)  # Replace with library function
+    }
+
+    # --- Log Results ---
+    logger.info(f"RAGAS Scores: {ragas_scores}")
+    logger.info(f"Avg Retrieval Latency: {avg_retrieval_latency:.2f}s")
+    logger.info(f"Avg Answer Latency: {avg_answer_latency:.2f}s")
+    logger.info(f"Readability Metrics: {readability_scores}")
+
+    # --- Save Results to File (Optional) ---
+    with open("evaluation_results.json", "w") as f:
+        json.dump({
+            "ragas_scores": ragas_scores,
+            "latency": {
+                "retrieval": avg_retrieval_latency,
+                "answer": avg_answer_latency,
+            },
+            "readability": readability_scores
+        }, f, indent=4)
+
+# Evaluate the RAG Pipeline with New Metrics
+# Evaluate the RAG Pipeline
+evaluation_result = evaluate_pipeline(ragas_data)
+
+# Print results
+print(evaluation_result)
