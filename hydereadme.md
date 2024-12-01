@@ -2,7 +2,7 @@
 
 ## Objective
 
-The goal of this project was to enhance the Retrieval-Augmented Generation (RAG) pipeline by integrating Hypothetical Document Embedding (HyDE). This method generates a hypothetical document as an intermediate step, which is then used for retrieval alongside the original query. The report details the thought process, implementation, configurations, and the pros and cons of this approach.
+The goal of this project was to enhance the Retrieval-Augmented Generation (RAG) pipeline by integrating Hypothetical Document Embedding (HyDE). This method generates a hypothetical document as an intermediate step, which is then used for retrieval alongside the original query. The report details the thought process, implementation, configurations, and the advantages and disadvantages of this approach.
 
 ---
 
@@ -104,9 +104,9 @@ The performance of the HyDE-enhanced RAG pipeline was evaluated by comparing ret
 
 ---
 
-## Reflection: Pros and Cons of HyDE in RAG
+## Reflection: Advantages and disadvantages of HyDE in RAG
 
-### Pros
+### Advantages
 1. **Enhanced Retrieval Accuracy:**
    - Generating a hypothetical document often aligns better with the retrieval task than using the raw query alone.
 
@@ -124,7 +124,7 @@ The performance of the HyDE-enhanced RAG pipeline was evaluated by comparing ret
      - Allows for experimentation with retrieval, reranking, and summarization modules.
    
 
-### Cons
+### Disadvantages
 1. **LLM Dependency:**
    - The success of HyDE is heavily reliant on the quality of the LLM used for hypothetical document generation.
 
