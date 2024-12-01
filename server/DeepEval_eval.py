@@ -2,15 +2,12 @@ import random
 import logging
 from dotenv import load_dotenv
 import os
-from random import sample
-
 from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper import RAGHelper
-
 from deepeval import evaluate
 from deepeval.metrics import AnswerRelevancyMetric, FaithfulnessMetric, ContextualPrecisionMetric, ContextualRecallMetric, ContextualRelevancyMetric, HallucinationMetric, ToolCorrectnessMetric
+from langchain.schema.runnable import RunnablePassthrough
 from langchain.prompts import ChatPromptTemplate
-from langchain.schema import HumanMessage, AIMessage, SystemMessage
 
 
 # Load environment variables
@@ -32,11 +29,9 @@ contextual_recall_threshold = float(os.getenv("deepeval_contextual_recall_thresh
 contextual_relevancy_threshold = float(os.getenv("deepeval_contextual_relevancy_threshold", 0.7))
 hallucination_threshold = float(os.getenv("deepeval_hallucination_threshold", 0.5))
 correctness_threshold = float(os.getenv("deepeval_correctness_threshold", 0.5))
-
-# Set the LLM model
 llm_model = os.getenv("llm_model")
 
-# Define metrics dynamically
+# Define metrics
 metrics = [
     AnswerRelevancyMetric(threshold=answer_relevancy_threshold, model=llm_model),
     FaithfulnessMetric(threshold=faithfulness_threshold, model=llm_model),
@@ -47,73 +42,104 @@ metrics = [
     ToolCorrectnessMetric(threshold=correctness_threshold)
 ]
 
-# Sample documents for evaluation
-document_sample_size = int(os.getenv("deepeval_sample_size"))
-document_chunk_count = int(os.getenv("vector_store_k"))
-qa_pairs_count = int(os.getenv("deepeval_qa_pairs"))
+# Parameters from environment variables
+deepeval_use_n_documents = int(os.getenv("vector_store_k"))
+if os.getenv("rerank") == "True":
+    deepeval_use_n_documents = int(os.getenv("rerank_k"))
+end_string = os.getenv("llm_assistant_token")
+deepeval_sample_size = int(os.getenv("deepeval_sample_size", 10))
+deepeval_qa_pairs = int(os.getenv("deepeval_qa_pairs", 5))
 
-# Sample documents for evaluation
+# Load and sample documents
 documents = raghelper.chunked_documents
+random.shuffle(documents)  # Shuffle the list
+document_sample = documents[:min(deepeval_sample_size, len(documents))]  # Slice the shuffled list
 
-# Debugging information
-logger.info(f"Number of available documents: {len(documents)}")
-logger.info(f"Requested document sample size: {document_sample_size}")
+# Prepare question generation template
+if use_cloud:
+    question_thread = [
+        ('system', os.getenv('deepeval_question_instruction')),
+        ('human', os.getenv('deepeval_question_query'))
+    ]
+    question_prompt = ChatPromptTemplate.from_messages(question_thread)
+else:
+    question_thread = [
+        {'role': 'system', 'content': os.getenv("deepeval_question_instruction")},
+        {'role': 'user', 'content': os.getenv("deepeval_question_query")}
+    ]
+    question_template = raghelper.tokenizer.apply_chat_template(question_thread, tokenize=False)
+    question_prompt = ChatPromptTemplate.from_messages(question_thread)
 
-# Ensure valid sample size
-if document_sample_size <= 0:
-    raise ValueError("Document sample size must be greater than 0.")
+rag_question = question_prompt | raghelper.llm
 
-# Dynamically adjust sample size
-random.shuffle(documents)  # Shuffle the list in-place
-document_sample = documents[:min(document_sample_size, len(documents))]
+# Prepare answer generation template
+if use_cloud:
+    answer_thread = [
+        ('system', os.getenv('deepeval_answer_instruction')),
+        ('human', os.getenv('deepeval_answer_query'))
+    ]
+    answer_prompt = ChatPromptTemplate.from_messages(answer_thread)
+else:
+    answer_thread = [
+        {'role': 'system', 'content': os.getenv("deepeval_answer_instruction")},
+        {'role': 'user', 'content': os.getenv("deepeval_answer_query")}
+    ]
+    answer_template = raghelper.tokenizer.apply_chat_template(answer_thread, tokenize=False)
+    answer_prompt = ChatPromptTemplate.from_messages(answer_thread)
 
+rag_answer = answer_prompt | raghelper.llm
 
-# Prepare test cases
+# Generate QA pairs
 qa_pairs = []
-
-# System message for instruction
-system_message = SystemMessage(content="You are a helpful assistant answering questions based on the provided context.")
-# Shuffle the documents once at the beginning
-shuffled_documents = documents.copy()
-random.shuffle(shuffled_documents)
-
-for i in range(qa_pairs_count):
-    # Dynamically take a slice of the shuffled documents
-    start_idx = i * document_chunk_count
-    end_idx = start_idx + document_chunk_count
-    selected_docs = shuffled_documents[start_idx:end_idx]
-
-    # Ensure there are enough documents to continue
-    if not selected_docs:
-        break
-
-    # Format documents
+for i in range(deepeval_qa_pairs):
+    random.shuffle(document_sample)  # Shuffle the document sample
+    selected_docs = document_sample[:min(deepeval_use_n_documents, len(document_sample))]  # Slice the shuffled list
     formatted_docs = RAGHelper.format_documents(selected_docs)
 
-    # Construct messages in ChatMessage format
-    question_message = HumanMessage(content=f"Context:\n{formatted_docs}\n\nQuestion:\nWhat if these shoes don't fit?")
-    messages = [system_message, question_message]
+    # Generate question
+    question_chain = {"context": RunnablePassthrough()} | rag_question
+    question_response = question_chain.invoke(formatted_docs)
 
-    # Call the LLM with the structured messages
-    response = raghelper.llm(messages)
+    if use_cloud:
+        question = (
+            getattr(question_response, "content", None)
+            or question_response.get("answer")
+            or question_response.get("content")
+        )
+    else:
+        question = question_response.split(end_string)[-1]
 
+    # Generate answer
+    answer_chain = {"context": RunnablePassthrough(), "question": RunnablePassthrough()} | rag_answer
+    answer_response = answer_chain.invoke({"context": formatted_docs, "question": question})
+
+    if use_cloud:
+        answer = (
+            getattr(answer_response, "content", None)
+            or answer_response.get("answer")
+            or answer_response.get("content")
+        )
+    else:
+        answer = answer_response.split(end_string)[-1]
+
+    # Add QA pair
     qa_pairs.append({
-        "question": "What if these shoes don't fit?",
-        "ground_truth": "You can return the shoes for a full refund.",
-        "response": response.content,  # Access the content of the AI's response
+        "question": question,
+        "ground_truth": answer,
         "context": [doc.page_content for doc in selected_docs],
     })
 
-# Convert QA pairs into test cases
+# Evaluate with DeepEval metrics
 test_cases = [
     {
         "input": pair["question"],
-        "actual_output": pair["response"],
+        "actual_output": pair["ground_truth"],
         "retrieval_context": pair["context"],
         "expected_output": pair["ground_truth"],
     }
     for pair in qa_pairs
 ]
 
-# Run DeepEval on the test cases
+logger.info(f"Prepared Test Cases: {test_cases}")
 results = evaluate(test_cases, metrics)
+logger.info(f"Evaluation Results: {results}")
