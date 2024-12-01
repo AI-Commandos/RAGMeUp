@@ -6,6 +6,9 @@ from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper_local import RAGHelperLocal
 from pymilvus import Collection, connections
 from werkzeug.utils import secure_filename
+from pyngrok import ngrok
+import json
+
 
 def load_bashrc():
     """
@@ -127,6 +130,7 @@ def chat():
         JSON response containing the assistant's reply, history, documents, and other metadata.
     """
     json_data = request.get_json()
+    print(f"Input json data = {json.dumps(json_data, indent=4)}")
     prompt = json_data.get('prompt')
     history = json_data.get('history', [])
     original_docs = json_data.get('docs', [])
@@ -140,8 +144,8 @@ def chat():
     # Break up the response for local LLMs
     if isinstance(raghelper, RAGHelperLocal):
         end_string = os.getenv("llm_assistant_token")
-        reply = response['text'][response['text'].rindex(end_string) + len(end_string):]
-
+        reply = response['answer'][response['answer'].rindex(end_string) + len(end_string):]
+        #reply = response['answer']
         # Get updated history
         new_history = [{"role": msg["role"], "content": msg["content"].format_map(response)} for msg in new_history]
         new_history.append({"role": "assistant", "content": reply})
@@ -264,5 +268,8 @@ def delete_document():
     return jsonify({"count": result.delete_count})
 
 
+public_url = ngrok.connect(5001)
+print(f" * Tunnel URL: {public_url}")
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0")
+    app.run(port=5001)

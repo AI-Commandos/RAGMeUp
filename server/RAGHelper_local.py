@@ -127,6 +127,7 @@ class RAGHelperLocal(RAGHelper):
             'device': 'mps' if torch.backends.mps.is_available() else 'cuda' if os.getenv(
                 'force_cpu') != "True" else 'cpu'
         }
+        print(f"model_Kwargs = {model_kwargs}")
         return HuggingFaceEmbeddings(
             model_name=os.getenv('embedding_model'),
             model_kwargs=model_kwargs
