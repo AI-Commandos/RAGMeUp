@@ -34,16 +34,27 @@ hyde_general_template="Write a {context_type} passage to {action}. Include {addi
 Your response must be direct and avoid any unnecessary phrases, personal remarks, or repetitive text."
 ```
 
-- **Example Usage:**
-  - `hyde_default_context_type`: `scientific`, `financial`, `technical`.
-  - `hyde_default_action`: `answer the following question`, `summarize the input`.
-  - `hyde_default_additional_context`: `Ensure accuracy and provide references.`
+- **Explanation:**
+  - This is the generalized template used for creating HyDE prompts. It includes placeholders (`{context_type}`, `{action}`, `{additional_context}`) that are dynamically replaced based on the query's context.
 
-### Custom Template example
+- **Example Usage:**
+  - **`hyde_default_context_type`**: Specifies the type of passage (e.g., `scientific`, `financial`, `technical`).
+  - **`hyde_default_action`**: Defines the purpose of the passage (e.g., `answer the following question`, `summarize the input`).
+  - **`hyde_default_additional_context`**: Adds further instructions (e.g., `Ensure accuracy and provide references.`).
+
+---
+
+### Custom Template Example
 ```plaintext
 hyde_custom_template="Write a passage in Korean to answer the
 question in detail."
 ```
+
+- **Explanation:**
+  - This variable allows users to define their own custom templates for specific use cases. If provided, this template overrides the generalized template.
+  - **Example**: A template that generates responses in a specific language or format.
+
+---
 
 ### Other Configurations
 ```plaintext
@@ -51,16 +62,21 @@ hyde_enabled=True
 hyde_multi_generations=1
 ```
 
+- **`hyde_enabled`**: Enables or disables the HyDE functionality. Set to `True` to activate HyDE in the pipeline.
+- **`hyde_multi_generations`**: Specifies the number of hypothetical document generations for HyDE. Increase this value for more comprehensive retrieval, but it will greatly increase the time it takes for retrieval.
+
+---
+
 ### Environmental Variable Template
 ```plaintext
-hyde_enabled=True
-hyde_multi_generations=1
+hyde_enabled=True  # Activates the HyDE integration.
+hyde_multi_generations=1  # Number of hypothetical documents generated per query.
 hyde_general_template="Write a {context_type} passage to {action}. Include {additional_context}.
-Your response must be direct and avoid any unnecessary phrases, personal remarks, or repetitive text."
-hyde_custom_template=""
-hyde_default_context_type="scientific"
-hyde_default_action="answer the following question"
-hyde_default_additional_context="Please provide references and ensure an academic tone."
+Your response must be direct and avoid any unnecessary phrases, personal remarks, or repetitive text."  # Template for dynamic prompt generation.
+hyde_custom_template=""  # Custom template for specific use cases. Overrides the general template if provided.
+hyde_default_context_type="scientific"  # Default context type for the HyDE template (e.g., scientific, financial, technical).
+hyde_default_action="answer the following question"  # Default action to define the purpose of the passage.
+hyde_default_additional_context="Please provide references and ensure an academic tone."  # Additional instructions for generating high-quality responses.
 ```
 ---
 
