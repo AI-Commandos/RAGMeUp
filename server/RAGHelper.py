@@ -57,7 +57,6 @@ class RAGHelper:
         self.splitter_type = os.getenv('splitter')
         self.vector_store = os.getenv("vector_store")
         self.vector_store_initial_load = os.getenv("vector_store_initial_load") == "True"
-        # Load configuration from .env
         self.hyde_enabled = os.getenv("hyde_enabled", "False").lower() == "true"
         self.hyde_multi_generations = int(os.getenv("hyde_multi_generations", 1))
         self.hyde_general_template = os.getenv("hyde_general_template", "").strip()
@@ -596,6 +595,13 @@ class RAGHelper:
         """Extract skills from the CV document."""
         # Implement your skill extraction logic here
         return []
+    
+    def _deduplicate_chunks(self):
+        """Ensure there are no duplicate entries in the data."""
+        self.chunked_documents = list({
+                doc.metadata["id"]: doc for doc in self.chunked_documents
+            }.values()
+        )
 
     def load_data(self):
         """
@@ -610,6 +616,7 @@ class RAGHelper:
             self.logger.info("chunking the documents.")
             self._split_and_store_documents(docs)
 
+        self._deduplicate_chunks()
         self._initialize_vector_store()
         self._setup_retrievers()
 
