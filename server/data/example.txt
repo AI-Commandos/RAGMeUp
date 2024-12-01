@@ -1,0 +1,1 @@
+Plain text: In computing, plain text is a loose term for data that represent only characters of readable material but not its graphical representation nor other objects. It may also include a limited number of "whitespace" characters that affect simple arrangement of text, such as spaces, line breaks, or tabulation characters.
