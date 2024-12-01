@@ -23,6 +23,8 @@ from PostgresBM25Retriever import PostgresBM25Retriever
 from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
 from tqdm import tqdm
 
+from ragatouille import RAGPretrainedModel
+
 
 class RAGHelper:
     """
@@ -66,6 +68,10 @@ class RAGHelper:
         self.xml_xpath = os.getenv("xml_xpath")
         self.json_text_content = os.getenv("json_text _content", "false").lower() == 'true'
         self.json_schema = os.getenv("json_schema")
+        
+        logger.info(f"Current directory: {os.getcwd()}")
+        logger.info(f"DAAAAATAAAAADIIIIR: {self.data_dir}")
+        
 
     @staticmethod
     def format_documents(docs):
@@ -422,6 +428,11 @@ class RAGHelper:
         if self.rerank_model == "flashrank":
             self.logger.info("Setting up the FlashrankRerank.")
             self.compressor = FlashrankRerank(top_n=self.rerank_k)
+        elif self.rerank_model == "colbert":
+            self.logger.info("Setting up the ColbertRerank.")
+            self.compressor = RAGPretrainedModel.from_pretrained("colbert-ir/colbertv2.0").as_langchain_document_compressor(
+                k=self.rerank_k
+            )
         else:
             self.logger.info("Setting up the ScoredCrossEncoderReranker.")
             self.compressor = ScoredCrossEncoderReranker(
