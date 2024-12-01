@@ -488,6 +488,13 @@ class RAGHelper:
         """Extract skills from the CV document."""
         # Implement your skill extraction logic here
         return []
+    
+    def _deduplicate_chunks(self):
+        """Ensure there are no duplicate entries in the data."""
+        self.chunked_documents = list({
+                doc.metadata["id"]: doc for doc in self.chunked_documents
+            }.values()
+        )
 
     def load_data(self):
         """
@@ -502,6 +509,7 @@ class RAGHelper:
             self.logger.info("chunking the documents.")
             self._split_and_store_documents(docs)
 
+        self._deduplicate_chunks()
         self._initialize_vector_store()
         self._setup_retrievers()
 
