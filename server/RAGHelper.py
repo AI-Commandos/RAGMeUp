@@ -564,7 +564,9 @@ class RAGHelper:
         new_docs = self._load_document(filename)
         self.logger.info("adding documents to graphdb.")
         for doc in new_docs:
-            self.add_document_to_graphdb(self,doc,doc.metadata.get("source").lower().split('.')[-1])
+            self.logger.info(f'this is the page content: {doc.page_content}')
+            self.logger.info(f'this is filetype {doc.metadata.get("source").lower().split(".")[-1]}')
+            self.add_document_to_graphdb(doc.page_content,doc.metadata.get("source").lower().split('.')[-1])
         
         self.logger.info("chunking the documents.")
         new_chunks = self._split_documents(new_docs)
