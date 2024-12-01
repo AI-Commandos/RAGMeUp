@@ -1,0 +1,173 @@
+# RAG Pipeline Enhancement: HyDE Integration
+
+## Objective
+
+The goal of this project was to enhance the Retrieval-Augmented Generation (RAG) pipeline by integrating Hypothetical Document Embedding (HyDE). This method generates a hypothetical document as an intermediate step, which is then used for retrieval alongside the original query. The report details the thought process, implementation, configurations, and the pros and cons of this approach.
+
+---
+
+## Implementation Overview
+
+### Approach
+
+1. **Enhancing Query Representation with HyDE:**
+   - HyDE generates a hypothetical document for the input query.
+   - Both the original query and the generated document are used for similarity search.
+
+2. **Dynamic Prompt Template System:**
+   - Generalized templates for flexibility.
+   - Custom templates for specific scenarios.
+
+3. **Environmental Variable Configuration:**
+   - All parameters for HyDE templates and behaviors are configurable via `.env` to ensure reproducibility and customization.
+
+4. **End-to-End Testing:**
+   - Ensured functionality through Flask endpoints to validate HyDE embeddings.
+
+---
+
+## Configurations
+
+### Generalized Template
+```plaintext
+hyde_general_template="Write a {context_type} passage to {action}. Include {additional_context}.
+Your response must be direct and avoid any unnecessary phrases, personal remarks, or repetitive text."
+```
+
+- **Example Usage:**
+  - `hyde_default_context_type`: `scientific`, `financial`, `technical`.
+  - `hyde_default_action`: `answer the following question`, `summarize the input`.
+  - `hyde_default_additional_context`: `Ensure accuracy and provide references.`
+
+### Custom Template example
+```plaintext
+hyde_custom_template="Write a passage in Korean to answer the
+question in detail."
+```
+
+### Other Configurations
+```plaintext
+hyde_enabled=True
+hyde_multi_generations=1
+hyde_default_input_type="Question"
+```
+
+### Environmental Variable Template
+```plaintext
+hyde_enabled=True
+hyde_multi_generations=1
+hyde_general_template="Write a {context_type} passage to {action}. Include {additional_context}.
+Your response must be direct and avoid any unnecessary phrases, personal remarks, or repetitive text."
+hyde_custom_template=""
+hyde_default_context_type="scientific"
+hyde_default_action="answer the following question"
+hyde_default_additional_context="Please provide references and ensure an academic tone."
+hyde_default_input_type="Question"
+```
+---
+
+# Results and Reflections on HyDE Performance
+
+The performance of the HyDE-enhanced RAG pipeline was evaluated by comparing retrieval outcomes with and without HyDE for a variety of queries. The database was created using the slides of Natural Language Processing course. The questions are purposefully simplistic to highlight HyDE's strength with somewhat ambiguous queries. All the results can be found in ```hyde_table_markdown.md```.  The following table summarizes the key findings:
+
+| **Query**                                           | **Documents Found (With HyDE)**                                                                                               | **Provenance Score (With HyDE)** | **Documents Found (Without HyDE)**                                                                                            | **Provenance Score (Without HyDE)** | **Time Taken (With HyDE)** | **Time Taken (Without HyDE)** |
+|-----------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|----------------------------------|-------------------------------------------------------------------------------------------------------------------------------|------------------------------------|----------------------------|-------------------------------|
+| **What are the main considerations of the LDA paper?** | Detailed provenance from scientific documents related to LDA with scores ~0.99                                              | 0.993                            | Fewer references; lacks contextual links relevant to LDA                                                                      | 0.957                              | 46.72 seconds               | 23.69 seconds                |
+| **What are the main challenges of prompt engineering?** | Identified nuanced issues, including sensitivity to scale and limitations of few-shot prompts                               | 0.993                            | Less contextual detail, with partial focus on challenges like privacy and optimization complexities                           | 0.942                              | 37.87 seconds               | 16.26 seconds                |
+| **What are the different types of topic modeling?** | Broad insights into LDA, FLSA, and correlated/dynamic topic models with a high provenance score of ~0.988                   | 0.988                            | Focused on LDA with minimal additional context on related models                                                              | 0.976                              | 55.43 seconds               | 16.12 seconds                |
+| **What are the limitations of BERTopic?**            | Highlights weaknesses like reliance on single-topic assumption per document and limited contextual relationships in topics | 0.997                            | Partial identification of BERTopic's limitations but misses finer details like interpretability challenges                     | 0.980                              | 70.46 seconds               | 13.46 seconds                |
+
+---
+
+## Observations
+
+1. **Enhanced Document Retrieval:**
+   - With HyDE, the pipeline consistently identified more relevant and contextually aligned documents, as evidenced by higher provenance scores.
+   - Example: For the LDA-related query, HyDE retrieved documents with a provenance score of 0.993 versus 0.957 without HyDE.
+
+2. **Processing Time Trade-Off:**
+   - The time required for HyDE-enabled queries was approximately **2x longer**, reflecting the computational overhead of generating hypothetical documents.
+
+3. **Improved Contextual Depth:**
+   - HyDE provided broader and more insightful document retrieval, especially for abstract or complex queries like those involving prompt engineering and topic modeling.
+
+---
+
+## Recommendations for Future Optimization
+
+- **Optimize for Latency:** Leverage smaller, faster models for hypothetical document generation to reduce processing time.
+- **Implement Caching:** Cache results for recurring queries to enhance response speed without sacrificing accuracy.
+- **Hybrid Strategies:** Experiment with combining dense and sparse retrieval methods for efficiency.
+
+---
+
+
+---
+
+## Reflection: Pros and Cons of HyDE in RAG
+
+### Pros
+1. **Enhanced Retrieval Accuracy:**
+   - Generating a hypothetical document often aligns better with the retrieval task than using the raw query alone.
+
+2. **Increased Flexibility:**
+   - Environmental variables allow for easy reconfiguration without code changes.
+
+3. **Interoperability:**
+   - HyDE embeds seamlessly into existing RAG pipelines, leveraging the power of LangChain.
+
+4. **Reduction in Embedding Dependencies:**
+   - Avoids the need for custom embedding algorithms by utilizing the LLM for hypothetical document generation.
+5.  **Domain-Specific Relevance**: 
+     - Effective for specialized applications like healthcare and legal domains.
+3.  **Modular and Configurable**: 
+     - Allows for experimentation with retrieval, reranking, and summarization modules.
+   
+
+### Cons
+1. **LLM Dependency:**
+   - The success of HyDE is heavily reliant on the quality of the LLM used for hypothetical document generation.
+
+2. **Risk of Hallucination:**
+   - Hypothetical documents might misrepresent the user's intent, leading to retrieval of irrelevant results.
+
+3. **Performance Overhead:**
+   - Generating a hypothetical document introduces latency, especially in multi-generation scenarios.
+
+4. **Domain Adaptation:**
+   - Requires careful tuning of templates and configurations to align with specific domains.
+
+---
+
+## Incorporating Insights from Recent Research
+Our approach incorporates findings from the 2024 study, "Searching for Best Practices in Retrieval-Augmented Generation." Key takeaways include:
+1. **Hybrid Retrieval + HyDE**: Combining sparse (BM25) and dense embeddings, along with pseudo-documents generated by HyDE, significantly improves retrieval accuracy.
+2. **Efficiency Trade-offs**: While the best-performance pipeline prioritizes accuracy, a balanced-efficiency pipeline can achieve comparable results with reduced latency.
+
+
+---
+
+## Future Directions
+
+1. **Mitigating Hallucinations:**
+   - Explore prompt engineering and domain-specific LLM fine-tuning.
+
+2. **Integrating Late Interaction Models:**
+   - Combining HyDE with reranking mechanisms like ColBERT for finer retrieval granularity.
+
+3. **Evaluating RAG Performance:**
+   - Incorporate automated RAG evaluation methods to measure faithfulness and reduce hallucination risks.
+
+4. **Expanding Modalities:**
+   - Adapt HyDE to support multi-modal input (e.g., text and vision).
+
+---
+
+## References
+
+1. Gao, L., Ma, X., Lin, J., & Callan, J. (2022). Precise zero-shot dense retrieval without relevance labels. arXiv preprint arXiv:2212.10496.
+2. Wang, X., Wang, Z., Gao, X., Zhang, F., Wu, Y., Xu, Z., ... & Huang, X. J. (2024, November). Searching for best practices in retrieval-augmented generation. In Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing (pp. 17716-17736).
+3. LangChain Documentation - [LangChain](https://langchain.com)
+4. RAG Me Up Repository - [GitHub](https://github.com/GeorgeAntono/RAGMeUp)
+
+---
