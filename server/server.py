@@ -92,8 +92,23 @@ def chat():
     print(response)
     print('\n')    
     print(graph_response)
-    # TODO: we print the graph response here, now we just need to process it and then we can send it to the client
-    
+    # Done below TODO: we print the graph response here, now we just need to process it and then we can send it to the client
+    if graph_response:
+        # created the graph response
+        graph = pygraphviz.AGraph(directed=True)
+        for node in graph_response['nodes']:
+            graph.add_node(node['id'], label=node['label'])
+        for edge in graph_response['edges']:
+            graph.add_edge(edge['source'], edge['target'], label=edge['label'])
+        graph.layout(prog='dot')
+        graph.draw('graph.png')
+        return send_file('graph.png', mimetype='image/png')
+
+    # get response text
+    reply = ""
+
+    # Check if the response contains documents
+
     if not docs or 'docs' in response:
         docs = response['docs']
 
