@@ -24,7 +24,7 @@ This were the steps that were taken.
    ```
    
    **Addition:**
-   ```{python}
+   ```ruby
    rerank_model=colbert
    colbert_model=colbert-ir/colbertv2.0  # or path to your custom model
    colbert_nbits=2  # quantization bits
@@ -36,7 +36,7 @@ This were the steps that were taken.
 
 4. The file "RAGHelper.py" contains not useful changes, but we have to notify that a lot changes are given since all single apostrophe's are changed to doubles and code that was in one line is put under each other. This is done in the automatic formatting of vscode. These changes do not add value but are indicated by github, be aware of these. The meaning full change was in the 'initialize reranker' function. Here the added code is indicated in the comments:
    
-   ```{python}
+   ```ruby
    def _initialize_reranker(self):
         """Initialize the reranking model based on environment settings."""
         if self.rerank_model == "flashrank":
