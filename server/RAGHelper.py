@@ -99,12 +99,21 @@ class RAGHelper:
         """
         doc_strings = []
         for i, doc in enumerate(docs):
-            metadata_string = ", ".join(
-                [f"{md}: {doc.metadata[md]}" for md in doc.metadata.keys()]
-            )
-            doc_strings.append(
-                f"Document {i} content: {doc.page_content}\nDocument {i} metadata: {metadata_string}"
-            )
+            if type(doc) == dict:
+              metadata_string = ", ".join(
+                  [f"{md}: {doc['metadata'][md]}" for md in doc['metadata'].keys()]
+              )
+              doc_strings.append(
+                  f"Document {i} content: {doc['page_content']}\nDocument {i} metadata: {metadata_string}"
+              )
+
+            else:
+              metadata_string = ", ".join(
+                  [f"{md}: {doc.metadata[md]}" for md in doc.metadata.keys()]
+              )
+              doc_strings.append(
+                  f"Document {i} content: {doc.page_content}\nDocument {i} metadata: {metadata_string}"
+              )
         return "\n\n<NEWDOC>\n\n".join(doc_strings)
 
     def _load_chunked_documents(self):
