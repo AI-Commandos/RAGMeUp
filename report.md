@@ -5,12 +5,26 @@ The documents that are retrieved from the vector store are found by using a simi
 
 ### Where in the code the changes are made
 - `RAGHelper_local`
-   - Changed function `handle_user_interaction`, to make function work more similar to the same function in RAGHelper_cloud
+   - Changed function `handle_user_interaction`, to make the function work more similar to the same function in RAGHelper_cloud
    - If hyde=True (in env)
+      - Separation of retrieval_query and user_query. Retrieval_query becomes a hypothetical document created from user_query
+   - If hyde=False:
+      - Retrieval query = user_query
+   - As the LLM chain normally adds the context and docs variables to the reply variable, these have to be added to the reply manually because of our inexperience with Langchain and how it normally ends up in the response object.
+   - This makes sure that minimal changes have to happen, always use retrieval_query to find documents, and user_query to answer the LLM with
+   - `_track_provenance` changes made to be similar to how it works in `RAGHelper_cloud`, this function really was not making much sense.
       
 - `RAGHelper_cloud`
+   - Only changes made in `handle_user_interaction`
+      - Changes made to use the approach of creating a retrieval_query and user_query
+         - If hyde=True (in env)
+      - Separation of retrieval_query and user_query. Retrieval becomes a hypothetical document created from user_query
+      - If hyde=False:
+         - Retrieval query = user_query
+      - Transformed the langchain.chain so retrieve the documents out of the chain and in a separate step
+      - 
 - `RAGHelper`
-   - Functions are added in `RAGHelper` to create a hypothetical document from query:
+   - Functions are added in `RAGHelper` to create a hypothetical document from a query:
       - `apply_hyde_if_enabled`
       - `embed_query_with_hyde`
       - `_initialize_hyde_embeddings`
@@ -23,6 +37,9 @@ The documents that are retrieved from the vector store are found by using a simi
                ```
      - `self.hyde_embeddings.embed_query(query, return_text=True)`
 - `requirements.txt` -> for making the system work in Paperspace
+
+### Limitations
+- We see that the hyde uses 3 documents in the final prompt, but the no_hyde solution uses 10 documents. We cannot find the reason behind this bug. However, in the no_hyde response, there are only 3 documents with provenance, so it in the no_hyde it might be added accidentally. This is a limitation that we couldn't find the reason behind, as we couldn't grasp how the functionality works of Langchain. 
 
 ### How we were able to run server.py in paperspace
 1. Create virtual environment with python version 3.10.12
