@@ -17,17 +17,20 @@ This were the steps that were taken.
 
 1. Within the ".env.template" file the rerank model 'flashrank' was replaced with the 'colbert' model with the following deletion and addition of lines:
    **Deletion:**
+   ```{python}
    rerank_k=3
    rerank_model=flashrank
+   ```
    
    **Addition:**
+   ```{python}
    rerank_model=colbert
    colbert_model=colbert-ir/colbertv2.0  # or path to your custom model
    colbert_nbits=2  # quantization bits
    colbert_doc_maxlen=180  # max document length
    colbert_query_maxlen=32  # max query length
    rerank_k=5  # number of documents to return after reranking
-
+   ```
 2. The file "ColBERTReranker.py" is added. This file contains the entire ColBERTReranker.
 
 3. The file "RAGHelper.py" contains not useful changes, but we have to notify that a lot changes are given since all single apostrophe's are changed to doubles and code that was in one line is put under each other. This is done in the automatic formatting of vscode. These changes do not add value but are indicated by github, be aware of these. The meaning full change was in the 'initialize reranker' function. Here the added code is in cursive:
