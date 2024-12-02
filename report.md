@@ -1,80 +1,108 @@
-# Made changes to the code 
-The documents that are retrieved from the vector store are found by using a similarity search of the original query. In this PR we implemented a new approach using Hyde. With hyde, you create a hypothetical document from the query, which you in turn use to find documents in the vector store through a similarity search. To implement this functionality, some changes had to be made to the current way of how similar documents are retrieved, previously the RAG chain was given the full handling of retrieving documents and answering the user query. However, the hypothetical document is created from the  user's query, and it must only be used for retrieving documents and not for answering the user's question. This was not possible with Langchains complex way of using pipes for us. In the image below the flowchart of how hyde affects the process is shown.
+
+
+# PR Request: Integration of HyDE for Enhanced Document Retrieval in the RAG Pipeline
+
+The documents retrieved from the vector store are found using a similarity search of the original query. In this PR, we implemented a new approach using HyDE. With HyDE, a hypothetical document is created from the query, which is then used to find documents in the vector store through a similarity search. 
+
+To implement this functionality, changes were required in how similar documents are retrieved. Previously, the RAG chain handled both retrieving documents and answering the user query. However, with HyDE, the hypothetical document is created from the user's query and should only be used for retrieving documents, not for answering the user's question. Due to the complexity of LangChain's pipeline system, we had to decouple these processes. The flowchart below illustrates how HyDE affects the process.
 
 <img width="896" alt="image" src="https://github.com/user-attachments/assets/d1fe76e1-c65b-467f-a984-a62ee4730ed7">
 
-### Where in the code the changes are made
-- `RAGHelper_local`
-   - Changed function `handle_user_interaction`, to make the function work more similar to the same function in RAGHelper_cloud
-   - If hyde=True (in env)
-      - Separation of retrieval_query and user_query. Retrieval_query becomes a hypothetical document created from user_query
-   - If hyde=False:
-      - Retrieval query = user_query
-   - As the LLM chain normally adds the context and docs variables to the reply variable, these have to be added to the reply manually because of our inexperience with Langchain and how it normally ends up in the response object.
-   - This makes sure that minimal changes have to happen, always use retrieval_query to find documents, and user_query to answer the LLM with
-   - `_track_provenance` changes made to be similar to how it works in `RAGHelper_cloud`, this function really was not making much sense.
-      
-- `RAGHelper_cloud`
-   - Only changes made in `handle_user_interaction`
-      - Changes made to use the approach of creating a retrieval_query and user_query
-         - If hyde=True (in env)
-      - Separation of retrieval_query and user_query. Retrieval becomes a hypothetical document created from user_query
-      - If hyde=False:
-         - Retrieval query = user_query
-      - Transformed the langchain.chain so retrieve the documents out of the chain and in a separate step
-      - 
-- `RAGHelper`
-   - Functions are added in `RAGHelper` to create a hypothetical document from a query:
-      - `apply_hyde_if_enabled`
-      - `embed_query_with_hyde`
-      - `_initialize_hyde_embeddings`
-      - `self.hyde_embeddings` -> `CustomHyDE.py`
-         ->    ```
-               CustomHypotheticalDocumentEmbedder(
-               llm_chain=llm_chain,
-               base_embeddings=base_embeddings
-               )
-               ```
-     - `self.hyde_embeddings.embed_query(query, return_text=True)`
-- `requirements_paperspace.txt` -> for making the system work in Paperspace
+---
+
+### Specific code Changes
+
+#### `RAGHelper_local`
+- Modified the `handle_user_interaction` function to work more like the same function in `RAGHelper_cloud`.
+  - **If `hyde_enabled=True` (in `.env`)**:
+    - Separates `retrieval_query` (the hypothetical document) from `user_query`.
+    - `retrieval_query` is generated as a hypothetical document created from `user_query`.
+  - **If `hyde_enabled=False`**:
+    - `retrieval_query = user_query`.
+  - Adjusted the LLM chain to manually add `context` and `docs` variables to the reply object, as our understanding of LangChain's response handling was limited.
+  - Ensures minimal changes by always using `retrieval_query` for finding documents and `user_query` for answering the user's query.
+  - Made `_track_provenance` similar to its implementation in `RAGHelper_cloud` to resolve prior inconsistencies.
+
+#### `RAGHelper_cloud`
+- Modified `handle_user_interaction` to adopt the retrieval and user query separation approach:
+  - **If `hyde_enabled=True` (in `.env`)**:
+    - Separates `retrieval_query` (the hypothetical document) from `user_query`.
+  - **If `hyde_enabled=False`**:
+    - `retrieval_query = user_query`.
+  - Refactored LangChain’s pipeline to retrieve documents in a separate step before generating the response.
+
+#### `RAGHelper`
+- Added functions for hypothetical document creation:
+  - `apply_hyde_if_enabled`.
+  - `embed_query_with_hyde`.
+  - `_initialize_hyde_embeddings`.
+- Introduced `self.hyde_embeddings` (defined in `CustomHyDE.py`):
+  ```
+  CustomHypotheticalDocumentEmbedder(
+      llm_chain=llm_chain,
+      base_embeddings=base_embeddings
+  )
+  ```
+  - Used `self.hyde_embeddings.embed_query(query, return_text=True)` for document creation.
+
+#### `requirements_paperspace.txt`
+- Updated dependencies to ensure compatibility in the Paperspace environment.
+
+---
 
 ### Limitations
-- We see that the hyde uses 3 documents in the final prompt, but the no_hyde solution uses 10 documents. We cannot find the reason behind this bug. However, in the no_hyde response, there are only 3 documents with provenance, so it in the no_hyde it might be added accidentally. This is a limitation that we couldn't find the reason behind, as we couldn't grasp how the functionality works of Langchain. 
 
-### How we were able to run server.py in paperspace
-1. Create virtual environment with python version 3.10.12
-```pip install virtualenv
-virtualenv venv --python=python3.10.12
-source venv/bin/activate
-```
-2. Clone the repo
-```
-git clone https://github.com/AI-Commandos/RAGMeUp.git
-```
-3. Install our refined requirements.txt (without pytorch)
-```
-pip install -r RAGMeUp/server/requirements_paperspace.txt
-```
-5. Install pyngrok, and add auth token
-```
-pip install pyngrok
-ngrok authtoken [INSERT NGROK TOKEN]
-```
-6. Setup hugginface with git
-```
-git config --global credential.helper store
-huggingface-cli login
-```
-7. Install specific version of pytorch separately, if you don't use this one you get errors in paperspace
-```
-pip install 'torch @ https://download.pytorch.org/whl/cu121_full/torch-2.5.1%2Bcu121-cp310-cp310-linux_x86_64.whl'
-```
-9. Run the server
-```
-cd RAGMeUp/server
-python server.py
-```
-9. Copy the printed ngrok tunnel URL, and use it to setup the scala UI in the project locally.
+- **Document Count Discrepancy:**
+  - With HyDE, the pipeline uses 3 documents in the final prompt, while the no-HyDE solution uses 10 documents. However, in the no-HyDE response, only 3 documents show provenance. This may indicate that LangChain is adding documents inadvertently. We could not resolve this due to the complexity of LangChain's internals.
+
+---
+
+### Running `server.py` in Paperspace
+
+1. **Create a virtual environment with Python 3.10.12**:
+    ```bash
+    pip install virtualenv
+    virtualenv venv --python=python3.10.12
+    source venv/bin/activate
+    ```
+
+2. **Clone the repository**:
+    ```bash
+    git clone https://github.com/AI-Commandos/RAGMeUp.git
+    ```
+
+3. **Install refined requirements (excluding PyTorch)**:
+    ```bash
+    pip install -r RAGMeUp/server/requirements_paperspace.txt
+    ```
+
+4. **Install `pyngrok` and add your auth token**:
+    ```bash
+    pip install pyngrok
+    ngrok authtoken [INSERT NGROK TOKEN]
+    ```
+
+5. **Set up Hugging Face authentication**:
+    ```bash
+    git config --global credential.helper store
+    huggingface-cli login
+    ```
+
+6. **Install the specific version of PyTorch for Paperspace**:
+    ```bash
+    pip install 'torch @ https://download.pytorch.org/whl/cu121_full/torch-2.5.1%2Bcu121-cp310-cp310-linux_x86_64.whl'
+    ```
+
+7. **Run the server**:
+    ```bash
+    cd RAGMeUp/server
+    python server.py
+    ```
+
+8. **Copy the printed Ngrok tunnel URL**:
+   - Use this URL to set up the Scala UI locally.
+
+--- 
 
 # Report
 # RAG Pipeline Enhancement: HyDE Integration
