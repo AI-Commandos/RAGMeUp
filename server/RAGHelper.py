@@ -20,7 +20,8 @@ from langchain_postgres.vectorstores import PGVector
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from lxml import etree
 from PostgresBM25Retriever import PostgresBM25Retriever
-from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
+from RerankerReorder import ScoredCrossEncoderReranker
+from RerankerReorder import RerankerReorder
 from tqdm import tqdm
 
 
@@ -419,10 +420,13 @@ class RAGHelper:
 
     def _initialize_reranker(self):
         """Initialize the reranking model based on environment settings."""
-        if self.rerank_model == "flashrank":
-            self.logger.info("Setting up the FlashrankRerank.")
-            self.compressor = FlashrankRerank(top_n=self.rerank_k)
-        else:
+        if self.rerank_model == "rerankerreorder":
+            self.logger.info("Setting up the ScoredCrossEncoderReranker.")
+            self.compressor = ScoredCrossEncoderReranker(
+                model=HuggingFaceCrossEncoder(model_name=self.rerank_model),
+                top_n=self.rerank_k
+            )
+        elif self.rerank_model == "reranker":
             self.logger.info("Setting up the ScoredCrossEncoderReranker.")
             self.compressor = ScoredCrossEncoderReranker(
                 model=HuggingFaceCrossEncoder(model_name=self.rerank_model),
