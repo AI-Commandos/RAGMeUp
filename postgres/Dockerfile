@@ -1,5 +1,5 @@
 # Use the base image from ParadeDB which includes pg_search
-FROM paradedb/paradedb:latest
+FROM paradedb/paradedb:0.11.1
 
 # Set Postgres version (assuming PG_MAJOR is 16 as in your pgvector Dockerfile)
 ARG PG_MAJOR=16
@@ -12,7 +12,7 @@ RUN mkdir -p /var/lib/apt/lists/partial && chmod -R 777 /var/lib/apt/lists/parti
 RUN apt-get update && apt-get install -y git
 
 # Clone pgvector source code
-RUN git clone https://github.com/pgvector/pgvector.git /tmp/pgvector
+RUN git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git /tmp/pgvector
 
 # Install dependencies, compile and install pgvector, clean up
 RUN apt-get update && \
