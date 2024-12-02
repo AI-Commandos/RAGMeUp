@@ -65,7 +65,7 @@ This were the steps that were taken.
    ```
 
 5. In "RAGHelper_local.py" the following code is added:
-```ruby
+   ```ruby
         if os.getenv('rerank_model') == 'flashrank':
             return [d.metadata['relevance_score'] for d in reranked_docs if
                 d.page_content in [doc.page_content for doc in reply['docs']]]
@@ -73,4 +73,17 @@ This were the steps that were taken.
         else:
             return [d['metadata']['relevance_score'] for d in reranked_docs if
                 d['page_content'] in [doc.page_content for doc in reply['docs']]]
-```
+   ```
+
+6. The "requirements.txt" should also be updated since there are new libaries used while using ColBERT:
+
+   ```ruby
+   colbert-ir==0.2.14  # Added for ColBERT reranking
+   fsspec==2024.9.0
+   ragatouille
+   ```
+
+
+These were the most prevelant steps for replacing FlashRank with ColBERT.
+
+For implementing further changes take a look at: https://github.com/AI-Commandos/RAGMeUp/compare/main...LvR33:RAGMeUp:ElanoIter
