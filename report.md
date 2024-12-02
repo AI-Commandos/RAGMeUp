@@ -1,10 +1,14 @@
-<img width="896" alt="image" src="https://github.com/user-attachments/assets/a79783e7-9349-47ba-9852-dcbbb87501c6"># Made change 
+# Made changes to the code 
 The documents that are retrieved from the vector store are found by using a similarity search of the original query. In this PR we implemented a new approach using Hyde. With hyde, you create a hypothetical document from the query, which you in turn use to find documents in the vector store through a similarity search. To implement this functionality, some changes had to be made to the current way of how similar documents are retrieved, previously the RAG chain was given the full handling of retrieving documents and answering the user query. However, the hypothetical document is created from the  user's query, and it must only be used for retrieving documents and not for answering the user's question. This was not possible with Langchains complex way of using pipes for us. In the image below the flowchart of how hyde affects the process is shown.
 
 <img width="896" alt="image" src="https://github.com/user-attachments/assets/d1fe76e1-c65b-467f-a984-a62ee4730ed7">
 
 ### Where in the code the changes are made
 - `RAGHelper_local`
+   - Changed function "handle_user_interaction", to make it work more similar to the same function in RAGHelper_cloud
+   - If hyde=True (in env)
+      - Create hypothetical document using
+      - `apply_hyde_if_enabled`
 - `RAGHelper_cloud`
 - `requirements.txt` -> for making the system work in Paperspace
 
