@@ -30,7 +30,12 @@ class HomeController @Inject()(
       .withRequestTimeout(5 minutes)
       .get()
       .map(files => {
+      if (files.status == 200) {
         Ok(views.html.add(files.json.as[Seq[String]]))
+        } else {
+          // Handle error cases
+          Status(files.status)(s"Error: ${files.statusText}")
+        }
       })
   }
 
