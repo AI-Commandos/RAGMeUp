@@ -63,3 +63,14 @@ This were the steps that were taken.
                 top_n=self.rerank_k,
             )
    ```
+
+5. In "RAGHelper_local.py" the following code is added:
+```ruby
+        if os.getenv('rerank_model') == 'flashrank':
+            return [d.metadata['relevance_score'] for d in reranked_docs if
+                d.page_content in [doc.page_content for doc in reply['docs']]]
+
+        else:
+            return [d['metadata']['relevance_score'] for d in reranked_docs if
+                d['page_content'] in [doc.page_content for doc in reply['docs']]]
+```
