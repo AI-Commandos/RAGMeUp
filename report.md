@@ -1,3 +1,43 @@
+<img width="896" alt="image" src="https://github.com/user-attachments/assets/a79783e7-9349-47ba-9852-dcbbb87501c6"># Made change 
+The documents that are retrieved from the vector store are found by using a similarity search of the original query. In this PR we implemented a new approach using Hyde. With hyde, you create a hypothetical document from the query, which you in turn use to find documents in the vector store through a similarity search. To implement this functionality, some changes had to be made to the current way of how similar documents are retrieved, previously the RAG chain was given the full handling of retrieving documents and answering the user query. However, the hypothetical document is created from the  user's query, and it must only be used for retrieving documents and not for answering the user's question. This was not possible with Langchains complex way of using pipes for us. In the image below the flowchart of how hyde affects the process is shown.
+
+<img width="896" alt="image" src="https://github.com/user-attachments/assets/d1fe76e1-c65b-467f-a984-a62ee4730ed7">
+
+### Where in the code the changes are made
+- `RAGHelper_local`
+- `RAGHelper_cloud`
+- `requirements.txt` -> for making the system work in Paperspace
+
+### How we were able to run server.py in paperspace
+1. Create virtual environment with python version 3.10.12
+```pip install virtualenv
+virtualenv venv --python=python3.10.12
+source venv/bin/activate
+```
+2. Clone the repo
+```
+git clone https://github.com/AI-Commandos/RAGMeUp.git
+```
+3. Install our refined requirements.txt (without pytorch)
+   `pip install -r RAGMeUp/server/requirements.txt`
+5. Install pyngrok, and add auth token
+   ```pip install pyngrok
+ngrok authtoken [INSERT NGROK TOKEN]
+```
+6. Setup hugginface with git
+```git config --global credential.helper store
+huggingface-cli login
+```
+7. Install specfic version of pytorch
+`pip install 'torch @ https://download.pytorch.org/whl/cu121_full/torch-2.5.1%2Bcu121-cp310-cp310-linux_x86_64.whl'`
+8. Run the server
+```
+cd RAGMeUp/server
+python server.py
+```
+9. Copy the printed ngrok tunnel URL, and use it to setup the scala UI in the project locally.
+
+# Report
 # RAG Pipeline Enhancement: HyDE Integration
 
 ## Objective
