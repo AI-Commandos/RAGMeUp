@@ -3,6 +3,7 @@ import os
 import pickle
 import requests
 import base64
+import csv
 
 from langchain.retrievers import (ContextualCompressionRetriever,
                                   EnsembleRetriever)
@@ -18,7 +19,7 @@ from langchain_community.retrievers import BM25Retriever
 from langchain_core.documents.base import Document
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_milvus.vectorstores import Milvus
-# from langchain_postgres.vectorstores import PGVector
+#from langchain_postgres.vectorstores import PGVector
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from lxml import etree
 from PostgresBM25Retriever import PostgresBM25Retriever
@@ -498,12 +499,6 @@ class RAGHelper:
             }.values()
         )
 
-
-    def encode_file_to_base64(file_path):
-        with open(file_path, "rb") as file:
-            encoded_file = base64.b64encode(file.read()).decode('utf-8')
-        return encoded_file
-
     def load_data(self):
         """
         Loads data from various file types and chunks it into an ensemble retriever.
@@ -520,9 +515,51 @@ class RAGHelper:
         self._deduplicate_chunks()
         self._initialize_vector_store()
         self._setup_retrievers()
+    
+    # def encode_file_to_base64(file_path):
+    #     with open(file_path, "rb") as file:
+    #         encoded_file = base64.b64encode(file.read()).decode('utf-8')
+    #     return encoded_file
+        
+    def add_csv_to_graphdb(self,filename):
+        path = os.path.join(self.data_dir,filename)
+        url_add_instance = f"{self.neo4j}/add_instances"
+        
+        #to create this using file_upload, we would need to change the server endpoint again, and there is parses again. For now, we parse on this server. 
+        
+        # url_add_csv = f"{self.neo4j}/add_csv"
+        # try:
+            # with open(path, 'rb') as f:
+            #     files = {'file': f}
+            #     response = requests.post(url_add_csv, files=files)
+        # except:
+        try:
+            self.logger.info('Trying directly')
+            with open(path, mode="r", encoding="utf-8") as csvfile:
+                reader = csv.DictReader(csvfile,delimiter=';')
+                self.logger.info(reader.fieldnames) #we can also find the appropriate names and relations and get them below, so we can make a format you have to follow and then the csv will always upload
+                payloads = []
+                for row in reader:
+                    payloads.append(
+                        {
+                            "query": "MERGE (q:Quote {text: $quoteText}) "
+                            "MERGE (t:Topic {name: $topicName}) "
+                            "MERGE (q)-[:IS_PART_OF]->(t)",
+                            "parameters": {
+                                "quoteText": row.get("quote"),
+                                "topicName": row.get("topics"),
+                            },
+                        }
+                    )
+            response = requests.post(url = url_add_instance,json=payloads)
+            self.logger.info(f'Succesfully loaded {len(payloads)} records into payloads')
+        except:
+            self.logger.info(f"server responded with: {response.text}")
 
     def add_document_to_graphdb(self,file,filetype):
-        if filetype == "csv":
+        if filetype == "pdf":
+            columns = file.page_content.split(":", 1)[0]
+            values = file.page_content.split(":", 1)[1]
             try:
                 url = f"{self.neo4j}/add_csv"
                 query = "MATCH (n) RETURN n"  # Replace this with your actual query
@@ -561,12 +598,16 @@ class RAGHelper:
         Raises:
             ValueError: If the file type is unsupported.
         """
+        if filename.lower().split(".")[-1]=="csv":
+            self.add_csv_to_graphdb(filename)
         new_docs = self._load_document(filename)
         self.logger.info("adding documents to graphdb.")
-        for doc in new_docs:
-            self.logger.info(f'this is the page content: {doc.page_content}')
-            self.logger.info(f'this is filetype {doc.metadata.get("source").lower().split(".")[-1]}')
-            self.add_document_to_graphdb(doc.page_content,doc.metadata.get("source").lower().split('.')[-1])
+        # for doc in new_docs:
+        #     self.logger.info(f'this is the columns part you get from the loader: {doc.page_content.split(":", 1)[0]}')
+        #     self.logger.info(f'this is the values part you get from the loader: {doc.page_content.split(":", 1)[1]}')
+            # self.logger.info(f'this is the page content: {doc.page_content}')
+            # self.logger.info(f'this is filetype {doc.metadata.get("source").lower().split(".")[-1]}')
+            # self.add_document_to_graphdb(doc.page_content,doc.metadata.get("source").lower().split('.')[-1])
         
         self.logger.info("chunking the documents.")
         new_chunks = self._split_documents(new_docs)
