@@ -421,8 +421,8 @@ class RAGHelper:
     def _initialize_reranker(self):
         """Initialize the reranking model based on environment settings."""
         if self.rerank_model == "rerankerreorder":
-            self.logger.info("Setting up the ScoredCrossEncoderReranker.")
-            self.compressor = ScoredCrossEncoderReranker(
+            self.logger.info("Setting up the Reranker and Reorderer")
+            self.compressor = RerankerReorder(
                 model=HuggingFaceCrossEncoder(model_name=self.rerank_model),
                 top_n=self.rerank_k
             )

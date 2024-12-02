@@ -14,7 +14,7 @@ class ScoredCrossEncoderReranker(BaseDocumentCompressor):
     model: BaseCrossEncoder
     """CrossEncoder model to use for scoring similarity
       between the query and documents."""
-    top_n: int = 3
+    top_n: int = 7
     """Number of documents to return."""
 
     class Config:
@@ -49,7 +49,7 @@ class RerankerReorder(BaseDocumentCompressor):
     model: BaseCrossEncoder
     """CrossEncoder model to use for scoring similarity
       between the query and documents."""
-    top_n: int = 3
+    top_n: int = 7
     """Number of documents to return."""
 
     class Config:
