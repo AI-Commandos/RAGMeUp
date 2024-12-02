@@ -65,7 +65,7 @@ ngrok authtoken [INSERT NGROK TOKEN]
 git config --global credential.helper store
 huggingface-cli login
 ```
-7. Install specfic version of pytorch separately, if you don't use this one you get errors in paperspace
+7. Install specific version of pytorch separately, if you don't use this one you get errors in paperspace
 ```
 pip install 'torch @ https://download.pytorch.org/whl/cu121_full/torch-2.5.1%2Bcu121-cp310-cp310-linux_x86_64.whl'
 ```
