@@ -5,11 +5,23 @@ The documents that are retrieved from the vector store are found by using a simi
 
 ### Where in the code the changes are made
 - `RAGHelper_local`
-   - Changed function "handle_user_interaction", to make it work more similar to the same function in RAGHelper_cloud
+   - Changed function `handle_user_interaction`, to make function work more similar to the same function in RAGHelper_cloud
    - If hyde=True (in env)
-      - Create hypothetical document using
-      - `apply_hyde_if_enabled`
+      
 - `RAGHelper_cloud`
+- `RAGHelper`
+   - Functions are added in `RAGHelper` to create a hypothetical document from query:
+      - `apply_hyde_if_enabled`
+      - `embed_query_with_hyde`
+      - `_initialize_hyde_embeddings`
+      - `self.hyde_embeddings` -> `CustomHyDE.py`
+         ->    ```
+               CustomHypotheticalDocumentEmbedder(
+               llm_chain=llm_chain,
+               base_embeddings=base_embeddings
+               )
+               ```
+     - `self.hyde_embeddings.embed_query(query, return_text=True)`
 - `requirements.txt` -> for making the system work in Paperspace
 
 ### How we were able to run server.py in paperspace
