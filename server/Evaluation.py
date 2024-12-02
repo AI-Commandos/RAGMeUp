@@ -2,13 +2,13 @@ from PostgresBM25Retriever import PostgresBM25Retriever
 from RerankerReorder import ScoredCrossEncoderReranker 
 
 # Step 1: Initialize the retriever
-connection_uri = 'data' #"postgresql://username:password@localhost:5432/your_database"
+#connection_uri = 'data' #"postgresql://username:password@localhost:5432/your_database"
 #table_name = "your_table_name"
-retriever = PostgresBM25Retriever(connection_uri=connection_uri, k=10)
+#retriever = PostgresBM25Retriever(connection_uri=connection_uri, k=10)
 
 # Step 2: Fetch relevant documents for a given query
-query = "Deep Learning"
-retrieved_documents = retriever._get_relevant_documents(query=query, run_manager=None)
+#query = "Deep Learning"
+#retrieved_documents = retriever._get_relevant_documents(query=query, run_manager=None)
 
 # Step 3: Instantiate the reranker
 #reranker = ScoredCrossEncoderReranker(model=your_cross_encoder_model, top_n=5)
