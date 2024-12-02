@@ -18,7 +18,7 @@ This were the steps that were taken.
 1. Within the ".env.template" file the rerank model 'flashrank' was replaced with the 'colbert' model with the following deletion and addition of lines:
 
    **Deletion:**
-   ```{python}
+   ```ruby
    rerank_k=3
    rerank_model=flashrank
    ```
