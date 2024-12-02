@@ -1,6 +1,32 @@
+# Report
+# RAG Pipeline Enhancement: HyDE Integration
 
+## Objective
 
-# PR Request: Integration of HyDE for Enhanced Document Retrieval in the RAG Pipeline
+The goal of this project was to enhance the Retrieval-Augmented Generation (RAG) pipeline by integrating Hypothetical Document Embedding (HyDE). This method generates a hypothetical document as an intermediate step, which is then used for retrieval alongside the original query. The report details the thought process, implementation, configurations, and the advantages and disadvantages of this approach.
+
+---
+
+## Implementation Overview
+
+### Approach
+
+1. **Enhancing Query Representation with HyDE:**
+   - HyDE generates a hypothetical document for the input query.
+   - Both the original query and the generated document are used for similarity search.
+
+2. **Dynamic Prompt Template System:**
+   - Generalized templates for flexibility.
+   - Custom templates for specific scenarios.
+
+3. **Environmental Variable Configuration:**
+   - All parameters for HyDE templates and behaviors are configurable via `.env` to ensure reproducibility and customization.
+
+4. **End-to-End Testing:**
+   - Ensured functionality through Flask endpoints to validate HyDE embeddings.
+
+---
+## HyDE-Driven Document Retrieval: Decoupling Query Handling in the RAG Pipeline
 
 The documents retrieved from the vector store are found using a similarity search of the original query. In this PR, we implemented a new approach using HyDE. With HyDE, a hypothetical document is created from the query, which is then used to find documents in the vector store through a similarity search. 
 
@@ -10,7 +36,7 @@ To implement this functionality, changes were required in how similar documents 
 
 ---
 
-### Specific code Changes
+### Specific code changes
 
 #### `RAGHelper_local`
 - Modified the `handle_user_interaction` function to work more like the same function in `RAGHelper_cloud`.
@@ -54,82 +80,6 @@ To implement this functionality, changes were required in how similar documents 
 
 - **Document Count Discrepancy:**
   - With HyDE, the pipeline uses 3 documents in the final prompt, while the no-HyDE solution uses 10 documents. However, in the no-HyDE response, only 3 documents show provenance. This may indicate that LangChain is adding documents inadvertently. We could not resolve this due to the complexity of LangChain's internals.
-
----
-
-### Running `server.py` in Paperspace
-
-1. **Create a virtual environment with Python 3.10.12**:
-    ```bash
-    pip install virtualenv
-    virtualenv venv --python=python3.10.12
-    source venv/bin/activate
-    ```
-
-2. **Clone the repository**:
-    ```bash
-    git clone https://github.com/AI-Commandos/RAGMeUp.git
-    ```
-
-3. **Install refined requirements (excluding PyTorch)**:
-    ```bash
-    pip install -r RAGMeUp/server/requirements_paperspace.txt
-    ```
-
-4. **Install `pyngrok` and add your auth token**:
-    ```bash
-    pip install pyngrok
-    ngrok authtoken [INSERT NGROK TOKEN]
-    ```
-
-5. **Set up Hugging Face authentication**:
-    ```bash
-    git config --global credential.helper store
-    huggingface-cli login
-    ```
-
-6. **Install the specific version of PyTorch for Paperspace**:
-    ```bash
-    pip install 'torch @ https://download.pytorch.org/whl/cu121_full/torch-2.5.1%2Bcu121-cp310-cp310-linux_x86_64.whl'
-    ```
-
-7. **Run the server**:
-    ```bash
-    cd RAGMeUp/server
-    python server.py
-    ```
-
-8. **Copy the printed Ngrok tunnel URL**:
-   - Use this URL to set up the Scala UI locally.
-
---- 
-
-# Report
-# RAG Pipeline Enhancement: HyDE Integration
-
-## Objective
-
-The goal of this project was to enhance the Retrieval-Augmented Generation (RAG) pipeline by integrating Hypothetical Document Embedding (HyDE). This method generates a hypothetical document as an intermediate step, which is then used for retrieval alongside the original query. The report details the thought process, implementation, configurations, and the advantages and disadvantages of this approach.
-
----
-
-## Implementation Overview
-
-### Approach
-
-1. **Enhancing Query Representation with HyDE:**
-   - HyDE generates a hypothetical document for the input query.
-   - Both the original query and the generated document are used for similarity search.
-
-2. **Dynamic Prompt Template System:**
-   - Generalized templates for flexibility.
-   - Custom templates for specific scenarios.
-
-3. **Environmental Variable Configuration:**
-   - All parameters for HyDE templates and behaviors are configurable via `.env` to ensure reproducibility and customization.
-
-4. **End-to-End Testing:**
-   - Ensured functionality through Flask endpoints to validate HyDE embeddings.
 
 ---
 
@@ -283,6 +233,53 @@ Our approach incorporates findings from the 2024 study, "Searching for Best Prac
    - Adapt HyDE to support multi-modal input (e.g., text and vision).
 
 ---
+
+### Running `server.py` in Paperspace
+
+1. **Create a virtual environment with Python 3.10.12**:
+    ```bash
+    pip install virtualenv
+    virtualenv venv --python=python3.10.12
+    source venv/bin/activate
+    ```
+
+2. **Clone the repository**:
+    ```bash
+    git clone https://github.com/AI-Commandos/RAGMeUp.git
+    ```
+
+3. **Install refined requirements (excluding PyTorch)**:
+    ```bash
+    pip install -r RAGMeUp/server/requirements_paperspace.txt
+    ```
+
+4. **Install `pyngrok` and add your auth token**:
+    ```bash
+    pip install pyngrok
+    ngrok authtoken [INSERT NGROK TOKEN]
+    ```
+
+5. **Set up Hugging Face authentication**:
+    ```bash
+    git config --global credential.helper store
+    huggingface-cli login
+    ```
+
+6. **Install the specific version of PyTorch for Paperspace**:
+    ```bash
+    pip install 'torch @ https://download.pytorch.org/whl/cu121_full/torch-2.5.1%2Bcu121-cp310-cp310-linux_x86_64.whl'
+    ```
+
+7. **Run the server**:
+    ```bash
+    cd RAGMeUp/server
+    python server.py
+    ```
+
+8. **Copy the printed Ngrok tunnel URL**:
+   - Use this URL to set up the Scala UI locally.
+
+--- 
 
 ## References
 
