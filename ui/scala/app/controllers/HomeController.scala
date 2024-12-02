@@ -34,7 +34,7 @@ class HomeController @Inject()(
         Ok(views.html.add(files.json.as[Seq[String]]))
         } else {
           // Handle error cases
-          Status(files.status)(s"Error: ${files.statusText}")
+          Status(files.status)(s"Error: ${files.statusText} \n Please try refreshing the page.")
         }
       })
   }
