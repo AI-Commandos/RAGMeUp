@@ -36,7 +36,7 @@ The documents that are retrieved from the vector store are found by using a simi
                )
                ```
      - `self.hyde_embeddings.embed_query(query, return_text=True)`
-- `requirements.txt` -> for making the system work in Paperspace
+- `requirements_paperspace.txt` -> for making the system work in Paperspace
 
 ### Limitations
 - We see that the hyde uses 3 documents in the final prompt, but the no_hyde solution uses 10 documents. We cannot find the reason behind this bug. However, in the no_hyde response, there are only 3 documents with provenance, so it in the no_hyde it might be added accidentally. This is a limitation that we couldn't find the reason behind, as we couldn't grasp how the functionality works of Langchain. 
@@ -53,7 +53,7 @@ git clone https://github.com/AI-Commandos/RAGMeUp.git
 ```
 3. Install our refined requirements.txt (without pytorch)
 ```
-pip install -r RAGMeUp/server/requirements.txt
+pip install -r RAGMeUp/server/requirements_paperspace.txt
 ```
 5. Install pyngrok, and add auth token
 ```
@@ -65,7 +65,7 @@ ngrok authtoken [INSERT NGROK TOKEN]
 git config --global credential.helper store
 huggingface-cli login
 ```
-7. Install specfic version of pytorch
+7. Install specfic version of pytorch separately, if you don't use this one you get errors in paperspace
 ```
 pip install 'torch @ https://download.pytorch.org/whl/cu121_full/torch-2.5.1%2Bcu121-cp310-cp310-linux_x86_64.whl'
 ```
