@@ -19,18 +19,24 @@ source venv/bin/activate
 git clone https://github.com/AI-Commandos/RAGMeUp.git
 ```
 3. Install our refined requirements.txt (without pytorch)
-   `pip install -r RAGMeUp/server/requirements.txt`
+```
+pip install -r RAGMeUp/server/requirements.txt
+```
 5. Install pyngrok, and add auth token
-   ```pip install pyngrok
+```
+pip install pyngrok
 ngrok authtoken [INSERT NGROK TOKEN]
 ```
 6. Setup hugginface with git
-```git config --global credential.helper store
+```
+git config --global credential.helper store
 huggingface-cli login
 ```
 7. Install specfic version of pytorch
-`pip install 'torch @ https://download.pytorch.org/whl/cu121_full/torch-2.5.1%2Bcu121-cp310-cp310-linux_x86_64.whl'`
-8. Run the server
+```
+pip install 'torch @ https://download.pytorch.org/whl/cu121_full/torch-2.5.1%2Bcu121-cp310-cp310-linux_x86_64.whl'
+```
+9. Run the server
 ```
 cd RAGMeUp/server
 python server.py
