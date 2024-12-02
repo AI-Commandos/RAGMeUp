@@ -278,39 +278,6 @@ class RAGHelperLocal(RAGHelper):
 
         return thread, reply
 
-    def handle_user_interaction_before_mehdi(self, user_query, history):
-        """Handle user interaction, fetching documents and managing query rewriting, document provenance, and LLM response.
-
-        Args:
-            user_query (str): The user's query.
-            history (list): A list of previous conversation history.
-
-        Returns:
-            tuple: The conversation thread and the LLM response with potential provenance scores.
-        """
-        # Apply HyDE if enabled
-        if os.getenv("hyde_enabled", "False").lower() == "true":
-            user_query = self.apply_hyde_if_enabled(user_query)
-
-        fetch_new_documents = self._should_fetch_new_documents(user_query, history)
-        thread = self._prepare_conversation_thread(history, fetch_new_documents)
-        input_variables = self._determine_input_variables(fetch_new_documents)
-        prompt = self._create_prompt_template(thread, input_variables)
-
-        llm_chain = self._create_llm_chain(fetch_new_documents, prompt)
-
-        # Handle rewrite and re2
-        user_query = self.handle_rewrite(user_query)
-        if os.getenv("use_re2") == "True":
-            user_query = f'{user_query}\n{os.getenv("re2_prompt")}{user_query}'
-        
-        reply = self._invoke_rag_chain(user_query, llm_chain)
-
-        if fetch_new_documents:
-            self._track_provenance(user_query, reply, thread)
-
-        return thread, reply
-
     def _should_fetch_new_documents(self, user_query, history):
         """Determine whether to fetch new documents based on the user's query and conversation history."""
         if len(history) == 0:
