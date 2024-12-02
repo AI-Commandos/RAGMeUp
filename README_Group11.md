@@ -16,6 +16,7 @@ However, first we managed to connect a data folder containing all pdf's used in 
 This were the steps that were taken.
 
 1. Within the ".env.template" file the rerank model 'flashrank' was replaced with the 'colbert' model with the following deletion and addition of lines:
+
    **Deletion:**
    ```{python}
    rerank_k=3
@@ -31,15 +32,19 @@ This were the steps that were taken.
    colbert_query_maxlen=32  # max query length
    rerank_k=5  # number of documents to return after reranking
    ```
-2. The file "ColBERTReranker.py" is added. This file contains the entire ColBERTReranker.
+3. The file "ColBERTReranker.py" is added. This file contains the entire ColBERTReranker.
 
-3. The file "RAGHelper.py" contains not useful changes, but we have to notify that a lot changes are given since all single apostrophe's are changed to doubles and code that was in one line is put under each other. This is done in the automatic formatting of vscode. These changes do not add value but are indicated by github, be aware of these. The meaning full change was in the 'initialize reranker' function. Here the added code is in cursive:
+4. The file "RAGHelper.py" contains not useful changes, but we have to notify that a lot changes are given since all single apostrophe's are changed to doubles and code that was in one line is put under each other. This is done in the automatic formatting of vscode. These changes do not add value but are indicated by github, be aware of these. The meaning full change was in the 'initialize reranker' function. Here the added code is indicated in the comments:
+   
+   ```{python}
    def _initialize_reranker(self):
         """Initialize the reranking model based on environment settings."""
         if self.rerank_model == "flashrank":
             self.logger.info("Setting up the FlashrankRerank.")
             self.compressor = FlashrankRerank(top_n=self.rerank_k)
-        *elif self.rerank_model == "colbert":
+
+        # This code adds the colbert rerank if it is available
+        elif self.rerank_model == "colbert":
             self.logger.info("Setting up the ColBERT reranker.")
             self.compressor = ColBERTReranker(
                 model_name=self.colbert_model,
@@ -47,7 +52,9 @@ This were the steps that were taken.
                 nbits=self.colbert_nbits,
                 doc_maxlen=self.colbert_doc_maxlen,
                 query_maxlen=self.colbert_query_maxlen,
-            )*
+            )
+        # Until here.
+   
         else:
             self.logger.info("Setting up the ScoredCrossEncoderReranker.")
             self.compressor = ScoredCrossEncoderReranker(
@@ -55,3 +62,4 @@ This were the steps that were taken.
                 top_n=self.rerank_k
                 top_n=self.rerank_k,
             )
+   ```
