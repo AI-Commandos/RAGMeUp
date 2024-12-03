@@ -1,6 +1,6 @@
 # README- Group18
 
-writer： Hanyue Wang，Xuechun LYU and Hanieh Attarimoghadam
+Author： Hanyue Wang，Xuechun LYU and Hanieh Attarimoghadam
 
 # Enhancing the RAG Me Up Framework with Text2SQL Component
 This project extends the existing **RAG Me Up framework** by integrating a **Text2SQL component**, enabling the framework to process natural language queries and convert them into SQL queries. This addition improves the framework's capabilities in handling structured data stored in databases, allowing users to retrieve insights efficiently.
