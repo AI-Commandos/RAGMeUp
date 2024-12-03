@@ -149,10 +149,17 @@ def get_documents():
     """
     data_dir = os.getenv('data_directory')
     file_types = os.getenv("file_types", "").split(",")
+    
+    # Print the data directory and file types being used
+    print(f"Data Directory in GET: {data_dir}")
+    print(f"File Types in GET: {file_types}")
 
     # Filter files based on specified types
     files = [f for f in os.listdir(data_dir)
              if os.path.isfile(os.path.join(data_dir, f)) and os.path.splitext(f)[1][1:] in file_types]
+    
+    # Print the list of files found
+    print(f"Files Found in GET: {files}")
     
     return jsonify(files)
 
