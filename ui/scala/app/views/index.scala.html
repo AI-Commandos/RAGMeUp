@@ -68,7 +68,7 @@
         })).replace(/\\n/g, "<br />");
     }
 
-    function addMessage(message, isHuman) {
+    function addMessage(message, isHuman, data) {
         var dialogue = $("#dialogue");
         var row = $('<div>').addClass('row');
         var col;
@@ -90,33 +90,18 @@
           // Create thumbs-up and thumbs-down icons
           var feedbackPos = $('<i class="fa-regular fa-thumbs-up" style="color: #438c4f; font-size: 1.5em; padding-right: 5px; cursor: pointer;"></i>');
           var feedbackNeg = $('<i class="fa-regular fa-thumbs-down" style="color: #a15047; font-size: 1.5em; cursor: pointer;"></i>');
+          
+          var doclist = $('<div class="documentdiv">');
 
           // Function to handle feedback submission and disable buttons
           function handleFeedback(feedbackType) {
-            // $.post({
-            //   url: "@controllers.routes.HomeController.feedback()",
-            //   data: JSON.stringify({
-            //     query: "example query",
-            //     answer: "example answer",
-            //     document_id: "12345",
-            //     rating: 1
-            //   }),
-            //   contentType: "application/json; charset=utf-8",
-            //   dataType: "json"
-            // })
-            // .done(function(response) {
-            //   console.log("Success:", response);
-            // })
-            // .fail(function(xhr, status, error) {
-            //   console.error("Error:", error);
-            // });
             $.post({
               url: "@controllers.routes.HomeController.feedback()",
               data: JSON.stringify({ 
-                query: "example query",
-                answer: "example answer",
-                document_id: "12345",
-                rating: 1 ,
+                query: data['question'],
+                answer: message,
+                document_id: JSON.stringify(data.documents.map(doc => doc.s)),
+                rating: feedbackType === "positive" ? 1 : -1,
                 timestamp: new Date().toISOString()}),
               contentType: "application/json; charset=utf-8",
               dataType: "json"
@@ -283,7 +268,7 @@
 
                 if (data['rewritten']) {
                   var msg = '<span style="color: #ccc; font-style: italic; font-weight: 300;">Your message has been rewritten to this:</span>\n\n' + data['question'];
-                  addMessage(msg, true);
+                  addMessage(msg, true, data);
                 }
 
                 documents = data['documents'];
