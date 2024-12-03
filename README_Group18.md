@@ -22,24 +22,51 @@ This project extends the existing **RAG Me Up framework** by integrating a **Tex
     
 ### 3. Integration with RAG Framework
 
-File: server/RAGHelper.py
-Modifications:
-Method _initialize_retrievers:
-Added a logic branch for Text2SQL to allow SQL-based queries when vector_store is set to postgres.
-New Method retrieve_from_sql:
-Accepts a natural language query, translates it into SQL using the Text2SQL component, and executes it on the database.
-Logs both the generated SQL query and its results for traceability.
+- File: server/RAGHelper.py
+- Modifications:
+  - Method _initialize_retrievers:
+    - Added a logic branch for Text2SQL to allow SQL-based queries when vector_store is set to postgres.
+  - New Method retrieve_from_sql:
+    - Accepts a natural language query, translates it into SQL using the Text2SQL component, and executes it on the database.
+    - Logs both the generated SQL query and its results for traceability.
 
 ## How to Use
-1. Setup
+### 1. Setup
 
 Update the .env file using the template server/.env.template:
-、、、
+
+```env
 HF_TOKEN=your_huggingface_api_token
 db_uri=your_postgresql_connection_uri
 llm_model=suriya7/t5-base-text-to-sql
-、、、
+```
 
+Install required dependencies:
 
+```bash
+pip install psycopg2 transformers
+```
+
+### 2. Run the Server
+
+Start the RAG Me Up server and ensure that the Text2SQL component is initialized.
+### 3. Query Execution
+
+Provide a natural language query through the RAG pipeline.
+The Text2SQL component translates the query into SQL and retrieves data from the connected database.
+
+## Example
+Here’s an example flow using the new component:
+
+User Input: "What is the birth date of Lincoln?"
+```sql
+SELECT birth_date FROM table_name_94 WHERE name = "Lincoln";
+```
+Output: The birth date of Lincoln from the database.
+
+## Benefits
+- Enhanced Query Flexibility: Supports complex natural language queries by converting them into SQL.
+- Streamlined Data Access: Integrates structured data retrieval seamlessly into the RAG framework.
+- Extensible Design: Can be adapted for additional databases and SQL variations in the future.
 
 
