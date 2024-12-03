@@ -153,7 +153,7 @@ def get_documents():
     # Filter files based on specified types
     files = [f for f in os.listdir(data_dir)
              if os.path.isfile(os.path.join(data_dir, f)) and os.path.splitext(f)[1][1:] in file_types]
-
+    
     return jsonify(files)
 
 
@@ -174,13 +174,57 @@ def get_document():
     data_dir = os.getenv('data_directory')
     file_path = os.path.join(data_dir, filename)
 
-    if not os.path.exists(file_path):
-        return jsonify({"error": "File not found"}), 404
+    print(f"Received request for filename: {filename}")  # Debug print
+    print(f"Constructed file path: {file_path}")         # Debug print
 
-    return send_file(file_path,
-                     mimetype='application/octet-stream',
-                     as_attachment=True,
-                     download_name=filename)
+    if not os.path.exists(file_path):
+        print("File not found.")  # Debug print
+        return jsonify({"error": "File not found"}), 404
+    
+    # Connect to the feedback database to retrieve feedback for the file
+    conn = sqlite3.connect('feedback.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT query, answer, rating, timestamp 
+        FROM Feedback 
+        WHERE document_id = ?
+    ''', (file_path,))
+    
+    feedback = cursor.fetchall()
+    print(f"Feedback retrieved for {file_path}: {feedback}")  # Debug print
+    conn.close()
+
+
+    # Format feedback as a list of dictionaries
+    feedback_list = [
+        {"query": row[0], "answer": row[1], "rating": row[2], "timestamp": row[3]}
+        for row in feedback
+    ]
+    print(f"Formatted feedback: {feedback_list}")  # Debug print
+    
+    # Return the document along with its feedback metadata
+    response = {
+        "filename": filename,
+        "feedback": feedback_list
+    }
+    
+    print(f"Response metadata: {response}")  # Debug print
+
+    # Use `send_file` to include the actual file content as an attachment
+    return send_file(
+        file_path,
+        mimetype='application/octet-stream',
+        as_attachment=True,
+        download_name=filename,
+        headers={"X-Metadata": json.dumps(response)}  # Optional: include metadata in headers
+    )
+    
+
+    # return send_file(file_path,
+    #                  mimetype='application/octet-stream',
+    #                  as_attachment=True,
+    #                  download_name=filename)
 
 
 @app.route("/delete", methods=['POST'])
