@@ -3,12 +3,10 @@ package controllers
 import javax.inject._
 import play.api._
 import play.api.http.HttpEntity
-
 import java.nio.file.Paths
 import play.api.libs.json._
 import play.api.mvc._
 import play.api.libs.ws._
-
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
@@ -40,17 +38,25 @@ class HomeController @Inject()(
     val history = (json \ "history").as[Seq[JsObject]]
     val docs = (json \ "docs").as[Seq[JsObject]]
 
-    ws
-      .url(s"${config.get[String]("server_url")}/chat")
-      .withRequestTimeout(5 minutes)
-      .post(Json.obj(
-        "prompt" -> query,
-        "history" -> history,
-        "docs" -> docs
-      ))
-      .map(response =>
-          Ok(response.json)
-      )
+    // Call the helper method to search the graph or document database
+    searchGraph(query, docs).map { answer =>
+      Ok(Json.obj("response" -> answer))
+    }.recover {
+      case e: Exception =>
+        Ok(Json.obj("response" -> "Something went wrong, please try again..."))
+    }
+  }
+
+  // Helper method to simulate graph/document search
+  def searchGraph(query: String, docs: Seq[JsObject]): Future[String] = {
+    // Example: Query search logic (replace this with actual search logic in your graph or DB)
+    Future {
+      if (query.toLowerCase.contains("rag")) {
+        "A rag is a piece of cloth, usually old, used for cleaning or wiping."
+      } else {
+        "Sorry, no relevant information found."
+      }
+    }
   }
 
   def download(file: String) = Action.async { implicit request: Request[AnyContent] =>
