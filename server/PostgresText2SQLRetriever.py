@@ -54,6 +54,7 @@ class SQLGenerator:
 
 
 def validate_sql(sql_query):
+    logger.info(f"Validating SQL: {sql_query}")
     try:
         parsed = sqlparse.parse(sql_query)
         if not parsed:
@@ -66,6 +67,7 @@ def validate_sql(sql_query):
 import re
 
 def extract_sql(output):
+    logger.info(f"Extracting SQL from: {output}")
     match = re.search(r'```sql\s*(.*?)\s*```', output, re.DOTALL)
     if match:
         return match.group(1).strip()

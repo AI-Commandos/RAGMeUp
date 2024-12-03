@@ -211,7 +211,7 @@ class RAGHelperLocal(RAGHelper):
         
         reply = self._invoke_rag_chain(user_query, llm_chain)
 
-        if fetch_new_documents:
+        if fetch_new_documents and os.getenv("provenance") == "True":
             self._track_provenance(user_query, reply, thread)
 
         return thread, reply
