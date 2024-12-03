@@ -13,7 +13,7 @@ In order to implement ColBERT as reranker, a couple of functions and files had t
 
 However, first we managed to connect a data folder containing all pdf's used in the course. This data folder is located in our own google drive and navigated to within the google collab file. Locally, in the 'env.template' file we set the following value: "data_directory='data/drive/MyDrive/NLP'". This results in these pdf's being used in the RAG framework so that information from these pdf's can be retrieved and returned when a user asks for it in the chat environment. We got this to work in the base model and now the implementation of ColBERT could start.
 
-This were the steps that were taken.
+These were the steps that were taken.
 
 1. Within the ".env.template" file the rerank model 'flashrank' was replaced with the 'colbert' model with the following deletion and addition of lines:
 
@@ -40,7 +40,7 @@ This were the steps that were taken.
         A document compressor that uses ColBERT for reranking documents.
         """
     ```
-The core component where the reranking of documents occurs in the "compress_documents" method. It handles empty documents, prepares the documents for reranking, initializes the ColBERT model, and returns the "top_n" documents. It loads a pretrained "colbertv2.0" which has a checkpoint trained on the MS MARCO Passage Ranking task.
+The core component where the reranking of documents occurs in the "compress_documents" method. It handles empty documents, prepares the documents for reranking, initializes the ColBERT model, and returns the "top_n" documents. It loads a pre-trained "colbertv2.0" which has a checkpoint trained on the MS MARCO Passage Ranking task.
 
     ```ruby
     colbert = RAGPretrainedModel.from_pretrained(self.model)
@@ -57,7 +57,7 @@ The core component where the reranking of documents occurs in the "compress_docu
 After initializing the model, indexing is required to organize the documents into a structure optimized for fast retrieval. Without indexing, the system would need to perform a linear search across all documents, which is computationally expensive and impractical for large datasets. Note that they are stored in the denoted directory. Afterward, the searcher is used on the indexed structure to quickly find and rank documents relevant to a given query.
 
 
-4. The file "RAGHelper.py" contains a useful changes, but we have to notify that a lot changes are given since all single apostrophe's are changed to doubles and code that was in one line is put under each other. This is done in the automatic formatting of vscode. These changes do not add value but are indicated by github, be aware of these. The meaningful change resides in the 'initialize reranker' function. Here the added code is indicated in the comments:
+4. The file "RAGHelper.py" contains useful changes, but we have to note that a lot of changes are given since all single apostrophes are changed to doubles and code that was in one line is put under each other. This is done in the automatic formatting of vscode. These changes do not add value but are indicated by Git Hub, be aware of these. The meaningful change resides in the 'initialize reranker' function. Here the added code is indicated in the comments:
    
    ```ruby
    def _initialize_reranker(self):
@@ -98,16 +98,18 @@ After initializing the model, indexing is required to organize the documents int
                 d['page_content'] in [doc.page_content for doc in reply['docs']]]
    ```
 
-6. The "requirements.txt" should also be updated since there are new libaries required while using ColBERT:
+6. The "requirements.txt" should also be updated since there are new libraries required while using ColBERT:
 
    ```ruby
    colbert-ir==0.2.14  # Added for ColBERT reranking
    fsspec==2024.9.0
    ragatouille
    ```
-**Note**
-Although the ColBERTReranker showed succesfully obtain more insightful responses in faster time, due to it support for reranking with late interaction; its current performance and running times do not reflect this behavior.
+**Limitations** \
+- Although the ColBERTReranker should succesfully obtain more insightful responses in a faster time, due to it support for reranking with late interaction; it's current performance and running times do not reflect this behavior.
+- The setting "use_rewrite_loop" to True results in better responses, but there seems to be a randomness issue where occasionally the response cannot be visualized in the user interface. Even though the response can be generated in the Google Colab "server.py" output, the team has attempted to fix this issue, but is not proficient with Scala and struggled to find a solution. 
 
-These were the most prevelant steps for replacing FlashRank with ColBERT.
+
+These were the most prevalent steps for replacing FlashRank with ColBERT.
 
 For implementing further changes take a look at: https://github.com/AI-Commandos/RAGMeUp/compare/main...LvR33:RAGMeUp:ElanoIter
