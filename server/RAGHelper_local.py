@@ -175,12 +175,12 @@ class RAGHelperLocal(RAGHelper):
         if os.getenv("use_rewrite_loop") == "True":
             response = self.rewrite_ask_chain.invoke(user_query)
             end_string = os.getenv("llm_assistant_token")
-            reply = response['text'][response['text'].rindex(end_string) + len(end_string):]
+            reply = response['text']
             reply = re.sub(r'\W+ ', '', reply)
 
             if reply.lower().startswith('no'):
                 response = self.rewrite_chain.invoke(user_query)
-                reply = response['text'][response['text'].rindex(end_string) + len(end_string):]
+                reply = response['text']
                 return reply
             else:
                 return user_query
@@ -269,7 +269,7 @@ class RAGHelperLocal(RAGHelper):
     def _extract_reply(response):
         """Extract and clean the LLM reply from the response."""
         end_string = os.getenv("llm_assistant_token")
-        reply = response['text'][response['text'].rindex(end_string) + len(end_string):]
+        reply = response['text']
         return re.sub(r'\W+ ', '', reply)
 
     def _track_provenance(self, user_query, reply, thread):
