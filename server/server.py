@@ -161,36 +161,36 @@ def get_documents():
     # Print the list of files found
     print(f"Files Found in GET: {files}")
     
-    # Initialize result structure
-    documents_with_feedback = []
+    # # Initialize result structure
+    # documents_with_feedback = []
 
-    # Connect to feedback database
-    conn = sqlite3.connect('feedback.db')
-    cursor = conn.cursor()
+    # # Connect to feedback database
+    # conn = sqlite3.connect('feedback.db')
+    # cursor = conn.cursor()
 
-    for filename in files:
-        # Query for feedback related to this file
-        cursor.execute(
-            "SELECT query, answer, rating, timestamp FROM Feedback WHERE document_id = ?",
-            (filename,)
-        )
-        feedback = cursor.fetchall()
+    # for filename in files:
+    #     # Query for feedback related to this file
+    #     cursor.execute(
+    #         "SELECT query, answer, rating, timestamp FROM Feedback WHERE document_id = ?",
+    #         (filename,)
+    #     )
+    #     feedback = cursor.fetchall()
 
-        # Format feedback as a list of dictionaries
-        feedback_list = [
-            {"query": row[0], "answer": row[1], "rating": row[2], "timestamp": row[3]} for row in feedback
-        ]
+    #     # Format feedback as a list of dictionaries
+    #     feedback_list = [
+    #         {"query": row[0], "answer": row[1], "rating": row[2], "timestamp": row[3]} for row in feedback
+    #     ]
 
-        # Append document with feedback
-        documents_with_feedback.append({"filename": filename, "feedback": feedback_list})
+    #     # Append document with feedback
+    #     documents_with_feedback.append({"filename": filename, "feedback": feedback_list})
 
-    print(f"Files get docuemnts_with_feedback in GET: {documents_with_feedback}")
+    # print(f"Files get docuemnts_with_feedback in GET: {documents_with_feedback}")
         
-    conn.close()
+    # conn.close()
 
-    return jsonify(documents_with_feedback)
+    # return jsonify(documents_with_feedback)
     
-    # return jsonify(files)
+    return jsonify(files)
 
 
 @app.route("/get_document", methods=['POST'])
