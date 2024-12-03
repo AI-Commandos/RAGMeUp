@@ -164,12 +164,12 @@ class PostgresText2SQLRetriever(BaseRetriever):
         logger.info(f"Documents: {documents}")
         return documents
 
-    def _format_results_as_documents(self, results):
+    def _format_results_as_documents(self, results, sql_query):
         # We can adjust this method in order to format the context of the retrieved data
         documents = []
         for row in results:
             content = str(row)
-            metadata = {}
+            metadata = {sql_query: content}
             documents.append(Document(page_content=content, metadata=metadata))
         return documents
 
