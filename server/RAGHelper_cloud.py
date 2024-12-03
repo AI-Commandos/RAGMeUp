@@ -153,7 +153,12 @@ class RAGHelperCloud(RAGHelper):
         llm_chain = prompt | self.llm
 
         if fetch_new_documents:
+            # graph_retriever = self.graph_retriever(user_query)
+            # if ((len(graph_retriever)<self.max_length) or graph_retriever==None):
             context_retriever = self.ensemble_retriever if self.rerank else self.rerank_retriever
+            # filtered_docs = retrieved_docs[:remaining_slots]
+            # final_docs = graph_retriever + filtered_docs
+            self.logger.info(context_retriever)
             retriever_chain = {
                 "docs": context_retriever,
                 "context": context_retriever | RAGHelper.format_documents,
@@ -184,7 +189,8 @@ class RAGHelperCloud(RAGHelper):
         # Check if we need to apply Re2 to mention the question twice
         if os.getenv("use_re2") == "True":
             user_query = f'{user_query}\n{os.getenv("re2_prompt")}{user_query}'
-
+        self.logger.info(rag_chain)
+        self.logger.info(retriever_chain)
         # Invoke RAG pipeline
         reply = rag_chain.invoke(user_query)
 
@@ -313,3 +319,14 @@ class RAGHelperCloud(RAGHelper):
         elif 'answer' in response:
             response = response["answer"]
         return response
+
+    # def graph_retriever(self, user_query):
+    #     #get schema from graph endpoint
+    #     #use fewshot together with schema to ask for a query by llm or to let llm return None when it thinks it wont be able to find answers based on the schema
+    #     response = self.rag_fetch_new_chain.invoke(user_query)
+    #     response = self.extract_response_content(response)
+    #     if re.sub(r'\W+ ', '', response).lower().startswith('None'):
+    #         return None
+    #     else:
+    #         #run query in graph_db
+    #         return response_from_graph_db
