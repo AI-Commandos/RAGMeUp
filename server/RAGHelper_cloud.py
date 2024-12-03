@@ -2,7 +2,7 @@ import os
 import re
 
 from langchain.prompts import ChatPromptTemplate
-from langchain.schema.runnable import RunnablePassthrough
+from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
@@ -133,6 +133,43 @@ class RAGHelperCloud(RAGHelper):
                 return self.extract_response_content(self.rewrite_chain.invoke(user_query))
         return user_query
 
+    def combine_and_limit_documents(self, graph_docs, retriever_docs, question):
+        """
+        Combines graph documents and retriever documents, limits the total number of documents,
+        and formats the combined documents for downstream processing.
+
+        Args:
+            graph_docs (list): Documents retrieved from the graph database.
+            retriever_docs (list): Documents retrieved from other retrievers.
+            max_limit (int): Maximum number of documents to include.
+            format_func (callable): Function to format documents.
+            question (str): The user query.
+
+        Returns:
+            dict: A dictionary containing the limited docs, formatted context, and question.
+        """
+        
+        """This is before formatting, importantly, metadata should at least include: source, id"""
+        if len(graph_docs[0].page_content) > nummer:
+            limited_docs = combined_docs[:self.9]
+        combined_docs = graph_docs + retriever_docs
+        limited_docs = combined_docs[:self.max_length]
+        return {
+            "docs": limited_docs,
+            "context": RAGHelper.format_documents(limited_docs),
+            "question": question
+        }
+
+
+    
+    def retrieve_documents(self, retriever, query):
+        if hasattr(retriever, "retrieve"):
+            return retriever.retrieve(query)
+        elif hasattr(retriever, "get_relevant_documents"):
+            return retriever.get_relevant_documents(query)
+        else:
+            raise AttributeError(f"Retriever {type(retriever).__name__} has no supported retrieval method.")
+
     def handle_user_interaction(self, user_query: str, history: list) -> tuple:
         """Handle user interaction by processing their query and maintaining conversation history.
 
@@ -153,17 +190,18 @@ class RAGHelperCloud(RAGHelper):
         llm_chain = prompt | self.llm
 
         if fetch_new_documents:
-            # graph_retriever = self.graph_retriever(user_query)
-            # if ((len(graph_retriever)<self.max_length) or graph_retriever==None):
+            graph_retrieved_docs = self.graph_retriever(user_query)  # Assume this fetches graph DB docs
             context_retriever = self.ensemble_retriever if self.rerank else self.rerank_retriever
-            # filtered_docs = retrieved_docs[:remaining_slots]
-            # final_docs = graph_retriever + filtered_docs
-            self.logger.info(context_retriever)
             retriever_chain = {
-                "docs": context_retriever,
-                "context": context_retriever | RAGHelper.format_documents,
+                "retriever_docs": context_retriever,  # Lazy retrieval from context retriever
                 "question": RunnablePassthrough()
-            }
+            } | RunnableLambda(
+                lambda input_data: self.combine_and_limit_documents(
+                    graph_docs=graph_retrieved_docs,
+                    retriever_docs=input_data["retriever_docs"],
+                    question=user_query
+                )
+            )
             llm_chain = prompt | self.llm | StrOutputParser()
             rag_chain = (
                 retriever_chain
@@ -184,16 +222,30 @@ class RAGHelperCloud(RAGHelper):
                     ))
                 | combine_results
             )
-
         user_query = self.handle_rewrite(user_query)
         # Check if we need to apply Re2 to mention the question twice
         if os.getenv("use_re2") == "True":
             user_query = f'{user_query}\n{os.getenv("re2_prompt")}{user_query}'
-        self.logger.info(rag_chain)
-        self.logger.info(retriever_chain)
+            
+        retrieved_docs = []
+
+        for retriever in self.ensemble_retriever.retrievers:
+            docs = self.retrieve_documents(retriever, user_query)
+            retrieved_docs.extend(docs)
+
+        formatted_docs = RAGHelper.format_documents(retrieved_docs)
+        # Log raw documents
+        self.logger.info("=== Raw Retrieved Documents ===")
+        for i, doc in enumerate(retrieved_docs):
+            self.logger.info(f"Document {i} Content: {doc.page_content}")
+            self.logger.info(f"Document {i} Metadata: {doc.metadata}")
+
+        # Log formatted documents
+        self.logger.info("=== Formatted Documents ===")
+        self.logger.info(formatted_docs)
+
         # Invoke RAG pipeline
         reply = rag_chain.invoke(user_query)
-
         # Track provenance if needed
         if fetch_new_documents and os.getenv("provenance_method") in ['rerank', 'attention', 'similarity', 'llm']:
             self.track_provenance(reply, user_query)
@@ -320,13 +372,25 @@ class RAGHelperCloud(RAGHelper):
             response = response["answer"]
         return response
 
-    # def graph_retriever(self, user_query):
-    #     #get schema from graph endpoint
-    #     #use fewshot together with schema to ask for a query by llm or to let llm return None when it thinks it wont be able to find answers based on the schema
-    #     response = self.rag_fetch_new_chain.invoke(user_query)
-    #     response = self.extract_response_content(response)
-    #     if re.sub(r'\W+ ', '', response).lower().startswith('None'):
-    #         return None
-    #     else:
-    #         #run query in graph_db
-    #         return response_from_graph_db
+    def graph_retriever(self, user_query):
+        #get schema from graph endpoint
+        requests.get(url=self.neo4j+'/schema')
+        #use fewshot together with schema to ask for a query by llm or to let llm return None when it thinks it wont be able to find answers based on the schema
+        response = self.rag_fetch_new_chain.invoke(user_query)
+        response = self.extract_response_content(response)
+        if re.sub(r'\W+ ', '', response).lower().startswith('None'):
+            return None
+        else:
+            #run query in graph_db
+            #format as document from langchain, thus with page_content and metadata
+            return response_from_graph_db
+        
+        
+    the schema of the database = quote, topic, is part of, you have to create a cypher query that can answer a user_query, if it is not possible to answer the question with the schema and the data in it return None, else return a valid cypher query
+    example1 :
+    example 2: 
+    
+    userquery = what is the size of an elephant
+    lmm response = None
+    what topics are there?
+    llm response = cypher query
