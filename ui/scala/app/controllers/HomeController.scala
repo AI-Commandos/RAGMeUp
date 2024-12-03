@@ -31,12 +31,12 @@ class HomeController @Inject()(
     Ok("Add page")
   }
 
-  def download() = Action { implicit request: Request[AnyContent] =>
-    Ok("Download page")
+  def download(file: String) = Action { implicit request: Request[AnyContent] =>
+    Ok(s"Download page for file: $file")
   }
 
-  def delete() = Action { implicit request: Request[AnyContent] =>
-    Ok("Delete page")
+  def delete(file: String) = Action { implicit request: Request[AnyContent] =>
+    Ok(s"Delete page for file: $file")
   }
 
   def upload() = Action { implicit request: Request[AnyContent] =>
