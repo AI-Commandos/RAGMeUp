@@ -393,11 +393,12 @@ class RAGHelper:
     def _initialize_bm25retriever(self):
         """Initializes in memory BM25Retriever."""
         self.logger.info("Initializing BM25Retriever.")
+
         self.sparse_retriever = BM25Retriever.from_texts(
             [x.page_content for x in self.chunked_documents],
             metadatas=[x.metadata for x in self.chunked_documents]
         )
-
+    
     def _initialize_postgresbm25retriever(self):
         """Initializes in memory PostgresBM25Retriever."""
         self.logger.info("Initializing PostgresBM25Retriever.")
@@ -551,6 +552,8 @@ class RAGHelper:
                             },
                         }
                     )
+            self.logger.info(f'JSON is: {payloads}')
+            self.logger.info(f'URL is: {url_add_instance}')
             response = requests.post(url = url_add_instance,json=payloads)
             self.logger.info(f'Succesfully loaded {len(payloads)} records into payloads')
         except:
