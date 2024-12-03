@@ -16,3 +16,5 @@ POST    /feedback                   controllers.HomeController.feedback()
 # Map static resources from the /public folder to the /assets URL path
 GET     /webjars/*file              controllers.Assets.at(path="/public/lib", file)
 GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)
+
+
