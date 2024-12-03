@@ -16,6 +16,7 @@ from deepeval.metrics import (
 )
 from langchain.schema.runnable import RunnablePassthrough
 from langchain.prompts import ChatPromptTemplate
+from langchain.schema import SystemMessage, HumanMessage
 from deepeval.test_case import LLMTestCase
 from deepeval.metrics import BaseMetric
 from deepeval.test_case import LLMTestCase
@@ -241,14 +242,128 @@ def generate_and_evaluate_qa_pairs(
 
     return results, qa_pairs
 
+def generate_and_evaluate_qa_pairs_server(
+        raghelper,
+        sample_size=10,
+        qa_pairs_count=5,
+        llm_model=None,
+        end_string=None,
+        logger=None
+):
+    """
+    Generates QA pairs and evaluates them using DeepEval metrics.
 
+    Parameters:
+    - raghelper: RAGHelper instance for document handling.
+    - sample_size: Number of documents to sample for QA pair generation.
+    - qa_pairs_count: Number of QA pairs to generate.
+    - llm_model: LLM model to use for generating questions and answers.
+    - end_string: The end string for splitting LLM responses.
+    - logger: Logger instance for logging.
+
+    Returns:
+    - results: Results of the evaluation.
+    - qa_pairs: List of generated QA pairs with their questions, answers, and contexts.
+    """
+    if not logger:
+        logger = logging.getLogger(__name__)
+
+    # Initialize metrics
+    answer_relevancy_threshold = float(os.getenv("deepeval_answer_relevancy_threshold", 0.7))
+    faithfulness_threshold = float(os.getenv("deepeval_faithfulness_threshold", 0.7))
+    contextual_precision_threshold = float(os.getenv("deepeval_contextual_precision_threshold", 0.7))
+    contextual_recall_threshold = float(os.getenv("deepeval_contextual_recall_threshold", 0.7))
+    contextual_relevancy_threshold = float(os.getenv("deepeval_contextual_relevancy_threshold", 0.7))
+    hallucination_threshold = float(os.getenv("deepeval_hallucination_threshold", 0.5))
+    correctness_threshold = float(os.getenv("deepeval_correctness_threshold", 0.5))
+
+    metrics = [
+        AnswerRelevancyMetric(threshold=answer_relevancy_threshold, model=llm_model),
+        FaithfulnessMetric(threshold=faithfulness_threshold, model=llm_model),
+        ContextualPrecisionMetric(threshold=contextual_precision_threshold, model=llm_model),
+        ContextualRecallMetric(threshold=contextual_recall_threshold, model=llm_model),
+        ContextualRelevancyMetric(threshold=contextual_relevancy_threshold, model=llm_model),
+        HallucinationMetric(threshold=hallucination_threshold, model=llm_model),
+        ToolCorrectnessMetric(threshold=correctness_threshold)
+    ]
+
+    # Load and shuffle documents
+    documents = raghelper.chunked_documents
+    random.shuffle(documents)
+    document_sample = documents[:min(sample_size, len(documents))]
+
+    # Prepare templates for questions and answers
+    question_thread = [
+        SystemMessage(content=os.getenv("deepeval_question_instruction")),
+        HumanMessage(content=os.getenv("deepeval_question_query"))
+    ]
+    question_prompt = ChatPromptTemplate.from_messages(question_thread)
+    rag_question = question_prompt | raghelper.llm
+
+    answer_thread = [
+        SystemMessage(content=os.getenv("deepeval_answer_instruction")),
+        HumanMessage(content=os.getenv("deepeval_answer_query"))
+    ]
+    answer_prompt = ChatPromptTemplate.from_messages(answer_thread)
+    rag_answer = answer_prompt | raghelper.llm
+
+    # Generate QA pairs
+    qa_pairs = []
+    for i in range(qa_pairs_count):
+        random.shuffle(document_sample)
+        selected_docs = document_sample[:min(sample_size, len(document_sample))]
+
+        # Format documents for the LLM
+        formatted_docs = [doc.page_content for doc in selected_docs]
+        logger.debug(f"Formatted Docs: {formatted_docs}")
+
+        # Generate question
+        question_chain = {"context": RunnablePassthrough()} | rag_question
+        question_response = question_chain.invoke(formatted_docs)
+        question = getattr(question_response, "content", None) or str(question_response)
+        logger.debug(f"Generated Question: {question}")
+
+        # Generate answer
+        answer_chain = {"context": RunnablePassthrough(), "question": RunnablePassthrough()} | rag_answer
+        answer_response = answer_chain.invoke({"context": formatted_docs, "question": question})
+        answer = getattr(answer_response, "content", None) or str(answer_response)
+        logger.debug(f"Generated Answer: {answer}")
+
+        qa_pairs.append({
+            "question": question,
+            "ground_truth": answer,
+            "context": formatted_docs,
+        })
+
+    # Log QA pairs
+    logger.info(f"Generated QA Pairs: {qa_pairs}")
+    for i, pair in enumerate(qa_pairs):
+        if not pair["question"] or not pair["ground_truth"] or not pair["context"]:
+            logger.error(f"Incomplete QA pair at index {i}: {pair}")
+
+    # Prepare test cases for evaluation
+    test_cases = [
+        LLMTestCase(
+            input=pair["question"],
+            actual_output=pair["ground_truth"],
+            expected_output=pair["ground_truth"],
+            retrieval_context=pair["context"]
+        )
+        for pair in qa_pairs
+    ]
+
+    # Evaluate with DeepEval
+    results = evaluate(test_cases, metrics)
+    logger.info(f"Evaluation Results: {results}")
+
+    return results, qa_pairs
 
 
 if __name__ == "__main__":
     # Example execution
     results, qa_pairs = generate_and_evaluate_qa_pairs(
         raghelper=raghelper,
-        metrics=metrics,
+        metrics= metrics,
         sample_size=int(os.getenv("deepeval_sample_size", 10)),
         qa_pairs_count=int(os.getenv("deepeval_qa_pairs", 5)),
         use_cloud=use_cloud,

@@ -7,7 +7,7 @@ from DeepEval_eval import LongDistanceInformationExtraction
 from DeepEval_eval import CounterfactualErrorHandling
 from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper_local import RAGHelperLocal
-from DeepEval_eval import generate_and_evaluate_qa_pairs
+from DeepEval_eval import generate_and_evaluate_qa_pairs_server
 from pymilvus import Collection, connections
 from deepeval import evaluate
 from deepeval.metrics import (
@@ -90,7 +90,6 @@ def deepeval_evaluate():
     Expects JSON input specifying evaluation parameters.
     """
     if isinstance(raghelper, RAGHelperCloud):
-        try:
             # Parse input JSON
             json_data = request.get_json()
             if not json_data:
@@ -100,7 +99,7 @@ def deepeval_evaluate():
             sample_size = int(json_data.get("sample_size", 10))
             qa_pairs_count = int(json_data.get("qa_pairs", 5))
             # Call the generate_and_evaluate_qa_pairs function
-            results, qa_pairs = generate_and_evaluate_qa_pairs(
+            results, qa_pairs = generate_and_evaluate_qa_pairs_server(
                 raghelper=raghelper,
                 sample_size=sample_size,
                 qa_pairs_count=qa_pairs_count,
@@ -114,10 +113,6 @@ def deepeval_evaluate():
                 "evaluation_results": results,
                 "qa_pairs": qa_pairs
             })
-
-        except Exception as e:
-            logger.error(f"Error during evaluation: {str(e)}")
-            return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
     else:
         logger.error(f"Deep Eval cannot be run in Local LLMs yet.")
