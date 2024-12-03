@@ -16,6 +16,7 @@ from psycopg2 import sql
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 from pydantic import Field, BaseModel
 from langchain_huggingface.llms import HuggingFacePipeline
+import sqlparse
 
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,28 @@ class SQLGenerator:
         generated_sql = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
 
         return generated_sql
+
+
+def validate_sql(sql_query):
+    try:
+        parsed = sqlparse.parse(sql_query)
+        if not parsed:
+            raise ValueError("Invalid SQL")
+        return True
+    except Exception as e:
+        return False
+
+
+import re
+
+def extract_sql(output):
+    match = re.search(r'```sql\s*(.*?)\s*```', output, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    else:
+        # Fall back to other methods if no delimiters are found
+        return output.strip()
+
 
 
 class PostgresText2SQLRetriever(BaseRetriever):
@@ -130,6 +153,9 @@ class PostgresText2SQLRetriever(BaseRetriever):
         sql_query = self._compute_query(query)
         # Get data with a prompt and return the result as a json object
         logger.info(f"SQL Query: {sql_query}")
+        if not validate_sql(sql_query):
+            return []
+        
         self.cur.execute(sql_query)
         rows = self.cur.fetchmany(50)
         documents = self._format_results_as_documents(rows)
@@ -150,11 +176,9 @@ class PostgresText2SQLRetriever(BaseRetriever):
         logger.info(f"Input Prompt: {input_prompt}")
         generated_text = self.llama(input_prompt)
 
-        match = re.search(r"SELECT.*?;", generated_text, re.DOTALL)
-        if match:
-            generated_text = match.group(0).replace("\n", " ").strip()  # This is the matched SQL query
+        # Extract the SQL query from the generated text
+        sql_query = extract_sql(generated_text)        
 
-        sql_query = generated_text
         return sql_query
     
     def get_database_schema(self):
