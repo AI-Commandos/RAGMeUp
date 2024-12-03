@@ -6,9 +6,10 @@ import play.api.libs.json._
 import play.api.mvc._
 import play.api.libs.ws._
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class HomeController @Inject()(
@@ -18,7 +19,7 @@ class HomeController @Inject()(
 )(implicit ec: ExecutionContext) // Use the injected ExecutionContext
   extends AbstractController(cc) {
 
-  def searchGraph(query: String, docs: Seq[JsObject]): Future[String] = {
+  def searchGraph(query: String, docs: Seq[JsObject])(implicit ec: ExecutionContext): Future[String] = {
     Future {
       "response from graph" // Replace with your logic
     }

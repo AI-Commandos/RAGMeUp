@@ -5,6 +5,7 @@
 
 # An example controller showing a sample home page
 GET     /                           controllers.HomeController.index()
+GET     /async                      controllers.HomeController.asyncExample
 GET     /add                        controllers.HomeController.add()
 POST    /search                     controllers.HomeController.search()
 GET     /download/:file             controllers.HomeController.download(file)
