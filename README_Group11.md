@@ -105,9 +105,10 @@ After initializing the model, indexing is required to organize the documents int
    fsspec==2024.9.0
    ragatouille
    ```
-**Limitations** 
+## Limitations 
 - Although the ColBERTReranker should successfully obtain more insightful responses in a faster time, due to its support for reranking with late interaction; its current performance and running times do not reflect this behavior.
-- The setting "use_rewrite_loop" to True results in better responses, but there seems to be a randomness issue where occasionally the response cannot be visualized in the user interface. Even though the response can be generated in the Google Colab "server.py" output, the team has attempted to fix this issue, but is not proficient with Scala and struggled to find a solution. 
+- The setting "use_rewrite_loop" to True results in better responses, but there seems to be a randomness issue where occasionally the response cannot be visualized in the user interface. Even though the response can be generated in the Google Colab "server.py" output, the team has attempted to fix this issue, but is not proficient with Scala and struggled to find a solution.
+- Lastly, the current implementation fixates the number of returned documents.
 
 
 These were the most prevalent steps for replacing FlashRank with ColBERT.
