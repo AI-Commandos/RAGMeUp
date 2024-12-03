@@ -19,6 +19,34 @@ class HomeController @Inject()(
 )(implicit ec: ExecutionContext) // Use the injected ExecutionContext
   extends AbstractController(cc) {
 
+  def index() = Action { implicit request: Request[AnyContent] =>
+    Ok("Index page")
+  }
+
+  def asyncExample() = Action.async { implicit request: Request[AnyContent] =>
+    Future.successful(Ok("Async example"))
+  }
+
+  def add() = Action { implicit request: Request[AnyContent] =>
+    Ok("Add page")
+  }
+
+  def download() = Action { implicit request: Request[AnyContent] =>
+    Ok("Download page")
+  }
+
+  def delete() = Action { implicit request: Request[AnyContent] =>
+    Ok("Delete page")
+  }
+
+  def upload() = Action { implicit request: Request[AnyContent] =>
+    Ok("Upload page")
+  }
+
+  def feedback() = Action { implicit request: Request[AnyContent] =>
+    Ok("Feedback page")
+  }
+
   def searchGraph(query: String, docs: Seq[JsObject])(implicit ec: ExecutionContext): Future[String] = {
     Future {
       "response from graph" // Replace with your logic
