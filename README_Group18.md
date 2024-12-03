@@ -4,14 +4,16 @@ This project extends the existing **RAG Me Up framework** by integrating a **Tex
 
 ## Key Changes and Additions
 ### 1. New Component: Text2SQL
-
-File: server/text2_sql.py
-Description:
+- File: server/text2_sql.py
+- Description:
+  
 A Text2SQL class was added to the framework, which uses the Hugging Face model suriya7/t5-base-text-to-sql to convert natural language queries into SQL queries.
-Features:
+
+- Features:
+
 Tokenizer and Model Initialization: Leverages AutoTokenizer and AutoModelForSeq2SeqLM for translation tasks.
-Database Integration: Allows connection to a PostgreSQL database through a configurable db_uri.
-Error Handling: Includes robust logging for query translation and execution.
+- Database Integration: Allows connection to a PostgreSQL database through a configurable db_uri.
+- Error Handling: Includes robust logging for query translation and execution.
 ### 2. Environment Configuration Updates
 
 File: server/.env.template
