@@ -32,9 +32,32 @@ This were the steps that were taken.
    colbert_query_maxlen=32  # max query length
    rerank_k=5  # number of documents to return after reranking
    ```
-3. The file "ColBERTReranker.py" is added. This file contains the entire ColBERTReranker.
+3. The file "ColBERTReranker.py" is added. This file contains the entire ColBERTReranker. It leverages ColBERT for reranking documents based on their relevance to a given query. The ColBERTReranker is a custom class that inherits from the BaseDocumentCompressor, aligning it with the LangChain document processing framework. 
 
-4. The file "RAGHelper.py" contains not useful changes, but we have to notify that a lot changes are given since all single apostrophe's are changed to doubles and code that was in one line is put under each other. This is done in the automatic formatting of vscode. These changes do not add value but are indicated by github, be aware of these. The meaning full change was in the 'initialize reranker' function. Here the added code is indicated in the comments:
+    ```ruby
+    class ColBERTReranker(BaseDocumentCompressor):
+        """
+        A document compressor that uses ColBERT for reranking documents.
+        """
+    ```
+The core component where the reranking of documents occurs in the "compress_documents" method. It handles empty documents, prepares the documents for reranking, initializes the ColBERT model, and returns the "top_n" documents. It loads a pretrained "colbertv2.0" which has a checkpoint trained on the MS MARCO Passage Ranking task.
+
+    ```ruby
+    colbert = RAGPretrainedModel.from_pretrained(self.model)
+    colbert.index(
+        index_name="/content/RAGMeUp/server/indexed",
+        collection=doc_texts,
+        document_ids=doc_ids,
+        document_metadatas=[doc.metadata for doc in documents],
+    )
+    results = colbert.search(query)
+
+    ```
+
+After initializing the model, indexing is required to organize the documents into a structure optimized for fast retrieval. Without indexing, the system would need to perform a linear search across all documents, which is computationally expensive and impractical for large datasets. Note that they are stored in the denoted directory. Afterward, the searcher is used on the indexed structure to quickly find and rank documents relevant to a given query.
+
+
+4. The file "RAGHelper.py" contains a useful changes, but we have to notify that a lot changes are given since all single apostrophe's are changed to doubles and code that was in one line is put under each other. This is done in the automatic formatting of vscode. These changes do not add value but are indicated by github, be aware of these. The meaningful change resides in the 'initialize reranker' function. Here the added code is indicated in the comments:
    
    ```ruby
    def _initialize_reranker(self):
@@ -75,14 +98,15 @@ This were the steps that were taken.
                 d['page_content'] in [doc.page_content for doc in reply['docs']]]
    ```
 
-6. The "requirements.txt" should also be updated since there are new libaries used while using ColBERT:
+6. The "requirements.txt" should also be updated since there are new libaries required while using ColBERT:
 
    ```ruby
    colbert-ir==0.2.14  # Added for ColBERT reranking
    fsspec==2024.9.0
    ragatouille
    ```
-
+**Note**
+Although the ColBERTReranker showed succesfully obtain more insightful responses in faster time, due to it support for reranking with late interaction; its current performance and running times do not reflect this behavior.
 
 These were the most prevelant steps for replacing FlashRank with ColBERT.
 
