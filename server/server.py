@@ -184,7 +184,7 @@ def get_documents():
         # Append document with feedback
         documents_with_feedback.append({"filename": filename, "feedback": feedback_list})
 
-        print(f"Files get docuemnts_with_feedback in GET: {documents_with_feedback}")
+    print(f"Files get docuemnts_with_feedback in GET: {documents_with_feedback}")
         
     conn.close()
 
