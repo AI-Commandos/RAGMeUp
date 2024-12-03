@@ -97,7 +97,7 @@ def chat():
     # Break up the response for local LLMs
     if isinstance(raghelper, RAGHelperSQL) or isinstance(raghelper, RAGHelperLocal):
         end_string = os.getenv("llm_assistant_token")
-        reply = response['text'][response['text'].rindex(end_string) + len(end_string):]
+        reply = response['text']
 
         # Get updated history
         new_history = [{"role": msg["role"], "content": msg["content"].format_map(response)} for msg in new_history]
