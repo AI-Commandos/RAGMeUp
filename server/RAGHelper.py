@@ -425,7 +425,7 @@ class RAGHelper:
         else:
             self.logger.info("Setting up the ScoredCrossEncoderReranker.")
             self.compressor = ScoredCrossEncoderReranker(
-                model=HuggingFaceCrossEncoder(model_name=self.rerank_model),
+                model=HuggingFaceCrossEncoder(model_name="cross-encoder/ms-marco-MiniLM-L-6-v2"),
                 top_n=self.rerank_k
             )
         self.logger.info("Setting up the ContextualCompressionRetriever.")
