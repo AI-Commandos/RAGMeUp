@@ -81,7 +81,7 @@ class RAGHelperSQL(RAGHelperLocal):
                     # Use the retrieved documents in both 'docs' and 'context'
                     "docs": lambda inputs: inputs["retrieved_docs"],
                     "context": lambda inputs: RAGHelper.format_documents(inputs["retrieved_docs"]),
-                    "question": lambda inputs: inputs["question"],
+                    "question": RunnablePassthrough(),
                 }
                 | LLMChain(llm=self.llm, prompt=prompt)
             )
