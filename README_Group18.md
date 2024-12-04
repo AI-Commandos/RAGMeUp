@@ -18,7 +18,7 @@ With Text2SQL, the **RAG Me Up framework** can now seamlessly handle mixed queri
 
 ## Key Changes and Additions
 ### 1. New Component: Text2SQL
-- File: server/text2_sql.py
+- File: `server/text2_sql.py`
 - Description: A Text2SQL class was added to the framework, which uses the Hugging Face model suriya7/t5-base-text-to-sql to convert natural language queries into SQL queries.
 #### Features:
 - Tokenizer and Model Initialization: Leverages `AutoTokenizer` and `AutoModelForSeq2SeqLM` for translation tasks.
@@ -76,7 +76,7 @@ def execute(self, sql_query):
     
 ### 3. Integration with RAG Framework
 
-- File: server/RAGHelper.py
+- File: `server/RAGHelper.py`
   - To integrate the Text2SQL component into the RAG Me Up framework, we made the following modifications in `server/RAGHelper.py`:
 #### Modifications:
 - Method `_initialize_retrievers`:
