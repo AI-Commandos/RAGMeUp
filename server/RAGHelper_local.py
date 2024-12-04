@@ -213,7 +213,8 @@ class RAGHelperLocal(RAGHelper):
 
         self.logger.info(f"LLM response: {reply}")
 
-        if fetch_new_documents and os.getenv("provenance") == "True":
+        # In case of text2sql, we don't track provenance.
+        if fetch_new_documents and os.getenv("provenance_method") != "text2sql":
             self._track_provenance(user_query, reply, thread)
 
         return thread, reply
