@@ -21,9 +21,48 @@ With Text2SQL, the **RAG Me Up framework** can now seamlessly handle mixed queri
 - File: server/text2_sql.py
 - Description: A Text2SQL class was added to the framework, which uses the Hugging Face model suriya7/t5-base-text-to-sql to convert natural language queries into SQL queries.
 - Features:
-  - Tokenizer and Model Initialization: Leverages AutoTokenizer and AutoModelForSeq2SeqLM for translation tasks.
+  - Tokenizer and Model Initialization: Leverages `AutoTokenizer` and `AutoModelForSeq2SeqLM` for translation tasks.
   - Database Integration: Allows connection to a PostgreSQL database through a configurable db_uri.
+
+```python
+    def __init__(self, model_name="suriya7/t5-base-text-to-sql", db_uri=None):
+    self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+    self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+    self.db_uri = db_uri
+    # Configure logger
+    self.logger = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.INFO)
+```
+
+  - Query Translation (`translate` method): Converts a natural language query into an SQL query using the NLP model.
+```python
+def translate(self, user_query):
+    self.logger.info(f"Translating user query: {user_query}")
+    input_text = f"translate English to SQL: {user_query}"
+    input_ids = self.tokenizer.encode(input_text, return_tensors="pt")
+    outputs = self.model.generate(input_ids, max_length=128, num_beams=4, early_stopping=True)
+    sql_query = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+    print(f"Generated SQL query: {sql_query}")
+    return sql_query
+```
+  - SQL Execution (`execute` method): Executes the translated SQL query on a PostgreSQL database and retrieves results.
   - Error Handling: Includes robust logging for query translation and execution.
+
+```python
+def execute(self, sql_query):
+    try:
+        print(f"Executing SQL query: {sql_query}")
+        connection = psycopg2.connect(self.db_uri)
+        cursor = connection.cursor()
+        cursor.execute(sql_query)
+        results = cursor.fetchall()
+        connection.close()
+        print(f"SQL query executed successfully, results: {results}")
+        return results
+    except Exception as e:
+        print(f"Error executing SQL query: {e}")
+        return {"error": str(e)}
+```
 ### 2. Environment Configuration Updates
 
 - File: server/.env.template
