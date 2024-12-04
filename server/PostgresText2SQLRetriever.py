@@ -133,6 +133,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
         self.conn.commit()
 
     def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun) -> List[Document]:
+        logger.info(f"Relevant documents called for ")
         sql_query = self._compute_query(query)
         # Get data with a prompt and return the result as a json object
         logger.info(f"SQL Query: {sql_query}")
