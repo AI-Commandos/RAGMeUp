@@ -67,27 +67,3 @@ class RAGHelperSQL(RAGHelperLocal):
             },
         )
         return HuggingFacePipeline(pipeline=text_generation_pipeline)
-
-    def _create_llm_chain(self, fetch_new_documents, prompt):
-        """Create the LLM chain for invoking the RAG pipeline."""
-        if fetch_new_documents:
-            # Create a function that processes the input and calls the retriever once
-            def retriever_to_outputs(inputs):
-                question = inputs["question"]
-                retrieved_docs = self.ensemble_retriever(question)
-                formatted_context = RAGHelper.format_documents(retrieved_docs)
-                return {
-                    "docs": retrieved_docs,
-                    "context": formatted_context,
-                    "question": question,
-                }
-
-            # Build the chain using RunnableLambda to process inputs correctly
-            return (
-                {"question": RunnablePassthrough()}
-                | RunnableLambda(retriever_to_outputs)
-                | LLMChain(llm=self.llm, prompt=prompt)
-            )
-
-        # If not fetching new documents, proceed as usual
-        return {"question": RunnablePassthrough()} | LLMChain(llm=self.llm, prompt=prompt)
