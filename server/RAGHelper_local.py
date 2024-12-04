@@ -204,9 +204,11 @@ class RAGHelperLocal(RAGHelper):
         thread = self._prepare_conversation_thread(history, fetch_new_documents)
         self.logger.info("Determine input variables")
         input_variables = self._determine_input_variables(fetch_new_documents)
+        self.logger.info(f"Input variables: {input_variables}")
         self.logger.info("Create prompt template")
         prompt = self._create_prompt_template(thread, input_variables)
 
+        self.logger.info(f"Prompt: {prompt}")
         self.logger.info("Create LLM chain")
         llm_chain = self._create_llm_chain(fetch_new_documents, prompt)
 
