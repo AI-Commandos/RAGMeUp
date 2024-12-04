@@ -197,11 +197,17 @@ class RAGHelperLocal(RAGHelper):
         Returns:
             tuple: The conversation thread and the LLM response with potential provenance scores.
         """
+
+        self.logger.info("Check if new documents are needed")
         fetch_new_documents = self._should_fetch_new_documents(user_query, history)
+        self.logger.info("Preparing conversation thread")
         thread = self._prepare_conversation_thread(history, fetch_new_documents)
+        self.logger.info("Determine input variables")
         input_variables = self._determine_input_variables(fetch_new_documents)
+        self.logger.info("Create prompt template")
         prompt = self._create_prompt_template(thread, input_variables)
 
+        self.logger.info("Create LLM chain")
         llm_chain = self._create_llm_chain(fetch_new_documents, prompt)
 
         # Handle rewrite and re2
@@ -209,6 +215,7 @@ class RAGHelperLocal(RAGHelper):
         if os.getenv("use_re2") == "True":
             user_query = f'{user_query}\n{os.getenv("re2_prompt")}{user_query}'
         
+        self.logger.info("Invoke RAG chain")
         reply = self._invoke_rag_chain(user_query, llm_chain)
 
         self.logger.info(f"LLM response: {reply}")
