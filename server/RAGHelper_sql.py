@@ -2,10 +2,11 @@ import os
 
 from langchain_huggingface.llms import HuggingFacePipeline
 from PostgresText2SQLRetriever import PostgresText2SQLRetriever
-from provenance import DocumentSimilarityAttribution
 from RAGHelper import RAGHelper
 from RAGHelper_local import RAGHelperLocal
 from transformers import pipeline
+from langchain.schema.runnable import RunnablePassthrough, RunnableParallel
+from langchain.chains.llm import LLMChain
 
 
 class RAGHelperSQL(RAGHelperLocal):
@@ -64,3 +65,20 @@ class RAGHelperSQL(RAGHelperLocal):
             },
         )
         return HuggingFacePipeline(pipeline=text_generation_pipeline)
+
+    def _create_llm_chain(self, fetch_new_documents, prompt):
+        """Create the LLM chain for invoking the RAG pipeline."""
+        if fetch_new_documents:
+            return RunnableParallel({
+                "retrieved_docs": self.ensemble_retriever,
+
+                # Pass the retrieved documents as "docs"
+                "docs": lambda inputs: inputs["retrieved_docs"],  
+
+                # Format the retrieved documents for context
+                "context": lambda inputs: RAGHelper.format_documents(inputs["retrieved_docs"]),
+
+                "question": RunnablePassthrough()
+            }) | LLMChain(llm=self.llm, prompt=prompt)
+        
+        return {"question": RunnablePassthrough()} | LLMChain(llm=self.llm, prompt=prompt)
