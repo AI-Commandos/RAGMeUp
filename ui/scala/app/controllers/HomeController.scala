@@ -88,26 +88,30 @@ class HomeController @Inject()(
       Redirect(routes.HomeController.add()).flashing("error" -> "Adding CV to database failed.")
     }
   }
-
-  def feedback() = Action { implicit request: Request[AnyContent] =>
-    Ok(Json.obj())
-  }
-
   def search() = Action.async { implicit request: Request[AnyContent] =>
     val json = request.body.asJson.getOrElse(Json.obj()).as[JsObject]
     val query = (json \ "query").as[String]
     val history = (json \ "history").as[Seq[JsObject]]
     val docs = (json \ "docs").as[Seq[JsObject]]
 
-    ws.url(s"${config.get[String]("server_url")}/chat")
-      .withRequestTimeout(5.minutes)
-      .post(Json.obj(
-        "prompt" -> query,
-        "history" -> history,
-        "docs" -> docs
-      ))
-      .map { response =>
-        Ok(response.json)
+  ws.url(s"${config.get[String]("server_url")}/chat")
+    .withRequestTimeout(5.minutes)
+    .post(Json.obj(
+      "prompt" -> query,
+      "history" -> history,
+      "docs" -> docs
+    ))
+    .map { response =>
+      response.status match {
+        case 200 => Ok(response.json)
+        case _ => InternalServerError("Error: " + response.statusText)
       }
+    }
+}
+
+  def feedback() = Action { implicit request: Request[AnyContent] =>
+    Ok(Json.obj())
   }
 }
+
+
