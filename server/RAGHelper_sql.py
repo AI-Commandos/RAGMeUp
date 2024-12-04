@@ -83,7 +83,7 @@ class RAGHelperSQL(RAGHelperLocal):
                     "docs": itemgetter("retrieved_docs"),
                     # Format retrieved_docs for context
                     "context": RAGHelper.format_documents(
-                        itemgetter("retrieved_docs")
+                        itemgetter("docs")
                     ),
                     # Question is passed directly as is
                     "question": RunnablePassthrough(),
