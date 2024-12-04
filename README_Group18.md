@@ -188,13 +188,13 @@ SELECT birth_date FROM table_name_94 WHERE name = "Lincoln";
 Output: The birth date of Lincoln from the database.
 
 ### Answer comparison
+With the integration of the Text2SQL component, the RAG Me Up system provides more comprehensive and detailed answers. By supporting SQL queries, the system can extract relevant information from structured databases, complementing the dense and sparse retrieval mechanisms. This enhancement significantly improves the specificity and accuracy of the answers, allowing the system to combine insights from both unstructured text and structured data efficiently.
 
-
-
-
-
-
-
+From the comparison below, as shown in Figure: Answer Without Text2SQL and Figure: Answer With Text2SQL, it is evident that the addition of Text2SQL enables the system to deliver more in-depth and contextually rich responses.
+**Figure: Answer Without Text2SQL：**
+![RAG original answer](./original_answer.jpg)
+**Figure: Answer With Text2SQL**
+![answer after add text2sql to RAG](./answer_after_text2sql.jpg)
 
 ## Benefits
 - Enhanced Query Flexibility: Supports complex natural language queries by converting them into SQL.
