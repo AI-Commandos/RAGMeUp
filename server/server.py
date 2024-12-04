@@ -53,6 +53,7 @@ def chat():
     Handle chat interactions with the RAG system.
     """
     try:
+        # Parse incoming request JSON
         json_data = request.get_json()
         prompt = json_data.get('prompt')
         history = json_data.get('history', [])
@@ -61,169 +62,89 @@ def chat():
 
         # Call RAG helper for interaction
         new_history, response, graph_response = raghelper.handle_user_interaction(prompt, history)
+        
+        print('hoi')
+        print(response)
+        print(graph_response)
+        print()
+        print()
 
-        # Ensure graph_response is valid JSON
-        if not isinstance(graph_response, dict):
-            try:
-                graph_response = json.loads(graph_response)
-            except json.JSONDecodeError as e:
-                logger.error(f"Error decoding graph response: {e}")
-                return jsonify({'error': 'Invalid graph response format'}), 500
+         # Validate response structure
+        if not isinstance(response, dict) or 'answer' not in response:
+            raise ValueError("Invalid response format from RAG helper.")
 
-        # Process the graph
-        graph_file_path = 'graph.png'
+        # Process graph response if available
+        graph_file_path = None
         if graph_response:
-            graph = pgv.AGraph(directed=True)
-            for node in graph_response.get('nodes', []):
-                graph.add_node(node['id'], label=node['label'])
-            for edge in graph_response.get('edges', []):
-                graph.add_edge(edge['source'], edge['target'], label=edge['label'])
-            graph.layout(prog='dot')
-            graph.draw(graph_file_path)
+            try:
+                graph_file_path = 'graph.png'
+                graph = pgv.AGraph(directed=True)
+                for node in graph_response.get('nodes', []):
+                    graph.add_node(node['id'], label=node['label'])
+                for edge in graph_response.get('edges', []):
+                    graph.add_edge(edge['source'], edge['target'], label=edge['label'])
+                graph.layout(prog='dot')
+                graph.draw(graph_file_path)
+            except Exception as e:
+                logger.error(f"Graph processing error: {e}")
+                graph_file_path = None
 
-        # Prepare the reply
-        reply = response.get('answer', 'No answer available.')
-
-        # Prepare document formatting
-        fetched_new_documents = False
-        if not original_docs or 'docs' in response:
-            fetched_new_documents = True
-            new_docs = [
-                {
-                    's': doc.metadata.get('source', 'Unknown'),
-                    'c': doc.page_content,
-                    **({'pk': doc.metadata['pk']} if 'pk' in doc.metadata else {}),
-                    **({'provenance': float(doc.metadata['provenance'])} if 'provenance' in doc.metadata else {})
-                }
-                for doc in docs if 'source' in doc.metadata
-            ]
-        else:
-            new_docs = docs
+        # Format the documents for the frontend
+        new_docs = [
+            {
+                's': doc.metadata.get('source', 'Unknown'),
+                'c': doc.page_content,
+                **({'pk': doc.metadata.get('pk')} if 'pk' in doc.metadata else {}),
+                **({'provenance': float(doc.metadata.get('provenance'))} if 'provenance' in doc.metadata else {})
+            }
+            for doc in docs if 'source' in doc.metadata
+        ]
 
         # Build response dictionary
         response_dict = {
-            "reply": reply,
+            "reply": response.get('answer', 'No answer available.'),
             "history": new_history,
             "documents": new_docs,
             "rewritten": False,
             "question": prompt,
-            "fetched_new_documents": fetched_new_documents,
+            "fetched_new_documents": not original_docs,
             "graph": graph_file_path
         }
 
-        # Handle rewritten question
+        # Handle rewritten questions
         if os.getenv("use_rewrite_loop") == "True" and prompt != response.get('question', prompt):
             response_dict["rewritten"] = True
             response_dict["question"] = response['question']
 
         return jsonify(response_dict), 200
+
     except Exception as e:
-        logger.error(f"Error in /chat: {e}")
+        logger.error(f"Unhandled error in /chat: {e}")
         return jsonify({'error': str(e)}), 500
 
 
 
-# @app.route("/add_document", methods=['POST'])
-# def add_document():
-#     """
-#     Add a document to the RAG helper.
+@app.route("/add_document", methods=['POST'])
+def add_document():
+    """
+    Add a document to the RAG helper.
 
-#     This endpoint expects a JSON payload containing the filename of the document to be added.
-#     It then invokes the addDocument method of the RAG helper to store the document.
+    This endpoint expects a JSON payload containing the filename of the document to be added.
+    It then invokes the addDocument method of the RAG helper to store the document.
 
-#     Returns:
-#         JSON response with the filename and HTTP status code 200.
-#     """
-#     json_data = request.get_json()
-#     filename = json_data.get('filename')
+    Returns:
+        JSON response with the filename and HTTP status code 200.
+    """
+    json_data = request.get_json()
+    filename = json_data.get('filename')
 
-#     if not filename:
-#         return jsonify({"error": "Filename is required"}), 400
-#     logger.info(f"Adding document {filename}")
-#     raghelper.add_document(filename)
+    if not filename:
+        return jsonify({"error": "Filename is required"}), 400
+    logger.info(f"Adding document {filename}")
+    raghelper.add_document(filename)
 
-#     return jsonify({"filename": filename}), 200
+    return jsonify({"filename": filename}), 200
 
-
-# @app.route("/chat", methods=['POST'])
-# def chat():
-#     """
-#     Handle chat interactions with the RAG system.
-
-#     This endpoint processes the user's prompt, retrieves relevant documents,
-#     and returns the assistant's reply along with conversation history.
-
-#     Returns:
-#         JSON response containing the assistant's reply, history, documents, and other metadata.
-#     """
-#     try:
-#         json_data = request.get_json()
-#         prompt = json_data.get('prompt')
-#         history = json_data.get('history', [])
-#         original_docs = json_data.get('docs', [])
-#         docs = original_docs
-
-#         # Get the LLM response
-#         (new_history, response, graph_response) = raghelper.handle_user_interaction(prompt, history)
-        
-#         print(response)
-#         print('\n')    
-#         print(graph_response)
-
-#         # Ensure graph_response is a JSON object
-#         if isinstance(graph_response, str):
-#             try:
-#                 graph_response = json.loads(graph_response)
-#             except json.JSONDecodeError as e:
-#                 return jsonify({'error': f'Error decoding JSON: {str(e)}'}), 500
-
-#         # Process the graph response
-#         graph_data = None
-#         if graph_response:
-#             graph = pgv.AGraph(directed=True)
-#             for node in graph_response['nodes']:
-#                 graph.add_node(node['id'], label=node['label'])
-#             for edge in graph_response['edges']:
-#                 graph.add_edge(edge['source'], edge['target'], label=edge['label'])
-#             graph.layout(prog='dot')
-#             graph.draw('graph.png')
-#             graph_data = send_file('graph.png', mimetype='image/png')
-
-#         # Prepare the reply
-#         reply = response['answer']
-
-#         # Format documents
-#         fetched_new_documents = False
-#         if not original_docs or 'docs' in response:
-#             fetched_new_documents = True
-#             new_docs = [{
-#                 's': doc.metadata['source'],
-#                 'c': doc.page_content,
-#                 **({'pk': doc.metadata['pk']} if 'pk' in doc.metadata else {}),
-#                 **({'provenance': float(doc.metadata['provenance'])} if 'provenance' in doc.metadata and doc.metadata['provenance'] is not None else {})
-#             } for doc in docs if 'source' in doc.metadata]
-#         else:
-#             new_docs = docs
-
-#         # Build the response dictionary
-#         response_dict = {
-#             "reply": reply,
-#             "history": new_history,
-#             "documents": new_docs,
-#             "rewritten": False,
-#             "question": prompt,
-#             "fetched_new_documents": fetched_new_documents,
-#             "graph": graph_data
-#         }
-
-#         # Check for rewritten question
-#         if os.getenv("use_rewrite_loop") == "True" and prompt != response['question']:
-#             response_dict["rewritten"] = True
-#             response_dict["question"] = response['question']
-
-#         return jsonify(response_dict), 200
-#     except Exception as e:
-#         return jsonify({'error': str(e)}), 500
 
 
 
