@@ -8,6 +8,7 @@ from langchain_core.documents import BaseDocumentCompressor, Document
 
 from langchain.retrievers.document_compressors.cross_encoder import BaseCrossEncoder
 
+from server import get_feedback  # Import the get_feedback function
 
 class ScoredCrossEncoderReranker(BaseDocumentCompressor):
     """Document compressor that uses CrossEncoder for reranking."""
@@ -39,7 +40,25 @@ class ScoredCrossEncoderReranker(BaseDocumentCompressor):
         Returns:
             A sequence of compressed documents.
         """
+        
+        # scores = self.model.score([(query, doc.page_content) for doc in documents])
+        # docs_with_scores = list(zip(documents, scores))
+        
+        # Score documents using CrossEncoder model
         scores = self.model.score([(query, doc.page_content) for doc in documents])
         docs_with_scores = list(zip(documents, scores))
+
+        print("docs_with_scores", docs_with_scores)
+        print{'Start with reranking en feedback'}
+        # Get feedback for each document and adjust score if needed
+        for i, (doc, score) in enumerate(docs_with_scores):
+            feedback = get_feedback(doc.metadata.get("document_id", ""))
+            # You could adjust the score based on feedback here, e.g., adding the average rating to the score
+            if feedback:
+                avg_rating = sum(f["rating"] for f in feedback) / len(feedback)
+                # Modify score based on feedback (this is just an example)
+                docs_with_scores[i] = (doc, score + avg_rating)
+        
+        
         result = sorted(docs_with_scores, key=operator.itemgetter(1), reverse=True)
         return [doc.copy(update={"metadata": {**doc.metadata, "relevance_score": score}}) for doc, score in result[:self.top_n]]
