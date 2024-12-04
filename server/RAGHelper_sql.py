@@ -71,17 +71,9 @@ class RAGHelperSQL(RAGHelperLocal):
     def _create_llm_chain(self, fetch_new_documents, prompt):
         """Create the LLM chain for invoking the RAG pipeline."""
         if fetch_new_documents:
-            retrieved_docs = (
-                self.ensemble_retriever.invoke(prompt)
-            )  # Call retriever once manually
-
-            chain = {
-                "docs": retrieved_docs,  # Use the precomputed result
-                "context": retrieved_docs | RAGHelper.format_documents,  # Reuse and format
-                "question": RunnablePassthrough(),  # Keep passthrough as is
+            return {
+                "docs": self.ensemble_retriever,
+                "context": itemgetter(self.ensemble_retriever) | RAGHelper.format_documents,
+                "question": RunnablePassthrough()
             } | LLMChain(llm=self.llm, prompt=prompt)
-            return chain
-
-        return {"question": RunnablePassthrough()} | LLMChain(
-            llm=self.llm, prompt=prompt
-        )
+        return {"question": RunnablePassthrough()} | LLMChain(llm=self.llm, prompt=prompt)
