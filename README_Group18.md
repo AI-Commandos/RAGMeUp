@@ -28,13 +28,14 @@ This project extends the existing **RAG Me Up framework** by integrating a **Tex
 - File: server/RAGHelper.py
   - To integrate the Text2SQL component into the RAG Me Up framework, we made the following modifications in `server/RAGHelper.py`:
 - Modifications:
-  - 1. Method `_initialize_retrievers`:
+  - a. Method `_initialize_retrievers`:
     - Added a logic branch for Text2SQL to allow SQL-based queries when vector_store is set to postgres.
     - Purpose: This block initializes the Text2SQL component during the setup of the `RAGHelper` class.
     - Details:
       - Retrieves the model name (`text_to_sql_model`) from environment variables or defaults to `suriya7/t5-base-text-to-sql`.
       - Establishes a connection to the PostgreSQL database using `self.vector_store_sparse_uri` as the `db_uri`.
       - Logs the initialization process to ensure the component is set up correctly.
+
 ```python
 # Initialize Text-to-SQL
 text_to_sql_model = os.getenv("text_to_sql_model", "suriya7/t5-base-text-to-sql")
@@ -43,8 +44,8 @@ self.text_to_sql = TextToSQL(model_name=text_to_sql_model, db_uri=self.vector_st
 
 self.logger.info("RAGHelper initialized successfully with Text-to-SQL support.")
 ```
-      
-  - 2. New Method `retrieve_from_sql`:
+
+  - b. New Method `retrieve_from_sql`:
     - Purpose:
       - This method allows the RAG pipeline to handle natural language queries that require SQL-based retrieval.
     - Details:
