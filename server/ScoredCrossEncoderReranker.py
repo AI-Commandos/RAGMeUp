@@ -21,6 +21,27 @@ class ScoredCrossEncoderReranker(BaseDocumentCompressor):
     class Config:
         arbitrary_types_allowed = True
         extra = "forbid"
+        
+
+    def get_feedback(self, document_id: str):
+        """Fetch feedback for a specific document from the feedback database."""
+        conn = sqlite3.connect('feedback.db')
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT query, answer, rating, timestamp FROM Feedback WHERE document_id = ?",
+            (document_id,)
+        )
+        feedback = cursor.fetchall()
+
+        conn.close()
+
+        # Format feedback as a list of dictionaries
+        feedback_list = [
+            {"query": row[0], "answer": row[1], "rating": row[2], "timestamp": row[3]} for row in feedback
+        ]
+
+        return feedback_list
 
     def compress_documents(
         self,
@@ -39,7 +60,6 @@ class ScoredCrossEncoderReranker(BaseDocumentCompressor):
         Returns:
             A sequence of compressed documents.
         """
-        from server import get_feedback  # Import the get_feedback function
 
         # scores = self.model.score([(query, doc.page_content) for doc in documents])
         # docs_with_scores = list(zip(documents, scores))
@@ -58,6 +78,7 @@ class ScoredCrossEncoderReranker(BaseDocumentCompressor):
                 avg_rating = sum(f["rating"] for f in feedback) / len(feedback)
                 # Modify score based on feedback (this is just an example)
                 docs_with_scores[i] = (doc, score + avg_rating)
+        
         
         
         result = sorted(docs_with_scores, key=operator.itemgetter(1), reverse=True)

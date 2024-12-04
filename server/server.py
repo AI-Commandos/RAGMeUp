@@ -328,75 +328,75 @@ def save_feedback():
     
     return jsonify({"status": "success", "message": "Feedback saved"})
 
-@app.route("/get_feedback", methods=['GET'])
-def get_feedback():
-    """
-    Retrieve feedback for a specific document.
+# @app.route("/get_feedback", methods=['GET'])
+# def get_feedback():
+#     """
+#     Retrieve feedback for a specific document.
 
-    Expects:
-        - Query parameter: ?document_id=<filename>
+#     Expects:
+#         - Query parameter: ?document_id=<filename>
 
-    Returns:
-        - Feedback associated with the document.
-    """
-    document_id = request.args.get("document_id")
+#     Returns:
+#         - Feedback associated with the document.
+#     """
+#     document_id = request.args.get("document_id")
 
-    if not document_id:
-        return jsonify({"error": "document_id is required"}), 400
+#     if not document_id:
+#         return jsonify({"error": "document_id is required"}), 400
 
-    conn = sqlite3.connect('feedback.db')
-    cursor = conn.cursor()
+#     conn = sqlite3.connect('feedback.db')
+#     cursor = conn.cursor()
 
-    cursor.execute(
-        "SELECT query, answer, rating, timestamp FROM Feedback WHERE document_id = ?",
-        (document_id,)
-    )
-    feedback = cursor.fetchall()
+#     cursor.execute(
+#         "SELECT query, answer, rating, timestamp FROM Feedback WHERE document_id = ?",
+#         (document_id,)
+#     )
+#     feedback = cursor.fetchall()
 
-    conn.close()
+#     conn.close()
 
-    # Format feedback as a list of dictionaries
-    feedback_list = [
-        {"query": row[0], "answer": row[1], "rating": row[2], "timestamp": row[3]} for row in feedback
-    ]
+#     # Format feedback as a list of dictionaries
+#     feedback_list = [
+#         {"query": row[0], "answer": row[1], "rating": row[2], "timestamp": row[3]} for row in feedback
+#     ]
 
-    return jsonify({"document_id": document_id, "feedback": feedback_list})
+#     return jsonify({"document_id": document_id, "feedback": feedback_list})
 
 
-@app.route("/get_feedback", methods=['POST'])
-def get_feedback():
-    """
-    Retrieve feedback for a specific document.
+# @app.route("/get_feedback", methods=['POST'])
+# def get_feedback():
+#     """
+#     Retrieve feedback for a specific document.
 
-    Expects:
-        - JSON payload: {"document_id": "<filename>"}
+#     Expects:
+#         - JSON payload: {"document_id": "<filename>"}
 
-    Returns:
-        - Feedback associated with the document.
-    """
-    data = request.json
-    document_id = data.get("document_id")
+#     Returns:
+#         - Feedback associated with the document.
+#     """
+#     data = request.json
+#     document_id = data.get("document_id")
 
-    if not document_id:
-        return jsonify({"error": "document_id is required"}), 400
+#     if not document_id:
+#         return jsonify({"error": "document_id is required"}), 400
 
-    conn = sqlite3.connect('feedback.db')
-    cursor = conn.cursor()
+#     conn = sqlite3.connect('feedback.db')
+#     cursor = conn.cursor()
 
-    cursor.execute(
-        "SELECT query, answer, rating, timestamp FROM Feedback WHERE document_id = ?",
-        (document_id,)
-    )
-    feedback = cursor.fetchall()
+#     cursor.execute(
+#         "SELECT query, answer, rating, timestamp FROM Feedback WHERE document_id = ?",
+#         (document_id,)
+#     )
+#     feedback = cursor.fetchall()
 
-    conn.close()
+#     conn.close()
 
-    # Format feedback as a list of dictionaries
-    feedback_list = [
-        {"query": row[0], "answer": row[1], "rating": row[2], "timestamp": row[3]} for row in feedback
-    ]
+#     # Format feedback as a list of dictionaries
+#     feedback_list = [
+#         {"query": row[0], "answer": row[1], "rating": row[2], "timestamp": row[3]} for row in feedback
+#     ]
 
-    return jsonify({"document_id": document_id, "feedback": feedback_list})
+#     return jsonify({"document_id": document_id, "feedback": feedback_list})
 
 
 if __name__ == "__main__":
