@@ -8,7 +8,6 @@ from langchain_core.documents import BaseDocumentCompressor, Document
 
 from langchain.retrievers.document_compressors.cross_encoder import BaseCrossEncoder
 
-from server import get_feedback  # Import the get_feedback function
 
 class ScoredCrossEncoderReranker(BaseDocumentCompressor):
     """Document compressor that uses CrossEncoder for reranking."""
@@ -40,7 +39,8 @@ class ScoredCrossEncoderReranker(BaseDocumentCompressor):
         Returns:
             A sequence of compressed documents.
         """
-        
+        from server import get_feedback  # Import the get_feedback function
+
         # scores = self.model.score([(query, doc.page_content) for doc in documents])
         # docs_with_scores = list(zip(documents, scores))
         
