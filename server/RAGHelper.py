@@ -73,6 +73,7 @@ class RAGHelper:
         self.json_text_content = os.getenv("json_text _content", "false").lower() == 'true'
         self.json_schema = os.getenv("json_schema")
         self.llm = pipeline("text-generation", model="gpt2")
+        self.sql_db=os.getenv('sql_db')
         if not self.vector_store_sparse_uri:
             self.logger.error("Environment variable 'vector_store_sparse_uri' is not set.")
             raise ValueError("Missing Postgres connection URI in 'vector_store_sparse_uri'")
@@ -80,7 +81,7 @@ class RAGHelper:
         # Initialize Text-to-SQL
         text_to_sql_model = os.getenv("text_to_sql_model", "suriya7/t5-base-text-to-sql")
         self.logger.info(f"Initializing TextToSQL with model: {text_to_sql_model}")
-        self.text_to_sql = TextToSQL(model_name=text_to_sql_model, db_uri= self.vector_store_sparse_uri)
+        self.text_to_sql = TextToSQL(model_name=text_to_sql_model, db_uri= self.sql_db)
 
         # Initialize DocumentSQLCombiner (optional, only if needed)
         self.document_sql_combiner = DocumentSQLCombiner()
