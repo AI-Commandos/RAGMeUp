@@ -191,14 +191,38 @@ Output: The birth date of Lincoln from the database.
 With the integration of the Text2SQL component, the RAG Me Up system provides more comprehensive and detailed answers. By supporting SQL queries, the system can extract relevant information from structured databases, complementing the dense and sparse retrieval mechanisms. This enhancement significantly improves the specificity and accuracy of the answers, allowing the system to combine insights from both unstructured text and structured data efficiently.
 
 From the comparison below, as shown in Figure: Answer Without Text2SQL and Figure: Answer With Text2SQL, it is evident that the addition of Text2SQL enables the system to deliver more in-depth and contextually rich responses.
-**Figure: Answer Without Text2SQL：**
+
+- **Figure: Answer Without Text2SQL：**
 ![RAG original answer](./original_answer.jpg)
-**Figure: Answer With Text2SQL**
+- **Figure: Answer With Text2SQL**
 ![answer after add text2sql to RAG](./answer_after_text2sql.jpg)
 
-## Benefits
-- Enhanced Query Flexibility: Supports complex natural language queries by converting them into SQL.
-- Streamlined Data Access: Integrates structured data retrieval seamlessly into the RAG framework.
-- Extensible Design: Can be adapted for additional databases and SQL variations in the future.
+## Project Summary
+This project successfully integrates the Text2SQL component into the RAG Me Up framework, enhancing its ability to handle both unstructured and structured data. The system now combines dense, sparse, and SQL-based retrievals to deliver highly accurate, detailed, and contextually rich answers. This advancement bridges the gap between conversational AI and structured data, making the framework more versatile and capable of supporting diverse use cases in knowledge retrieval.
 
+### Strengths
+- Enhanced Retrieval Capabilities:
+  - Supports unstructured document retrieval through dense and sparse methods.
+  - Adds SQL-based structured data retrieval, enabling seamless interaction with databases.
+- Improved Answer Quality:
+  - Combines multiple retrieval sources to generate comprehensive and accurate answers.
+  - Uses an LLM to integrate insights from all data sources into a unified response.
+- Scalability:
+  - Flexible design allows the integration of additional retrieval components or LLMs in the future.
+- User-Friendly:
+  - Simplifies complex database queries by allowing natural language inputs, making the system accessible to non-technical users.
+
+### Future Improvements
+- Optimization of Query Processing:
+  - Implement caching mechanisms or query optimization techniques to reduce latency for repeated or similar queries.
+- Advanced SQL Generation:
+  - Enhance the Text2SQL model to better handle complex queries by training on more diverse datasets or fine-tuning with domain-specific data.
+- Result Validation:
+  - Introduce post-processing steps to validate the accuracy and relevance of SQL results before including them in the final answer.
+- User Interaction:
+  - Develop an interactive feedback mechanism where users can refine their queries or provide corrections to improve the system's accuracy.
+- Broader Data Source Integration:
+  - Extend support to other structured data formats (e.g., NoSQL databases) and multi-modal data (e.g., images, videos).
+- Error Transparency:
+  - Improve error reporting to clearly indicate issues in retrieval or query execution, helping users better understand the limitations of the response.
 
