@@ -1,6 +1,7 @@
 import hashlib
 import os
 import pickle
+import sqlite3
 
 from langchain.retrievers import (ContextualCompressionRetriever,
                                   EnsembleRetriever)
@@ -24,6 +25,7 @@ from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
 from tqdm import tqdm
 
 from ragatouille import RAGPretrainedModel
+import pandas as pd
 
 
 class RAGHelper:
@@ -69,8 +71,9 @@ class RAGHelper:
         self.json_text_content = os.getenv("json_text _content", "false").lower() == 'true'
         self.json_schema = os.getenv("json_schema")
         
-        logger.info(f"Current directory: {os.getcwd()}")
-        logger.info(f"DAAAAATAAAAADIIIIR: {self.data_dir}")
+        self.table_db = os.getenv("table_db_uri")
+        self.table_dir = os.getenv("table_directory")
+
         
 
     @staticmethod
@@ -498,7 +501,29 @@ class RAGHelper:
         """Extract skills from the CV document."""
         # Implement your skill extraction logic here
         return []
-
+    
+    def _setup_sqlite_database(self):
+        db_conn = sqlite3.connect(f"{self.table_db}")
+        for table in os.listdir(self.table_dir):
+            table_path = f"{self.table_dir}/{table}"
+            if os.path.isfile(table_path) and table.endswith(".parquet"):
+                self.logger.info(f"Loading table {table}")
+                df = pd.read_parquet(table_path)
+                df.to_sql(table.split(".")[0], db_conn, if_exists="replace", index=False)
+            else:
+                self.logger.info(f"Skipping {table} as it is not a parquet file.")
+        db_conn.close()
+                
+    def _setup_sql_database(self):
+        supported_databases = {
+            "sqlite": self._setup_sqlite_database
+        }
+        sql_database = os.getenv("sql_database")
+        if sql_database in supported_databases:
+            supported_databases[sql_database]()
+        else:
+            raise ValueError(f"Unsupported SQL database: {sql_database}. Supported databases: {supported_databases.keys()}")
+    
     def load_data(self):
         """
         Loads data from various file types and chunks it into an ensemble retriever.
@@ -515,7 +540,7 @@ class RAGHelper:
         self._initialize_vector_store()
         self._setup_retrievers()
 
-    def add_document(self, filename):
+    def  add_document(self, filename):
         """
         Load documents from various file types, extract metadata,
         split the documents into chunks, and store them in a vector database.
