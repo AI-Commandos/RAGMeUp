@@ -74,14 +74,18 @@ class RAGHelperSQL(RAGHelperLocal):
                 {
                     "retrieved_docs": self.ensemble_retriever,  # Call ensemble_retriever ONCE
                 }
-                | {
-                    "docs": lambda inputs: inputs[
-                        "retrieved_docs"
-                    ],  # Reuse retrieved_docs for "docs"
-                    "context": lambda inputs: inputs["retrieved_docs"]
-                    | RAGHelper.format_documents,  # Reuse retrieved_docs for "context"
-                    "question": RunnablePassthrough(),
-                }
+                | RunnableMap(
+                    {
+                        "docs": RunnableLambda(
+                            lambda inputs: inputs["retrieved_docs"]
+                        ),  # Reuse retrieved_docs for "docs"
+                        "context": RunnableLambda(
+                            lambda inputs: inputs["retrieved_docs"]
+                            | RAGHelper.format_documents
+                        ),  # Format "retrieved_docs" for context
+                        "question": RunnablePassthrough(),  # Keep passthrough
+                    }
+                )
                 | LLMChain(llm=self.llm, prompt=prompt)
             )
         return {"question": RunnablePassthrough()} | LLMChain(
