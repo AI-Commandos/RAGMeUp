@@ -95,7 +95,7 @@ self.text_to_sql = TextToSQL(model_name=text_to_sql_model, db_uri=self.vector_st
 self.logger.info("RAGHelper initialized successfully with Text-to-SQL support.")
 ```
 
- - New Method `retrieve_from_sql`:
+ - Method `retrieve_from_sql`:
     - Purpose:
       - This method allows the RAG pipeline to handle natural language queries that require SQL-based retrieval.
     - Details:
@@ -125,6 +125,28 @@ def retrieve_from_sql(self, user_query):
     self.logger.info(f"SQL Query Results: {sql_results}")
     return [{"type": "sql_result", "content": result} for result in sql_results]
 ```
+
+ - Method `inference_pipeline`:
+   - The inference_pipeline method integrates various retrieval mechanisms (dense, sparse, and SQL-based) and leverages a language model to generate a final answer for the user’s query. It acts as the central pipeline that orchestrates the retrieval and reasoning processes, making it a core component of the system.
+
+   - How It Works:
+1. Retrieval:
+- Dense Retrieval: Finds relevant documents using vector embeddings (e.g., Milvus).
+- Sparse Retrieval: Matches documents using BM25 for keyword-based search.
+- SQL Retrieval: Translates natural language queries into SQL, executes them on a database, and retrieves results.
+2. History Handling:
+- Reuses previous results if available or fetches new documents as needed.
+3. Answer Generation:
+- Combines retrieved results into a context.
+- Uses an LLM to generate an answer based on the query and context.
+
+    - Role in the Project:
+1. Unifies structured (SQL) and unstructured (document) data retrieval.
+2. Supports multi-turn queries by maintaining context with `history`.
+3. Enhances user experience by providing clear and accurate answers.
+
+
+
 
 ## How to Use
 ### 1. Setup
