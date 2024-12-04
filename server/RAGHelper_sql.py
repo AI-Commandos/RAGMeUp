@@ -73,7 +73,7 @@ class RAGHelperSQL(RAGHelperLocal):
         if fetch_new_documents:
             return {
                 "docs": self.ensemble_retriever,
-                "context": itemgetter(self.ensemble_retriever) | RAGHelper.format_documents,
+                "context": self.ensemble_retriever | RAGHelper.format_documents,
                 "question": RunnablePassthrough()
             } | LLMChain(llm=self.llm, prompt=prompt)
         return {"question": RunnablePassthrough()} | LLMChain(llm=self.llm, prompt=prompt)
