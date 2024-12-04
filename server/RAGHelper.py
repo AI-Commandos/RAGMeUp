@@ -21,6 +21,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from lxml import etree
 from PostgresBM25Retriever import PostgresBM25Retriever
 from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
+from ColbertReranker import ColbertReranker
 from tqdm import tqdm
 
 
@@ -73,17 +74,30 @@ class RAGHelper:
         Formats the documents for better readability.
 
         Args:
-            docs (list): List of Document objects.
+            docs (list): List of Document or TextNode objects.
 
         Returns:
             str: Formatted string representation of documents.
         """
         doc_strings = []
         for i, doc in enumerate(docs):
-            metadata_string = ", ".join([f"{md}: {doc.metadata[md]}" for md in doc.metadata.keys()])
-            doc_strings.append(f"Document {i} content: {doc.page_content}\nDocument {i} metadata: {metadata_string}")
-        return "\n\n<NEWDOC>\n\n".join(doc_strings)
+            # Handle LangChain Document
+            if hasattr(doc, 'page_content'):
+                content = doc.page_content
+                metadata = doc.metadata
+            # Handle LlamaIndex TextNode
+            elif hasattr(doc, 'text'):
+                content = doc.text
+                metadata = doc.metadata if hasattr(doc, 'metadata') else {}
+            else:
+                raise AttributeError(f"Unknown document type: {type(doc)}")
 
+            # Format metadata as a string
+            metadata_string = ", ".join([f"{key}: {value}" for key, value in metadata.items()])
+            doc_strings.append(f"Document {i} content: {content}\nDocument {i} metadata: {metadata_string}")
+        
+        return "\n\n<NEWDOC>\n\n".join(doc_strings)
+    
     def _load_chunked_documents(self):
         """Loads previously chunked documents from a pickle file."""
         with open(self.document_chunks_pickle, 'rb') as f:
@@ -386,13 +400,32 @@ class RAGHelper:
                     # Update the progress bar by the size of the batch
                     pbar.update(len(batch))
 
+    # def _initialize_bm25retriever(self):
+    #     """Initializes in memory BM25Retriever."""
+    #     self.logger.info("Initializing BM25Retriever.")
+    #     self.sparse_retriever = BM25Retriever.from_texts(
+    #         [x.page_content for x in self.chunked_documents],
+    #         metadatas=[x.metadata for x in self.chunked_documents]
+    #     )
+
     def _initialize_bm25retriever(self):
-        """Initializes in memory BM25Retriever."""
-        self.logger.info("Initializing BM25Retriever.")
-        self.sparse_retriever = BM25Retriever.from_texts(
-            [x.page_content for x in self.chunked_documents],
-            metadatas=[x.metadata for x in self.chunked_documents]
-        )
+        """Initializes and dumps the BM25Retriever."""
+        # Check if BM25 retriever already exists
+        if os.path.exists(self.vector_store_sparse_uri):
+            self.logger.info(f"Loading existing BM25 index from {self.vector_store_sparse_uri}")
+            with open(self.vector_store_sparse_uri, 'rb') as f:
+                self.sparse_retriever = pickle.load(f)
+        else:
+            # Create a new BM25 retriever
+            self.logger.info("Creating new BM25 index.")
+            self.sparse_retriever = BM25Retriever.from_texts(
+                [x.page_content for x in self.chunked_documents],
+                metadatas=[x.metadata for x in self.chunked_documents]
+            )
+            # Save the BM25 retriever to disk
+            self.logger.info(f"Saving BM25 index to {self.vector_store_sparse_uri}")
+            with open(self.vector_store_sparse_uri, 'wb') as f:
+                pickle.dump(self.sparse_retriever, f)
 
     def _initialize_postgresbm25retriever(self):
         """Initializes in memory PostgresBM25Retriever."""
@@ -422,6 +455,12 @@ class RAGHelper:
         if self.rerank_model == "flashrank":
             self.logger.info("Setting up the FlashrankRerank.")
             self.compressor = FlashrankRerank(top_n=self.rerank_k)
+        elif self.rerank_model == "ColbertReranker":       
+            self.logger.info("Setting up the ColBERTReranker.")
+            self.compressor = ColbertReranker()
+
+            # Log the successful setup
+            self.logger.info(f"ColBERTReranker initialized")
         else:
             self.logger.info("Setting up the ScoredCrossEncoderReranker.")
             self.compressor = ScoredCrossEncoderReranker(
@@ -429,6 +468,7 @@ class RAGHelper:
                 top_n=self.rerank_k
             )
         self.logger.info("Setting up the ContextualCompressionRetriever.")
+
         self.rerank_retriever = ContextualCompressionRetriever(
             base_compressor=self.compressor, base_retriever=self.ensemble_retriever
         )
