@@ -72,7 +72,7 @@ class RAGHelperSQL(RAGHelperLocal):
         """Create the LLM chain for invoking the RAG pipeline."""
         if fetch_new_documents:
             retrieved_docs = (
-                self.ensemble_retriever.invoke()
+                self.ensemble_retriever.invoke(prompt)
             )  # Call retriever once manually
 
             chain = {
