@@ -144,7 +144,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
         rows = self.cur.fetchmany(50)
         documents = self._format_results_as_documents(rows, sql_query)
         logger.info(f"Documents: {documents}")
-        return {"retrieved_docs": documents}
+        return documents
 
     def _format_results_as_documents(self, results, sql_query):
         # We can adjust this method in order to format the context of the retrieved data

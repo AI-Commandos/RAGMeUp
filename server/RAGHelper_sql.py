@@ -5,7 +5,7 @@ from PostgresText2SQLRetriever import PostgresText2SQLRetriever
 from RAGHelper import RAGHelper
 from RAGHelper_local import RAGHelperLocal
 from transformers import pipeline
-from langchain.schema.runnable import RunnablePassthrough, RunnableParallel
+from langchain.schema.runnable import RunnablePassthrough, RunnableMap, RunnableLambda
 from langchain.chains.llm import LLMChain
 
 
@@ -15,6 +15,7 @@ class RAGHelperSQL(RAGHelperLocal):
     capabilities using a Text2SQL component. It initializes the necessary components
     for language model pipelines, data loading, and retrieval chains.
     """
+
     def __init__(self, logger):
         """
         Overwrite the constructor of the RAGHelperLocal class to initialize the Text2SQL.
@@ -25,7 +26,7 @@ class RAGHelperSQL(RAGHelperLocal):
         self.tokenizer, self.model = self._initialize_llm()
         self.llm = self._create_llm_pipeline()
         self.text2sql_uri = os.getenv("TEXT2SQL_DB_URI")
-        # Initialize the Text2SQL retrieval component and assign it to the ensemble retriever attribute 
+        # Initialize the Text2SQL retrieval component and assign it to the ensemble retriever attribute
         # ensuring that the LLM chain code in RAGHelperLocal can be reused
         self.ensemble_retriever = PostgresText2SQLRetriever(
             connection_uri=self.text2sql_uri, llama=self.llm
@@ -69,16 +70,22 @@ class RAGHelperSQL(RAGHelperLocal):
     def _create_llm_chain(self, fetch_new_documents, prompt):
         """Create the LLM chain for invoking the RAG pipeline."""
         if fetch_new_documents:
-            return RunnableParallel({
-                "retrieved_docs": self.ensemble_retriever,
-
-                # Pass the retrieved documents as "docs"
-                "docs": lambda inputs: inputs["retrieved_docs"],  
-
-                # Format the retrieved documents for context
-                "context": lambda inputs: RAGHelper.format_documents(inputs["retrieved_docs"]),
-
-                "question": RunnablePassthrough()
-            }) | LLMChain(llm=self.llm, prompt=prompt)
-        
-        return {"question": RunnablePassthrough()} | LLMChain(llm=self.llm, prompt=prompt)
+            return RunnableMap(
+                {
+                    # Fetch documents using the retriever and preprocess if needed
+                    "retrieved_docs": RunnableLambda(
+                        lambda inputs: self.ensemble_retriever(inputs)
+                    ),
+                    # Use retrieved docs directly as "docs"
+                    "docs": lambda inputs: inputs["retrieved_docs"],
+                    # Format retrieved docs for "context"
+                    "context": lambda inputs: RAGHelper.format_documents(
+                        inputs["retrieved_docs"]
+                    ),
+                    # Pass the question as is
+                    "question": RunnablePassthrough(),
+                }
+            ) | LLMChain(llm=self.llm, prompt=prompt)
+        return {"question": RunnablePassthrough()} | LLMChain(
+            llm=self.llm, prompt=prompt
+        )
