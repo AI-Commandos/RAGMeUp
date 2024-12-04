@@ -26,12 +26,53 @@ This project extends the existing **RAG Me Up framework** by integrating a **Tex
 ### 3. Integration with RAG Framework
 
 - File: server/RAGHelper.py
+  - To integrate the Text2SQL component into the RAG Me Up framework, we made the following modifications in `server/RAGHelper.py`:
 - Modifications:
   - Method _initialize_retrievers:
+```python
+# Initialize Text-to-SQL
+text_to_sql_model = os.getenv("text_to_sql_model", "suriya7/t5-base-text-to-sql")
+self.logger.info(f"Initializing Text2SQL with model: {text_to_sql_model}")
+self.text_to_sql = TextToSQL(model_name=text_to_sql_model, db_uri=self.vector_store_sparse_uri)
+
+self.logger.info("RAGHelper initialized successfully with Text-to-SQL support.")
+```
     - Added a logic branch for Text2SQL to allow SQL-based queries when vector_store is set to postgres.
-  - New Method retrieve_from_sql:
-    - Accepts a natural language query, translates it into SQL using the Text2SQL component, and executes it on the database.
-    - Logs both the generated SQL query and its results for traceability.
+    - Purpose: This block initializes the Text2SQL component during the setup of the `RAGHelper` class.
+    - Details:
+      - Retrieves the model name (`text_to_sql_model`) from environment variables or defaults to `suriya7/t5-base-text-to-sql`.
+      - Establishes a connection to the PostgreSQL database using `self.vector_store_sparse_uri` as the `db_uri`.
+      - Logs the initialization process to ensure the component is set up correctly.
+      
+  - New Method `retrieve_from_sql`:
+    - Purpose:
+      - This method allows the RAG pipeline to handle natural language queries that require SQL-based retrieval.
+```python
+def retrieve_from_sql(self, user_query):
+    sql_query = self.text_to_sql.translate(user_query)
+    self.logger.info(f"Received user query for SQL retrieval: {user_query}")
+    try:
+        sql_results = self.text_to_sql.execute(sql_query)
+        self.logger.info(f"Generated SQL Query: {sql_query}")  
+    except Exception as e:
+        self.logger.error(f"Error executing SQL: {e}")
+        sql_results = []
+    self.logger.info(f"SQL Query Results: {sql_results}")
+    return [{"type": "sql_result", "content": result} for result in sql_results]
+```
+    - Details:
+      - Query Translation:
+        - The method takes a natural language query (`user_query`) as input.
+        - Uses the Text2SQL component's `translate` method to generate an SQL query.
+        - Logs the translated SQL query for debugging purposes.
+      - SQL Execution:
+        - Executes the generated SQL query on the connected database using the Text2SQL component's `execute` method.
+        - Logs the execution process and results.
+      - Error Handling:
+        - Catches exceptions during SQL execution and logs errors to ensure transparency.
+        - Returns an empty result set if an error occurs.
+      - Return Format:
+        - The results are formatted as a list of dictionaries, with each dictionary containing the type (`sql_result`) and content (`result`) of the query output.
 
 ## How to Use
 ### 1. Setup
