@@ -102,7 +102,7 @@ def chat():
             graph.add_edge(edge['source'], edge['target'], label=edge['label'])
         graph.layout(prog='dot')
         graph.draw('graph.png')
-        return send_file('graph.png', mimetype='image/png')
+        graph_data = send_file('graph.png', mimetype='image/png')
 
     # get response text
     reply = ""
@@ -140,14 +140,15 @@ def chat():
         new_docs = docs
 
     # Build the response dictionary
-    # TODO also send the result from the knowledge graph
+    # Done TODO also send the result from the knowledge graph
     response_dict = {
         "reply": reply,
         "history": new_history,
         "documents": new_docs,
         "rewritten": False,
         "question": prompt,
-        "fetched_new_documents": fetched_new_documents
+        "fetched_new_documents": fetched_new_documents,
+        "graph": graph_data
     }
 
     # Check for rewritten question
