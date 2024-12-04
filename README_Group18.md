@@ -65,13 +65,14 @@ def execute(self, sql_query):
 ```
 ### 2. Environment Configuration Updates
 
-- File: server/.env.template
-- Modifications:
-  - Added the following keys for configuring the Text2SQL component:
-    - db_uri: Specifies the database connection URI.
-    - llm_model: Specifies the Hugging Face Text2SQL model.
-  - Updated other configuration keys to enable compatibility with the new component.
-  - The modified section includes instructions on initializing and integrating this component.
+- File: `server/.env.template`
+- Modifications: Added `vector_store_sparse_uri`:
+  - Specifies the database connection string for SQL-based retrieval.
+```python
+  vector_store_sparse_uri='postgresql://langchain:langchain@localhost:6024/langchain'
+```
+  - This key enables the Text2SQL component to connect to a PostgreSQL database and execute SQL queries generated from natural language inputs.
+
     
 ### 3. Integration with RAG Framework
 
