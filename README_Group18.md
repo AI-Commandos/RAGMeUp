@@ -20,9 +20,9 @@ With Text2SQL, the **RAG Me Up framework** can now seamlessly handle mixed queri
 ### 1. New Component: Text2SQL
 - File: server/text2_sql.py
 - Description: A Text2SQL class was added to the framework, which uses the Hugging Face model suriya7/t5-base-text-to-sql to convert natural language queries into SQL queries.
-- Features:
-  - Tokenizer and Model Initialization: Leverages `AutoTokenizer` and `AutoModelForSeq2SeqLM` for translation tasks.
-  - Database Integration: Allows connection to a PostgreSQL database through a configurable db_uri.
+#### Features:
+- Tokenizer and Model Initialization: Leverages `AutoTokenizer` and `AutoModelForSeq2SeqLM` for translation tasks.
+- Database Integration: Allows connection to a PostgreSQL database through a configurable db_uri.
 
 ```python
     def __init__(self, model_name="suriya7/t5-base-text-to-sql", db_uri=None):
@@ -34,7 +34,7 @@ With Text2SQL, the **RAG Me Up framework** can now seamlessly handle mixed queri
     logging.basicConfig(level=logging.INFO)
 ```
 
-  - Query Translation (`translate` method): Converts a natural language query into an SQL query using the NLP model.
+- Query Translation (`translate` method): Converts a natural language query into an SQL query using the NLP model.
 ```python
 def translate(self, user_query):
     self.logger.info(f"Translating user query: {user_query}")
@@ -45,8 +45,8 @@ def translate(self, user_query):
     print(f"Generated SQL query: {sql_query}")
     return sql_query
 ```
-  - SQL Execution (`execute` method): Executes the translated SQL query on a PostgreSQL database and retrieves results.
-  - Error Handling: Includes robust logging for query translation and execution.
+- SQL Execution (`execute` method): Executes the translated SQL query on a PostgreSQL database and retrieves results.
+- Error Handling: Includes robust logging for query translation and execution.
 
 ```python
 def execute(self, sql_query):
