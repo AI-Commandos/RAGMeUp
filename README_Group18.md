@@ -5,6 +5,17 @@ Author： Hanyue Wang，Xuechun LYU and Hanieh Attarimoghadam
 # Enhancing the RAG Me Up Framework with Text2SQL Component
 This project extends the existing **RAG Me Up framework** by integrating a **Text2SQL component**, enabling the framework to process natural language queries and convert them into SQL queries. This addition improves the framework's capabilities in handling structured data stored in databases, allowing users to retrieve insights efficiently.
 
+## Introduction to Text2SQL
+**Text2SQL** is a specialized component that enables natural language queries to be seamlessly converted into SQL commands, bridging the gap between conversational interfaces and relational databases. By leveraging the suriya7/t5-base-text-to-sql model from Hugging Face, Text2SQL empowers users to interact with structured data without needing to know SQL syntax.
+
+In this project, Text2SQL plays a pivotal role by:
+
+- Enhancing Usability: Allowing users to query structured databases with natural language, making data retrieval more intuitive.
+- Integrating with the RAG Framework: Acting as a critical retrieval mechanism for structured data sources, complementing the framework’s existing capabilities for unstructured data retrieval.
+- Improving Accessibility: Making database-driven applications more user-friendly for non-technical users.
+
+With Text2SQL, the **RAG Me Up framework** can now seamlessly handle mixed queries spanning both structured and unstructured data, broadening its application and utility.
+
 ## Key Changes and Additions
 ### 1. New Component: Text2SQL
 - File: server/text2_sql.py
