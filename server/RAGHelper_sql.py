@@ -82,13 +82,15 @@ class RAGHelperSQL(RAGHelperLocal):
                     # Reuse retrieved_docs for docs
                     "docs": itemgetter("retrieved_docs"),
                     # Format retrieved_docs for context
-                    "context": RAGHelper.format_documents(
-                        itemgetter("docs")
+                    "context": lambda inputs: RAGHelper.format_documents(
+                        inputs["retrieved_docs"]
                     ),
                     # Question is passed directly as is
-                    "question": RunnablePassthrough(),
+                    "question": itemgetter("question"),
                 }
-                | LLMChain(llm=self.llm, prompt=prompt)  # Use the processed inputs in the final LLM chain
+                | LLMChain(
+                    llm=self.llm, prompt=prompt
+                )  # Use the processed inputs in the final LLM chain
             )
         return {"question": RunnablePassthrough()} | LLMChain(
             llm=self.llm, prompt=prompt
