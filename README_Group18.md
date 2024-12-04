@@ -16,7 +16,7 @@ In this project, Text2SQL plays a pivotal role by:
 
 With Text2SQL, the **RAG Me Up framework** can now seamlessly handle mixed queries spanning both structured and unstructured data, broadening its application and utility.
 
-##T he RAG pipeline with Text2sql pipeline is visualized in the image below:
+## The RAG pipeline with Text2sql pipeline is visualized in the image below:
 ![RAG pipeline drawing](./RAG_with_Text2sql.drawio.svg)
 
 
@@ -186,6 +186,15 @@ User Input: "What is the birth date of Lincoln?"
 SELECT birth_date FROM table_name_94 WHERE name = "Lincoln";
 ```
 Output: The birth date of Lincoln from the database.
+
+### Answer comparison
+
+
+
+
+
+
+
 
 ## Benefits
 - Enhanced Query Flexibility: Supports complex natural language queries by converting them into SQL.
