@@ -7,6 +7,7 @@ from RAGHelper_local import RAGHelperLocal
 from transformers import pipeline
 from langchain.schema.runnable import RunnablePassthrough, RunnableMap, RunnableLambda
 from langchain.chains.llm import LLMChain
+from operator import itemgetter
 
 
 class RAGHelperSQL(RAGHelperLocal):
@@ -72,21 +73,22 @@ class RAGHelperSQL(RAGHelperLocal):
         if fetch_new_documents:
             return (
                 {
-                    "retrieved_docs": self.ensemble_retriever,  # Call ensemble_retriever ONCE
+                    # Call retriever ONCE and store the result as "retrieved_docs"
+                    "retrieved_docs": self.ensemble_retriever,
+                    # Pass through the question
+                    "question": RunnablePassthrough(),
                 }
-                | RunnableMap(
-                    {
-                        "docs": RunnableLambda(
-                            lambda inputs: inputs["retrieved_docs"]
-                        ),  # Reuse retrieved_docs for "docs"
-                        "context": RunnableLambda(
-                            lambda inputs: inputs["retrieved_docs"]
-                            | RAGHelper.format_documents
-                        ),  # Format "retrieved_docs" for context
-                        "question": RunnablePassthrough(),  # Keep passthrough
-                    }
-                )
-                | LLMChain(llm=self.llm, prompt=prompt)
+                | {
+                    # Reuse retrieved_docs for docs
+                    "docs": itemgetter("retrieved_docs"),
+                    # Format retrieved_docs for context
+                    "context": RAGHelper.format_documents(
+                        itemgetter("retrieved_docs")
+                    ),
+                    # Question is passed directly as is
+                    "question": RunnablePassthrough(),
+                }
+                | LLMChain(llm=self.llm, prompt=prompt)  # Use the processed inputs in the final LLM chain
             )
         return {"question": RunnablePassthrough()} | LLMChain(
             llm=self.llm, prompt=prompt
