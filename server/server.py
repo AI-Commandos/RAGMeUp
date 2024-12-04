@@ -158,6 +158,9 @@ def get_documents():
     file_types = os.getenv("file_types", "").split(",")
     
     # Print the data directory and file types being used
+    print(f"Data Directory in GET: {data_dir}")
+    print(f"File Types in GET: {file_types}")
+
     logging.debug(f"Data Directory in GET: {data_dir}")
     logging.debug(f"File Types in GET: {file_types}")
 
