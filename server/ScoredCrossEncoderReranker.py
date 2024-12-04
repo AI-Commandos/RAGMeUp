@@ -49,7 +49,7 @@ class ScoredCrossEncoderReranker(BaseDocumentCompressor):
         docs_with_scores = list(zip(documents, scores))
 
         print("docs_with_scores", docs_with_scores)
-        print{'Start with reranking en feedback'}
+        print('Start with reranking en feedback')
         # Get feedback for each document and adjust score if needed
         for i, (doc, score) in enumerate(docs_with_scores):
             feedback = get_feedback(doc.metadata.get("document_id", ""))
