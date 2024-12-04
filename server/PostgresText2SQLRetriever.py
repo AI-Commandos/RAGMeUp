@@ -1,35 +1,40 @@
 import csv
-import json
 import logging
 import os
 import re
-import uuid
 from typing import List
 
 import psycopg2
 import psycopg2.extras
+import sqlparse
 import torch
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
-from psycopg2 import sql
-from transformers import T5ForConditionalGeneration, T5Tokenizer
-from pydantic import Field, BaseModel
 from langchain_huggingface.llms import HuggingFacePipeline
-import sqlparse
-
+from psycopg2 import sql
+from pydantic import BaseModel, Field
+from transformers import T5ForConditionalGeneration, T5Tokenizer
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
 class SQLQuery(BaseModel):
+    """
+    We wanted to use this class to validate the SQL query.
+    However, we are not using it in the final implementation.
+    """
     table: str          # The name of the table being queried.
     columns: List[str]  # The list of column names to include in the SELECT statement.
     conditions: str     # The WHERE clause conditions for filtering data.
 
 
 class SQLGenerator:
+    """
+    This class generates SQL queries using a T5 model.
+    This is also not used in the final implementation.
+    """
     def __init__(self, model_name="cssupport/t5-small-awesome-text-to-sql"):
         self.tokenizer = T5Tokenizer.from_pretrained("t5-small")
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -51,30 +56,6 @@ class SQLGenerator:
         generated_sql = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
 
         return generated_sql
-
-
-def validate_sql(sql_query):
-    logger.info(f"Validating SQL: {sql_query}")
-    try:
-        parsed = sqlparse.parse(sql_query)
-        if not parsed:
-            raise ValueError("Invalid SQL")
-        return True
-    except Exception as e:
-        return False
-
-
-import re
-
-def extract_sql(output):
-    logger.info(f"Extracting SQL from: {output}")
-    match = re.search(r'```sql\s*(.*?)\s*```', output, re.DOTALL)
-    if match:
-        return match.group(1).strip()
-    else:
-        # Fall back to other methods if no delimiters are found
-        return output.strip()
-
 
 
 class PostgresText2SQLRetriever(BaseRetriever):
@@ -155,7 +136,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
         sql_query = self._compute_query(query)
         # Get data with a prompt and return the result as a json object
         logger.info(f"SQL Query: {sql_query}")
-        if not validate_sql(sql_query):
+        if not self.validate_sql(sql_query):
             return []
         
         self.cur.execute(sql_query)
@@ -179,7 +160,7 @@ class PostgresText2SQLRetriever(BaseRetriever):
         generated_text = self.llama(input_prompt)
 
         # Extract the SQL query from the generated text
-        sql_query = extract_sql(generated_text)        
+        sql_query = self.extract_sql(generated_text)        
 
         return sql_query
     
@@ -227,16 +208,28 @@ class PostgresText2SQLRetriever(BaseRetriever):
             # Append the formatted table information to the result
             result += f"- Table: {table_name} ({column_names})\n"
         return result
+    
+    @staticmethod
+    def validate_sql(sql_query):
+        logger.info(f"Validating SQL: {sql_query}")
+        try:
+            parsed = sqlparse.parse(sql_query)
+            if not parsed:
+                raise ValueError("Invalid SQL")
+            return True
+        except Exception as e:
+            return False
+
+    @staticmethod
+    def extract_sql(output):
+        logger.info(f"Extracting SQL from: {output}")
+        match = re.search(r'```sql\s*(.*?)\s*```', output, re.DOTALL)
+        if match:
+            return match.group(1).strip()
+        else:
+            # Fall back to other methods if no delimiters are found
+            return output.strip()
 
     def close(self):
         self.cur.close()
         self.conn.close()
-
-
-#uri = "postgresql://user:pass@localhost:5432/text2sql"
-#retriever = PostgresText2SQLRetriever(connection_uri=uri)
-#retriever.setup_table("/home/markiemark/JADS/NLP/assignment3/RAGMeUp/data/StudentGradesAndPrograms.csv")
-
-#schema = retriever.get_database_schema()
-#print(type(schema))
-#print(schema)
