@@ -66,10 +66,10 @@ def execute(self, sql_query):
 ### 2. Environment Configuration Updates
 
 - File: `server/.env.template`
-- Modifications: Added `vector_store_sparse_uri`:
+- Modifications: Added `sql_db`:
   - Specifies the database connection string for SQL-based retrieval.
 ```python
-  vector_store_sparse_uri='postgresql://langchain:langchain@localhost:6024/langchain'
+  sql_db='postgresql://langchain:langchain@localhost:6024/langchain'
 ```
   - This key enables the Text2SQL component to connect to a PostgreSQL database and execute SQL queries generated from natural language inputs.
 
@@ -91,7 +91,7 @@ def execute(self, sql_query):
 # Initialize Text-to-SQL
 text_to_sql_model = os.getenv("text_to_sql_model", "suriya7/t5-base-text-to-sql")
 self.logger.info(f"Initializing Text2SQL with model: {text_to_sql_model}")
-self.text_to_sql = TextToSQL(model_name=text_to_sql_model, db_uri=self.vector_store_sparse_uri)
+self.text_to_sql = TextToSQL(model_name=text_to_sql_model, db_uri=sql_db)
 
 self.logger.info("RAGHelper initialized successfully with Text-to-SQL support.")
 ```
