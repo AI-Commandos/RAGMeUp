@@ -47,38 +47,10 @@ else:
     raghelper = RAGHelperLocal(logger)
 
 
-@app.route("/add_document", methods=['POST'])
-def add_document():
-    """
-    Add a document to the RAG helper.
-
-    This endpoint expects a JSON payload containing the filename of the document to be added.
-    It then invokes the addDocument method of the RAG helper to store the document.
-
-    Returns:
-        JSON response with the filename and HTTP status code 200.
-    """
-    json_data = request.get_json()
-    filename = json_data.get('filename')
-
-    if not filename:
-        return jsonify({"error": "Filename is required"}), 400
-    logger.info(f"Adding document {filename}")
-    raghelper.add_document(filename)
-
-    return jsonify({"filename": filename}), 200
-
-
 @app.route("/chat", methods=['POST'])
 def chat():
     """
     Handle chat interactions with the RAG system.
-
-    This endpoint processes the user's prompt, retrieves relevant documents,
-    and returns the assistant's reply along with conversation history.
-
-    Returns:
-        JSON response containing the assistant's reply, history, documents, and other metadata.
     """
     try:
         json_data = request.get_json()
@@ -87,49 +59,48 @@ def chat():
         original_docs = json_data.get('docs', [])
         docs = original_docs
 
-        # Get the LLM response
-        (new_history, response, graph_response) = raghelper.handle_user_interaction(prompt, history)
-        
-        print(response)
-        print('\n')    
-        print(graph_response)
+        # Call RAG helper for interaction
+        new_history, response, graph_response = raghelper.handle_user_interaction(prompt, history)
 
-        # Ensure graph_response is a JSON object
-        if isinstance(graph_response, str):
+        # Ensure graph_response is valid JSON
+        if not isinstance(graph_response, dict):
             try:
                 graph_response = json.loads(graph_response)
             except json.JSONDecodeError as e:
-                return jsonify({'error': f'Error decoding JSON: {str(e)}'}), 500
+                logger.error(f"Error decoding graph response: {e}")
+                return jsonify({'error': 'Invalid graph response format'}), 500
 
-        # Process the graph response
-        graph_data = None
+        # Process the graph
+        graph_file_path = 'graph.png'
         if graph_response:
             graph = pgv.AGraph(directed=True)
-            for node in graph_response['nodes']:
+            for node in graph_response.get('nodes', []):
                 graph.add_node(node['id'], label=node['label'])
-            for edge in graph_response['edges']:
+            for edge in graph_response.get('edges', []):
                 graph.add_edge(edge['source'], edge['target'], label=edge['label'])
             graph.layout(prog='dot')
-            graph.draw('graph.png')
-            graph_data = send_file('graph.png', mimetype='image/png')
+            graph.draw(graph_file_path)
 
         # Prepare the reply
-        reply = response['answer']
+        reply = response.get('answer', 'No answer available.')
 
-        # Format documents
+        # Prepare document formatting
         fetched_new_documents = False
         if not original_docs or 'docs' in response:
             fetched_new_documents = True
-            new_docs = [{
-                's': doc.metadata['source'],
-                'c': doc.page_content,
-                **({'pk': doc.metadata['pk']} if 'pk' in doc.metadata else {}),
-                **({'provenance': float(doc.metadata['provenance'])} if 'provenance' in doc.metadata and doc.metadata['provenance'] is not None else {})
-            } for doc in docs if 'source' in doc.metadata]
+            new_docs = [
+                {
+                    's': doc.metadata.get('source', 'Unknown'),
+                    'c': doc.page_content,
+                    **({'pk': doc.metadata['pk']} if 'pk' in doc.metadata else {}),
+                    **({'provenance': float(doc.metadata['provenance'])} if 'provenance' in doc.metadata else {})
+                }
+                for doc in docs if 'source' in doc.metadata
+            ]
         else:
             new_docs = docs
 
-        # Build the response dictionary
+        # Build response dictionary
         response_dict = {
             "reply": reply,
             "history": new_history,
@@ -137,17 +108,42 @@ def chat():
             "rewritten": False,
             "question": prompt,
             "fetched_new_documents": fetched_new_documents,
-            "graph": graph_data
+            "graph": graph_file_path
         }
 
-        # Check for rewritten question
-        if os.getenv("use_rewrite_loop") == "True" and prompt != response['question']:
+        # Handle rewritten question
+        if os.getenv("use_rewrite_loop") == "True" and prompt != response.get('question', prompt):
             response_dict["rewritten"] = True
             response_dict["question"] = response['question']
 
         return jsonify(response_dict), 200
     except Exception as e:
+        logger.error(f"Error in /chat: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+
+# @app.route("/add_document", methods=['POST'])
+# def add_document():
+#     """
+#     Add a document to the RAG helper.
+
+#     This endpoint expects a JSON payload containing the filename of the document to be added.
+#     It then invokes the addDocument method of the RAG helper to store the document.
+
+#     Returns:
+#         JSON response with the filename and HTTP status code 200.
+#     """
+#     json_data = request.get_json()
+#     filename = json_data.get('filename')
+
+#     if not filename:
+#         return jsonify({"error": "Filename is required"}), 400
+#     logger.info(f"Adding document {filename}")
+#     raghelper.add_document(filename)
+
+#     return jsonify({"filename": filename}), 200
+
 
 # @app.route("/chat", methods=['POST'])
 # def chat():
@@ -228,6 +224,8 @@ def chat():
 #         return jsonify(response_dict), 200
 #     except Exception as e:
 #         return jsonify({'error': str(e)}), 500
+
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
