@@ -100,7 +100,7 @@
               data: JSON.stringify({ 
                 query: data['question'],
                 answer: message,
-                document_id: JSON.stringify(data.documents.map(doc => doc.s)),
+                document_id: JSON.stringify(data.documents.map(doc => (doc.s).split('/').pop())),
                 rating: feedbackType === "positive" ? 1 : -1,
                 timestamp: new Date().toISOString()}),
               contentType: "application/json; charset=utf-8",
