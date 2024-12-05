@@ -12,21 +12,25 @@ from langchain_openai import ChatOpenAI
 
 load_dotenv('.env')
 
+
 class SlideDeckSummarizer:
 
-    def __init__(self, input_folder, llm=None):
+    def __init__(self, input_folder, llm):
+
         self.input_folder = input_folder
         self.slide_deck_fps = list()
         self.deck_as_images = {}
         self.output_folder = 'output-rendered-images-of-slides'
+        self.llm = llm
+        self.allowed_models = {'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro',
+                               'gpt-4o', 'gpt-4-turbo'}
 
-        if os.environ[''] == '':
-
-        if not llm:
-            self.llm = ChatOpenAI(model='gpt-4o', temperature=1, max_tokens=None,
-                                  timeout=None, max_retries=2)
-        else:
-            self.llm = llm
+        if (not os.getenv('use_openai')) or (not os.getenv('use_gemini')):
+            raise ValueError("To summarize slide decks you must use a multimodal model from either OpenAI or Gemini")
+        if not os.getenv('openai_model_name') in self.allowed_models:
+            raise ValueError("Use a multimodal model from OpenAI")
+        if not os.getenv('gemini_model_name') in self.allowed_models:
+            raise ValueError("Use a multimodal model from Gemini")
 
         os.makedirs(self.output_folder, exist_ok=True)
 
@@ -176,9 +180,3 @@ class SlideDeckSummarizer:
 
             # remove the pdf from the input dir
             os.remove(deck)
-
-
-if __name__ == "__main__":
-    os.getenv('OPENAI_API_KEY')
-    slide_deck_summarizer = SlideDeckSummarizer('../test_slides_single')
-    slide_deck_summarizer.transform_slidedecks_and_remove_pdf()
