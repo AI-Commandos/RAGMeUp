@@ -73,12 +73,16 @@ def execute(self, sql_query):
 - Modifications: Added `sql_db`:
   - Specifies the database connection string for SQL-based retrieval.
 ```python
-  sql_db='postgresql://langchain:langchain@localhost:6024/langchain'
+  sql_db=/content/drive/MyDrive/my_pdf_database.db
 ```
-  - This key enables the Text2SQL component to connect to a PostgreSQL database and execute SQL queries generated from natural language inputs.
+  - This key enables the Text2SQL component to connect to the SQLite database and execute SQL queries generated from natural language inputs. The SQLite database would be uploaded to Google Colab Drive manually.
+
+### 3. New database
+- File: `server/sqlite_database.py`
+- We created a new database which used for Text2sql. All of the PDF file will be uploaded to this database.
 
     
-### 3. Integration with RAG Framework
+### 4. Integration with RAG Framework
 
 - File: `server/RAGHelper.py`
   - To integrate the Text2SQL component into the RAG Me Up framework, we made the following modifications in `server/RAGHelper.py`:
