@@ -75,8 +75,8 @@ class RAGHelperSQL(RAGHelperLocal):
             # Create a lambda function that retrieves docs
             doc_fetcher = lambda: docs
             return {
-                "docs": RunnableLambda(doc_fetcher),
-                "context": RAGHelper.format_documents(RunnableLambda(doc_fetcher)),
+                "docs": doc_fetcher,
+                "context": RAGHelper.format_documents(doc_fetcher),
                 "question": RunnablePassthrough()
             } | LLMChain(llm=self.llm, prompt=prompt)
         return {"question": RunnablePassthrough()} | LLMChain(llm=self.llm, prompt=prompt)
