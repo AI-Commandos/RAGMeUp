@@ -148,7 +148,7 @@ The following image shows a screenshot of a question asked to the RAG framework.
 
 ![Example](example_question.png)
 
-In this image you can see that with our component the document the assistant refers to is a row retrieved from the database, which in this case is the count of rows in the games table. The provenance provided in this answer is the SQL statement that was provided by the LLM and subsequently executed. As you can see the answer could have been formatted differently as the SQL statement is now referred to as document 0, however we simply passed the SQL statement and answer through the same template as the original RAGMeUp framework does.
+In this image you can see that with our component, the document the assistant refers to is a row retrieved from the database, which in this case is the count of rows in the games table. The provenance provided in this answer is the SQL statement that was provided by the LLM and subsequently executed. As you can see the answer could have been formatted differently as the SQL statement is now referred to as document 0, however we simply passed the SQL statement and answer through the same template as the original RAGMeUp framework does.
 
 ## Dataset
 
