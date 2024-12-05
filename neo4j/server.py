@@ -29,6 +29,59 @@ class Graph_whisperer:
         with self.driver.session() as session:
             return session.execute_write(self._get_or_create_greeting, message)
 
+    def get_meta_schema(self):
+        """
+        Retrieve detailed schema information, including node labels, properties, and relationship types.
+
+        Returns:
+            dict: A detailed schema including labels, properties, and relationship types.
+        """
+        with self.driver.session() as session:
+            # Retrieve node labels and their properties
+            nodes_query = """
+            MATCH (n)
+            UNWIND labels(n) AS label
+            RETURN label, collect(DISTINCT keys(n)) AS properties
+            """
+            node_results = session.run(nodes_query)
+            nodes = {}
+            for record in node_results:
+                label = record["label"]
+                properties = set()
+                for prop_list in record["properties"]:
+                    properties.update(prop_list)
+                nodes[label] = list(properties)
+
+            # Retrieve relationship types and their properties
+            rels_query = """
+            MATCH ()-[r]->()
+            RETURN type(r) AS type, collect(DISTINCT keys(r)) AS properties
+            """
+            rel_results = session.run(rels_query)
+            relationships = {}
+            for record in rel_results:
+                rel_type = record["type"]
+                properties = set()
+                for prop_list in record["properties"]:
+                    properties.update(prop_list)
+                relationships[rel_type] = list(properties)
+
+            return {"nodes": nodes, "relationships": relationships}
+
+    def run_query(self, query):
+        """
+        Executes a Cypher query against the Neo4j database.
+
+        Args:
+            query (str): The Cypher query to execute.
+
+        Returns:
+            list: A list of query results, where each result is a dictionary.
+        """
+        with self.driver.session() as session:
+            result = session.run(query)
+            return [record.data() for record in result]
+
     @staticmethod
     def _create_instance(tx, payload):
         for instance in payload:
@@ -121,15 +174,40 @@ def close_db():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/schema", methods=["GET"])
+def get_meta_schema():
+    try:
+        schema = neo4j_db.get_meta_schema()
+        app.logger.info(f"Retrieved schema: {schema}")
+        return jsonify(schema)
+    except Exception as e:
+        app.logger.error(f"Error retrieving schema: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/run_query", methods=["POST"])
+def run_query():
+    try:
+        # Extract the Cypher query from the request body
+        query = request.json.get("query")
+        if not query:
+            return jsonify({"error": "No query provided"}), 400
+
+        # Execute the query
+        results = neo4j_db.run_query(query)
+        return jsonify({"results": results})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 
 if __name__ == "__main__":
     # # Set ngrok auth token and expose the app
-    # ngrok.set_auth_token("")  # Replace with your actual ngrok auth token
-    # public_url = ngrok.connect(5000)  # Expose port 5000
-    # print(f"ngrok tunnel available at: {public_url}")
+    ngrok.set_auth_token("2opsfNbDyWCJoIS83NSp8crnATD_4NxoJDAgSAh1aK2fWGAnK")  # Replace with your actual ngrok auth token
+    public_url = ngrok.connect(4000)  # Expose port 5000
+    print(f"ngrok tunnel available at: {public_url}")
 
     # Start Flask app
-    app.run(host="0.0.0.0",port=6000)
+    app.run(host="0.0.0.0",port=4000)
 
 # from flask import Flask
 # from pyngrok import ngrok
