@@ -152,7 +152,7 @@ In this image you can see that with our component the document the assistant ref
 
 ## Dataset
 
-The data we used for testing this component was a kaggle dataset found [here](https://www.kaggle.com/datasets/technika148/football-database). It contains several several relational database tables that can be put into a database directly. So in order for us to have run this RAGMeUp framework with this component we had uploaded the csv files of this dataset to our Google Drive, subsequently mounting the drive to colab and setting the ```data_directory``` environment variable to the correct path.
+The data we used for testing this component was a kaggle dataset found [here](https://www.kaggle.com/datasets/technika148/football-database). It contains several several relational database tables related to football that can be put into a database directly. Users can ask some interesting questions on football statistics which can be answered by the dataset. So in order for us to have run this RAGMeUp framework with this component we had uploaded the csv files of this dataset to our Google Drive, subsequently mounting the drive to colab and setting the ```data_directory``` environment variable to the correct path.
 
 ## Findings
 
