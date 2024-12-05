@@ -1,7 +1,7 @@
 # Text2SQL Component in a Retrieval-Augmented Generation (RAG) Framework
 
 ## Overview
-This project introduces a **Text2SQL retrieval component** into an existing Retrieval-Augmented Generation (RAG) framework. The component allows the system to transform natural language queries into SQL queries, enabling data retrieval from structured databases in addition to unstructured document retrieval.
+This project introduces a **Text2SQL retrieval component** into an existing Retrieval-Augmented Generation (RAG) framework. The component allows the system to transform natural language queries into SQL queries, enabling data retrieval from structured databases instead of the sole retrieval of unstructured documents.
 
 The implementation integrates a PostgreSQL database for Text2SQL processing and updates various components of the RAG framework to support SQL-based retrieval seamlessly.
 
@@ -92,12 +92,16 @@ Added new dependencies in `requirements.txt`:
 2. Place the ngrok url in ```application.conf```'s environment variable ```server_url```
 3. Navigate to ```localhost:9000``` in your browser.
 
-## Example Workflow
-1. Input: User asks, "What are the total sales for 2023?"
-2. Process:
-- LLM converts the question into a SQL query based on the database schema.
-- SQL query is executed, and results are retrieved.
-- Results are formatted as a response to the user.
-3. Output: "The total sales for 2023 are $1,200,000."
+## Example
+
+The following image shows a screenshot of a question asked to the RAG framework. 
+
+![Example](example_question.png)
+
+In this image you can see that with our component the document the assistant refers to is a row retrieved from the database, which in this case is the count of rows in the games table. The provenance provided in this answer is the SQL statement that was provided by the LLM and subsequently executed. 
+
+## Dataset
+
+The data we used for testing this component was a kaggle dataset found [here](https://www.kaggle.com/datasets/technika148/football-database). It contains several several relational database tables that can be put into a database directly.
 
 ## Limitations & Improvements
