@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, url_for
 import logging
 from dotenv import load_dotenv
 import os
@@ -6,7 +6,9 @@ from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper_local import RAGHelperLocal
 from pymilvus import Collection, connections
 import pygraphviz as pgv
-
+import uuid
+import threading
+import time 
 
 def load_bashrc():
     """
@@ -27,7 +29,7 @@ def load_bashrc():
 
 
 # Initialize Flask application
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/static')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -76,8 +78,14 @@ def chat():
         # Process graph response if available
         graph_file_path = None
         if graph_response:
-            try:
-                graph_file_path = 'graph.png'
+            try: 
+                # Generate a unique filename for the graph
+                graph_file_name = f"graph_{uuid.uuid4()}.png"
+                graph_file_path = os.path.join('static', 'graphs', graph_file_name)
+        
+                # Ensure the 'static/graphs' directory exists
+                os.makedirs(os.path.dirname(graph_file_path), exist_ok=True)
+        
                 graph = pgv.AGraph(directed=True)
                 for node in graph_response.get('nodes', []):
                     graph.add_node(node['id'], label=node['label'])
@@ -100,6 +108,11 @@ def chat():
             for doc in docs if 'source' in doc.get('metadata', {})
         ]
 
+        if graph_file_path:
+            graph_url = url_for('static', filename=f'graphs/{graph_file_name}')
+        else:
+            graph_url = None
+
         # Build response dictionary
         response_dict = {
             "reply": response.get('answer', 'No answer available.'),
@@ -108,7 +121,7 @@ def chat():
             "rewritten": False,
             "question": prompt,
             "fetched_new_documents": not original_docs,
-            "graph": graph_file_path
+            "graph": graph_url
         }
 
         # Handle rewritten questions

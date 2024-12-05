@@ -94,6 +94,8 @@ If you want to use Azure OpenAI as LLM backend, make sure to set `use_azure` to 
 ## Use Ollama
 If you want to use Ollama as LLM backend, make sure to install Ollama and set `use_ollama` to True. The model to use should be given in `ollama_model`.
 
+
+
 ## RAG Provenance
 One of the biggest, arguably unsolved, challenges of RAG is to do good provenance attribution: tracking which of the source documents retrieved from your database led to the LLM generating its answer (the most). RAG Me Up implements several ways of achieving this, each with its own pros and cons.
 
@@ -181,3 +183,17 @@ We are actively looking for funding to democratize AI and advance its applicatio
 
 
 # TODO add readme about GraphRAG
+
+## GraphRag Intergration
+GraphRAG adds graph-based data structures to Retrieval Augmented Generation (RAG) to make it more useful. This lets the system understand and give answers that take into account the connections between different pieces of information. It also lets it retrieve and create responses with more nuanced and relational data.
+
+## Features
+1. Graph-Based Retrieval: This method uses graph structures to find information by looking at how things are connected.
+2. Enhanced Reasoning: Considers context and connections between data points for generating responses.
+3. Visualization: Makes graphs to show the information and relationships that were retrieved.
+
+# Installation 
+1. `sudo apt-get install graphviz` or `pip install pygraphviz` or `brew install graphviz`
+2. `pip install pygraphviz`
+3.  Install requirements.txt
+

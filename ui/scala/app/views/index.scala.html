@@ -51,7 +51,10 @@
 
 <!-- Include jQuery and Showdown.js -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/showdown@@1.9.1/dist/showdown.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/showdown@1.9.1/dist/showdown.min.js"></script>
+
+<!-- Include Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
 
 <script>
     // Generate a UUID (if needed)
@@ -107,26 +110,15 @@
 
         if (!isHuman) {
           // Feedback icons
-          const feedbackPos = $('<i class="fa-regular fa-thumbs-up" style="color: #999; font-size: 1.5em; padding-right: 5px;"></i>');
-          const feedbackNeg = $('<i class="fa-regular fa-thumbs-down" style="color: #999; font-size: 1.5em; "></i>');
+          const feedbackPos = $('<i class="fa-regular fa-thumbs-up" style="color: #999; font-size: 1.5em; padding-right: 5px; cursor: pointer;"></i>');
+          const feedbackNeg = $('<i class="fa-regular fa-thumbs-down" style="color: #999; font-size: 1.5em; cursor: pointer;"></i>');
           $(feedbackPos).on('click', function() {
             // Handle positive feedback
-            $.post({
-              url: "@controllers.routes.HomeController.feedback()",
-              data: JSON.stringify(),
-              contentType: "application/json; charset=utf-8",
-              dataType: "json"
-            })
-            .done(function(response) {
-              console.log("Success:", response);
-            })
-            .fail(function(xhr, status, error) {
-              console.error("Error:", error);
-            });
-
+            // Implement your feedback logic here
           });
           $(feedbackNeg).on('click', function() {
               // Handle negative feedback
+              // Implement your feedback logic here
           });
           const feedbackRow = $("<div class='row'>")
             .append($("<div class='col-md-1 offset-11'>")
@@ -177,7 +169,7 @@
                   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 256 256">' +
                       '<path d="M74.34,133.66l80,80a8,8,0,0,0,11.32-11.32L91.31,128l74.35-74.34a8,8,0,0,0-11.32-11.32l-80,80A8,8,0,0,0,74.34,133.66Z"></path>' +
                   '</svg></div>'
-                )
+)
           );
 
           // Create and configure the clickable container
@@ -234,6 +226,28 @@
         }
     });
 
+    // Function to display the graph image
+    function displayGraph(graphUrl) {
+        const dialogue = $("#dialogue");
+        const row = $('<div>').addClass('row');
+        const col = $('<div>').addClass('col-md-8 offset-md-1');
+        const container = $('<div>').addClass('label-agent').addClass('label-graph');
+
+        // Create an image element
+        const img = $('<img>').attr('src', graphUrl).css({
+            'max-width': '100%',
+            'height': 'auto',
+            'border-radius': '10px',
+            'margin-top': '10px'
+        });
+
+        $(container).append(img);
+        $(col).append(container);
+        $(row).append(col);
+        $(dialogue).append(row);
+        dialogue.scrollTop(dialogue[0].scrollHeight);
+    }
+
     // Function to handle chat submission
     function handleChat() {
         // Disable submit buttons and input fields
@@ -270,6 +284,12 @@
 
                 documents = data['documents'];
                 addMessage(data['reply'], false, data);
+
+                // Check if a graph image is returned
+                if (data['graph']) {
+                    displayGraph(data['graph']);
+                }
+
                 if (documents.length > 0 && data['fetched_new_documents']) {
                   presentDocuments(documents);
                 }
