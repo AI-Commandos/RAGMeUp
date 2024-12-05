@@ -5,7 +5,7 @@ import os
 from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper_local import RAGHelperLocal
 from pymilvus import Collection, connections
-import pygraphviz
+import pygraphviz as pgv
 
 
 def load_bashrc():
@@ -92,12 +92,12 @@ def chat():
         # Format the documents for the frontend
         new_docs = [
             {
-                's': doc.metadata.get('source', 'Unknown'),
-                'c': doc.page_content,
-                **({'pk': doc.metadata.get('pk')} if 'pk' in doc.metadata else {}),
-                **({'provenance': float(doc.metadata.get('provenance'))} if 'provenance' in doc.metadata else {})
+                's': doc.get('metadata', {}).get('source', 'Unknown'),
+                'c': doc.get('page_content', ''),
+                **({'pk': doc.get('metadata', {}).get('pk')} if 'pk' in doc.get('metadata', {}) else {}),
+                **({'provenance': float(doc.get('metadata', {}).get('provenance'))} if 'provenance' in doc.get('metadata', {}) else {})
             }
-            for doc in docs if 'source' in doc.metadata
+            for doc in docs if 'source' in doc.get('metadata', {})
         ]
 
         # Build response dictionary
@@ -118,6 +118,9 @@ def chat():
 
         return jsonify(response_dict), 200
 
+    except KeyError as e:
+        logger.error(f"Missing key in data: {e}")
+        return jsonify({'error': f"Missing key in data: {e}"}), 400
     except Exception as e:
         logger.error(f"Unhandled error in /chat: {e}")
         return jsonify({'error': str(e)}), 500
@@ -144,12 +147,6 @@ def add_document():
     raghelper.add_document(filename)
 
     return jsonify({"filename": filename}), 200
-
-
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
 
 
 @app.route("/get_documents", methods=['GET'])
@@ -233,6 +230,9 @@ def delete_document():
 
     return jsonify({"count": result.delete_count})
 
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
 
 # if __name__ == "__main__":
 #     app.run(host="0.0.0.0")

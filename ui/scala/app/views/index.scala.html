@@ -11,8 +11,9 @@
       </h3>
 
       <div class="input-group mb-3">
-          <input type="text" id="query" class="form-control" placeholder="Enter your query on your own documents..." name="query">
-          <button class="btn btn-primary" type="submit" id="submitBtn">
+          <!-- Changed id to class -->
+          <input type="text" class="query-input form-control" placeholder="Enter your query on your own documents..." name="query">
+          <button class="btn btn-primary submit-btn" type="submit">
             Go!
           </button>
       </div>
@@ -26,70 +27,90 @@
 </div>
 <div class="offset-md-1 col-md-10 chatinput" id="chatinputcontainer">
   <div id="inputbar" class="input-group" style="display: none">
-    <input type="text" id="query" class="form-control" placeholder="" name="query">
-    <button class="btn btn-primary" type="submit" id="submitBtn2">
+    <!-- Changed id to class -->
+    <input type="text" class="query-input form-control" placeholder="" name="query">
+    <button class="btn btn-primary submit-btn" type="submit">
       Go!
     </button>
   </div>
   <div id="loader" style="display: none; background: rgba(0, 0, 0, 0);">
-    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><circle cx="4" cy="12" r="3" fill="#000000"><animate id="svgSpinners3DotsBounce0" attributeName="cy" begin="0;svgSpinners3DotsBounce1.end+0.25s" calcMode="spline" dur="0.6s" keySplines=".33,.66,.66,1;.33,0,.66,.33" values="12;6;12"/></circle><circle cx="12" cy="12" r="3" fill="#000000"><animate attributeName="cy" begin="svgSpinners3DotsBounce0.begin+0.1s" calcMode="spline" dur="0.6s" keySplines=".33,.66,.66,1;.33,0,.66,.33" values="12;6;12"/></circle><circle cx="20" cy="12" r="3" fill="#000000"><animate id="svgSpinners3DotsBounce1" attributeName="cy" begin="svgSpinners3DotsBounce0.begin+0.2s" calcMode="spline" dur="0.6s" keySplines=".33,.66,.66,1;.33,0,.66,.33" values="12;6;12"/></circle></svg>
+    <!-- Loader SVG -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+      <circle cx="4" cy="12" r="3" fill="#000000">
+        <animate id="svgSpinners3DotsBounce0" attributeName="cy" begin="0;svgSpinners3DotsBounce1.end+0.25s" calcMode="spline" dur="0.6s" keySplines=".33,.66,.66,1;.33,0,.66,.33" values="12;6;12"/>
+      </circle>
+      <circle cx="12" cy="12" r="3" fill="#000000">
+        <animate attributeName="cy" begin="svgSpinners3DotsBounce0.begin+0.1s" calcMode="spline" dur="0.6s" keySplines=".33,.66,.66,1;.33,0,.66,.33" values="12;6;12"/>
+      </circle>
+      <circle cx="20" cy="12" r="3" fill="#000000">
+        <animate id="svgSpinners3DotsBounce1" attributeName="cy" begin="svgSpinners3DotsBounce0.begin+0.2s" calcMode="spline" dur="0.6s" keySplines=".33,.66,.66,1;.33,0,.66,.33" values="12;6;12"/>
+      </circle>
+    </svg>
   </div>
 </div>
 
+<!-- Include jQuery and Showdown.js -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/showdown@1.9.1/dist/showdown.min.js"></script>
+
 <script>
+    // Generate a UUID (if needed)
     function uuidv4() {
       return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
         (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
       );
     }
 
-    var chathistory = [];
-    var documents = [];
-    var sessionid = uuidv4();
+    let chatHistory = [];
+    let documents = [];
 
+    // CSRF token setup
     $.ajaxSetup({
         beforeSend: function(xhr) {
             xhr.setRequestHeader('Csrf-Token','@helper.CSRF.getToken.value');
         }
     });
 
-    function escapeHtmlAttribute(value) {
-        return value
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+    // Function to sanitize HTML to prevent XSS
+    function sanitizeHtml(text) {
+        const tempDiv = document.createElement('div');
+        tempDiv.textContent = text;
+        return tempDiv.innerHTML;
     }
 
+    // Function to convert Unicode escape sequences to characters
     function unicodeToChar(text) {
-        return escapeHtmlAttribute(text.replace(/\\u[\dA-F]{4}/gi, function (match) {
+        return text.replace(/\\u[\dA-F]{4}/gi, function (match) {
             return String.fromCharCode(parseInt(match.replace(/\\u/g, ''), 16));
-        })).replace(/\\n/g, "<br />");
+        }).replace(/\\n/g, "<br />");
     }
 
-    function addMessage(message, isHuman) {
-        var dialogue = $("#dialogue");
-        var row = $('<div>').addClass('row');
-        var col;
+    // Function to add messages to the dialogue
+    function addMessage(message, isHuman, data = {}) {
+        const dialogue = $("#dialogue");
+        const row = $('<div>').addClass('row');
+        let col;
         if (isHuman) {
           col = $('<div>').addClass('col-md-8 offset-md-3');
         }
         else {
           col = $('<div>').addClass('col-md-8 offset-md-1');
         }
-        var container = $('<div>').addClass(isHuman ? 'label-human' : 'label-agent');
+        const container = $('<div>').addClass(isHuman ? 'label-human' : 'label-agent');
 
-        var converter = new showdown.Converter(),
+        // Initialize showdown converter with sanitization
+        const converter = new showdown.Converter({sanitize: true}),
             text      = message.replace("\n", "<br />"),
             html      = converter.makeHtml(text);
-        var label = $('<label>').html(html);
+        const label = $('<label>').html(html);
         $(container).append(label);
 
         if (!isHuman) {
-          var feedbackPos = $('<i class="fa-regular fa-thumbs-up" style="color: #999; font-size: 1.5em; padding-right: 5px;"></i>');
-          var feedbackNeg = $('<i class="fa-regular fa-thumbs-down" style="color: #999; font-size: 1.5em; "></i>');
+          // Feedback icons
+          const feedbackPos = $('<i class="fa-regular fa-thumbs-up" style="color: #999; font-size: 1.5em; padding-right: 5px;"></i>');
+          const feedbackNeg = $('<i class="fa-regular fa-thumbs-down" style="color: #999; font-size: 1.5em; "></i>');
           $(feedbackPos).on('click', function() {
+            // Handle positive feedback
             $.post({
               url: "@controllers.routes.HomeController.feedback()",
               data: JSON.stringify(),
@@ -105,8 +126,9 @@
 
           });
           $(feedbackNeg).on('click', function() {
+              // Handle negative feedback
           });
-          var feedbackRow = $("<div class='row'>")
+          const feedbackRow = $("<div class='row'>")
             .append($("<div class='col-md-1 offset-11'>")
               .append(feedbackPos)
               .append(feedbackNeg)
@@ -120,29 +142,29 @@
         dialogue.scrollTop(dialogue[0].scrollHeight);
     }
 
+    // Function to display documents
     function presentDocuments(documents) {
-      // Initialize the container for document list
-      var doclist = $('<div class="documentdiv">');
+      const doclist = $('<div class="documentdiv">');
 
       for (let doc of documents) {
-          var linktext = doc['s'];
+          let linktext = doc['s'];
           const parts = linktext.split(/[\\/]/);
           linktext = parts.pop();
           if ('provenance' in doc) {
               linktext += ' (provenance: ' + String(Math.round(doc['provenance'] * 100000) / 100000) + ')';
           }
-          var content = unicodeToChar(doc['c']).substring(0, 100);
+          let content = sanitizeHtml(unicodeToChar(doc['c']).substring(0, 100));
           if (doc['c'].length > 100) {
               content += ' ...';
           }
 
-          var doccontentholder = $('<p class="doccontenttext text-muted mb-0" style="font-size: 0.875rem; font-weight: 400; line-height: 1.5; padding: 0px 10px 0px 10px;">').html(content);
+          const doccontentholder = $('<p class="doccontenttext text-muted mb-0" style="font-size: 0.875rem; font-weight: 400; line-height: 1.5; padding: 0px 10px 0px 10px;">').html(content);
 
           // Create the document link container
-          var doclink = $('<div class="d-flex align-items-center gap-3 bg-light px-3 py-2 justify-content-between" style="min-height: 72px; border-radius:20px; margin: 4px !important; box-shadow: 0 1px 1px rgba(0,0,0,0.3);">').append(
+          const doclink = $('<div class="d-flex align-items-center gap-3 bg-light px-3 py-2 justify-content-between" style="min-height: 72px; border-radius:20px; margin: 4px !important; box-shadow: 0 1px 1px rgba(0,0,0,0.3);">').append(
               $('<div class="d-flex align-items-center gap-3">').append(
                   $('<div class="d-flex flex-column justify-content-center">').append(
-                      $('<p class="text-dark mb-1" style="font-size: 1rem; font-weight: 500; line-height: 1.5;">').html(linktext)
+                      $('<p class="text-dark mb-1" style="font-size: 1rem; font-weight: 500; line-height: 1.5;">').html(sanitizeHtml(linktext))
                   ).append(doccontentholder)
               )
           ).append(
@@ -155,26 +177,25 @@
                   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 256 256">' +
                       '<path d="M74.34,133.66l80,80a8,8,0,0,0,11.32-11.32L91.31,128l74.35-74.34a8,8,0,0,0-11.32-11.32l-80,80A8,8,0,0,0,74.34,133.66Z"></path>' +
                   '</svg></div>'
-
-              )
+                )
           );
 
           // Create and configure the clickable container
-          var doccontainer = $('<p  data-content="' + unicodeToChar(doc['c']) + '" class="documentcontainerclass">').append(doclink).css('cursor', 'pointer');
+          const doccontainer = $('<p>').attr('data-content', unicodeToChar(doc['c'])).addClass('documentcontainerclass').append(doclink).css('cursor', 'pointer');
 
           // Append the created doccontainer to the document list
           doclist.append(doccontainer);
       }
 
       // Create and append the message container
-      var message = $('<div>')
+      const message = $('<div>')
           .append('<h5>Documents used in generating this answer</h5>')
           .append(doclist);
 
-      var dialogue = $("#dialogue");
-      var row = $('<div>').addClass('row');
-      var col = $('<div>').addClass('col-md-8 offset-md-1');
-      var container = $('<div>').addClass('label-agent').addClass('label-docuyments');
+      const dialogue = $("#dialogue");
+      const row = $('<div>').addClass('row');
+      const col = $('<div>').addClass('col-md-8 offset-md-1');
+      const container = $('<div>').addClass('label-agent').addClass('label-documents');
       $(container).append(message);
       $(col).append(container);
       $(row).append(col);
@@ -182,9 +203,9 @@
       dialogue.scrollTop(dialogue[0].scrollHeight);
     }
 
+    // Event handler for clicking on a document
     $(document).on('click', '.documentcontainerclass', function() {
         let newContent = $(this).data('content');
-        // Check if newContent is an object, and convert it to a string if so
         if (typeof newContent === 'object') {
             newContent = JSON.stringify(newContent);
         }
@@ -193,9 +214,9 @@
         let rightArrowDiv = $(this).find('div[data-arrow="right"]');
 
         if (leftArrowDiv.is(':visible')) {
-            var newNewContent = '';
+            let newNewContent = '';
             if (newContent && newContent.length > 0) {
-              newNewContent = newContent.substring(0, 100);
+              newNewContent = sanitizeHtml(newContent.substring(0, 100));
             }
             if (newContent.length > 100) {
                 newNewContent += ' ...';
@@ -209,39 +230,41 @@
             $(rightArrowDiv).toggleClass('hidden');
             $(leftArrowDiv).toggleClass('hidden');
             $(this).find(">:first-child").toggleClass('documentshown');
-            $(this).find('p.doccontenttext').html(newContent);
+            $(this).find('p.doccontenttext').html(sanitizeHtml(newContent));
         }
     });
 
+    // Function to handle chat submission
     function handleChat() {
-        $('button[type="submit"]', this).prop('disabled', true);
+        // Disable submit buttons and input fields
+        $('.submit-btn').prop('disabled', true);
+        $('.query-input').prop('disabled', true);
         $("#mainContainer").hide();
-        var query = $("#query").val();
-        $("#query").val('');
+        const query = $('.query-input:visible').val();
+        $('.query-input').val('');
         $("#inputbar").hide();
 
         addMessage(query, true);
         $("#loader").show();
-        $(dialogue).show();
+        $("#dialogue").show();
 
-        // # TODO handle graphrag response here as well
         $.ajax({
             type: "POST",
             url: "@controllers.routes.HomeController.search()",
             data: JSON.stringify({
               query: query,
-              history: chathistory,
+              history: chatHistory,
               docs: documents
             }),
             contentType: "application/json; charset=utf-8",
             dataType: "json",
-            
+
             success: function(data){
                 $("#loader").hide();
                 $("#mainContainer").remove();
 
                 if (data['rewritten']) {
-                  var msg = '<span style="color: #ccc; font-style: italic; font-weight: 300;">Your message has been rewritten to this:</span>\n\n' + data['question'];
+                  const msg = '<span style="color: #ccc; font-style: italic; font-weight: 300;">Your message has been rewritten to this:</span>\n\n' + data['question'];
                   addMessage(msg, true);
                 }
 
@@ -250,36 +273,38 @@
                 if (documents.length > 0 && data['fetched_new_documents']) {
                   presentDocuments(documents);
                 }
-                chathistory = data['history'];
+                chatHistory = data['history'];
 
                 $("#inputbar").show();
-                $("#query").val('');
+                $('.query-input').val('');
+                // Re-enable inputs
+                $('.submit-btn').prop('disabled', false);
+                $('.query-input').prop('disabled', false);
             },
-            error: function(errMsg) {
+            error: function(xhr, status, error) {
                 $("#loader").hide();
                 $("#inputbar").show();
-                addMessage('Something went wrong, please try again...', false);
+                const errorMessage = xhr.status + ': ' + xhr.statusText;
+                addMessage('Error - ' + errorMessage, false);
+                // Re-enable inputs
+                $('.submit-btn').prop('disabled', false);
+                $('.query-input').prop('disabled', false);
             },
             timeout: 300000
         });
     }
 
+    // Attach event handlers
     $(document).ready(function() {
-        $('#submitBtn').on('click', function() {
+        $('.submit-btn').on('click', function() {
             handleChat();
         });
 
-        $('#submitBtn2').on('click', function() {
-            handleChat();
-        });
-
-        $('input[id="query"]').each(function() {
-          $(this).on('keydown', function(event) {
+        $('.query-input').on('keydown', function(event) {
             if (event.key === 'Enter') {
-              event.preventDefault();
-              handleChat();
+                event.preventDefault();
+                handleChat();
             }
-          });
         });
     });
 </script>
