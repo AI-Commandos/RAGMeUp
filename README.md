@@ -184,7 +184,7 @@ RAG Me Up uses Ragas to evaluate your pipeline. You can run an evaluation based 
 - Read documentation : WHICH ONE? - Finn
 -  
 - Evaluation metrics - Flynn
-- ColBert - Finn & Jesper
+- ColBert - Jesper
 
 Things we tried:
 - Retrieval document: SQL
