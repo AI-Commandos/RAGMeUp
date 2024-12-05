@@ -525,15 +525,6 @@ class RAGHelper:
     def add_csv_to_graphdb(self,filename):
         path = os.path.join(self.data_dir,filename)
         url_add_instance = f"{self.neo4j}/add_instances"
-        
-        #to create this using file_upload, we would need to change the server endpoint again, and there is parses again. For now, we parse on this server. 
-        
-        # url_add_csv = f"{self.neo4j}/add_csv"
-        # try:
-            # with open(path, 'rb') as f:
-            #     files = {'file': f}
-            #     response = requests.post(url_add_csv, files=files)
-        # except:
         try:
             self.logger.info('Uploading csv instances using json')
             with open(path, mode="r", encoding="utf-8") as csvfile:
@@ -566,6 +557,9 @@ class RAGHelper:
             # schema, file
             #ask llm
             #create json from llm output and add to graph db using add_instances endpoint
+        if filetype == "docx":
+            schema = requests.get(url=self.neo4j+'/get_schema')
+            
 
     def add_document(self, filename):
         """
@@ -589,7 +583,7 @@ class RAGHelper:
             # self.logger.info(f'this is filetype {doc.metadata.get("source").lower().split(".")[-1]}')
             # self.add_document_to_graphdb(doc.page_content,doc.metadata.get("source").lower().split('.')[-1])
         
-        self.logger.info("chunking the documents.")
+        self.logger.info("chunking the documents.")     
         new_chunks = self._split_documents(new_docs)
 
         self._update_chunked_documents(new_chunks)

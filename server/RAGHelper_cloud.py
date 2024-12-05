@@ -154,25 +154,20 @@ class RAGHelperCloud(RAGHelper):
         """
         
         """This is before formatting, importantly, metadata should at least include: source, id"""
-        # if len(graph_docs[0].page_content) > nummer:
-        #     limited_docs = combined_docs[:self.9]
-        combined_docs = graph_docs + retriever_docs
+        if graph_docs is not None:
+            length = len(graph_docs[0].page_content) // self.chunk_size            
+            combined_docs = graph_docs + retriever_docs            
+            # Ensure at least one document is retained
+            retain_count = max(1, self.max_length - length)
+            combined_docs = combined_docs[:retain_count]
+        else:
+            combined_docs = retriever_docs
         limited_docs = combined_docs[:self.max_length]
         return {
             "docs": limited_docs,
             "context": RAGHelper.format_documents(limited_docs),
             "question": question
         }
-
-
-    
-    def retrieve_documents(self, retriever, query):
-        if hasattr(retriever, "retrieve"):
-            return retriever.retrieve(query)
-        elif hasattr(retriever, "get_relevant_documents"):
-            return retriever.get_relevant_documents(query)
-        else:
-            raise AttributeError(f"Retriever {type(retriever).__name__} has no supported retrieval method.")
 
     def handle_user_interaction(self, user_query: str, history: list) -> tuple:
         """Handle user interaction by processing their query and maintaining conversation history.
@@ -230,30 +225,13 @@ class RAGHelperCloud(RAGHelper):
         # Check if we need to apply Re2 to mention the question twice
         if os.getenv("use_re2") == "True":
             user_query = f'{user_query}\n{os.getenv("re2_prompt")}{user_query}'
-            
-        retrieved_docs = []
-
-        for retriever in self.ensemble_retriever.retrievers:
-            docs = self.retrieve_documents(retriever, user_query)
-            retrieved_docs.extend(docs)
-
-        formatted_docs = RAGHelper.format_documents(retrieved_docs)
-        # Log raw documents
-        # self.logger.info("=== Raw Retrieved Documents ===")
-        # for i, doc in enumerate(retrieved_docs):
-        #     self.logger.info(f"Document {i} Content: {doc.page_content}")
-        #     self.logger.info(f"Document {i} Metadata: {doc.metadata}")
-
-        # Log formatted documents
-        # self.logger.info("=== Formatted Documents ===")
-        # self.logger.info(formatted_docs)
 
         # Invoke RAG pipeline
         reply = rag_chain.invoke(user_query)
         # Track provenance if needed
         if fetch_new_documents and os.getenv("provenance_method") in ['rerank', 'attention', 'similarity', 'llm']:
             self.track_provenance(reply, user_query)
-
+            
         return (thread, reply)
 
     def should_fetch_new_documents(self, user_query: str, history: list) -> bool:
@@ -389,26 +367,15 @@ class RAGHelperCloud(RAGHelper):
         #get schema from graph endpoint
         schema_url = f"{self.neo4j}/schema"
         response = requests.get(schema_url)
-        self.logger.info(f"schema response is: {response}")
         if response.status_code != 200:
             self.logger.error(f"Failed to retrieve schema from {schema_url}.")
             return None
 
         schema = response.json()  # Assuming schema is returned in JSON format
-        self.logger.info(f"schema is: {schema}")
         schema_text = "\n".join([f"{key}: {value}" for key, value in schema.items()])
 
         # Construct schema text for the prompt
         schema_text = self.format_schema_for_prompt(schema)
-        self.logger.info(f"Schema text is: {schema_text}")
-        
-        
-        #use fewshot together with schema to ask for a query by llm or to let llm return None when it thinks it wont be able to find answers based on the schema
-        self.logger.info(f"The USER query is: {user_query}")
-        # what are these doing here?
-        # response = self.rag_fetch_new_chain.invoke(user_query)
-        # response = self.extract_response_content(response)
-        # self.logger.info(f"the response is: {response}")
 
         # Load prompt components from .env
         retrieval_instruction = os.getenv('rag_retrieval_instruction').replace("{schema}", schema_text)
@@ -442,7 +409,8 @@ class RAGHelperCloud(RAGHelper):
         
         query_url = f"{self.neo4j}/run_query"
 
-        if re.sub(r'\W+ ', '', response_text).lower().startswith('None'):
+        # if re.sub(r'\W+ ', '', response_text).lower().startswith('None'):
+        if response.text.startswith('None'):
             return None
         else:
             # Execute the generated Cypher query
@@ -452,21 +420,43 @@ class RAGHelperCloud(RAGHelper):
                     self.logger.error(f"Failed to execute query: {response_text}")
                     return None
 
+                # query_results = query_response.json().get("results", [])
+                # self.logger.info(f"The found query results: {query_results}")
+
+                # # Format results as LangChain Documents
+                # documents = [
+                #     Document(
+                #         page_content=", ".join(f"{key}: {value}" for key, value in record.items()),
+                #         metadata={"source": "graph_db", **record}
+                #     )
+                #     for record in query_results
+                # ]
+                # formatted_query = RAGHelper.format_documents(documents)
+                # self.logger.info(f"The found formatted documents: {formatted_query}")
+                # return documents
+
                 query_results = query_response.json().get("results", [])
                 self.logger.info(f"The found query results: {query_results}")
 
-                # Format results as LangChain Documents
-                documents = [
-                    Document(
-                        page_content=", ".join(f"{key}: {value}" for key, value in record.items()),
-                        metadata={"source": "graph_db", **record}
-                    )
+                # Combine all results into a single document
+                combined_content = "\n".join(
+                    ", ".join(f"{key}: {value}" for key, value in record.items())
                     for record in query_results
-                ]
-                formatted_query = RAGHelper.format_documents(documents)
-                self.logger.info(f"The found formatted documents: {formatted_query}")
-                return documents
+                )
 
+                # Create a single LangChain Document
+                document = Document(
+                    page_content=combined_content,
+                    metadata={"source": "graph_db"}
+                )
+
+                # Log the combined document
+                self.logger.info(f"The combined document: {document}")
+
+                # Return as a list containing the single combined document
+                return [document]
+
+                
             except Exception as e:
                 self.logger.error(f"Error executing query or formatting results: {e}")
                 return None
