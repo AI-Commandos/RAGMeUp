@@ -44,6 +44,7 @@ class RAGHelperCloud(RAGHelper):
         self.slide_deck_summarizer = SlideDeckSummarizer(self.data_dir, self.llm)
 
         # Transform the pdf documents that are slide decks
+        self.logger.info("Transforming slide decks.")
         self.slide_deck_summarizer.transform_slidedecks_and_remove_pdf()
 
         # Load the data

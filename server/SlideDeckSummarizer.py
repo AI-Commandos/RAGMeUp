@@ -8,7 +8,6 @@ from mimetypes import guess_type
 from pdf2image import convert_from_path
 
 from langchain.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
-from langchain_openai import ChatOpenAI
 
 load_dotenv('.env')
 
@@ -25,12 +24,13 @@ class SlideDeckSummarizer:
         self.allowed_models = {'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro',
                                'gpt-4o', 'gpt-4-turbo'}
 
-        if (not os.getenv('use_openai')) or (not os.getenv('use_gemini')):
-            raise ValueError("To summarize slide decks you must use a multimodal model from either OpenAI or Gemini")
-        if not os.getenv('openai_model_name') in self.allowed_models:
-            raise ValueError("Use a multimodal model from OpenAI")
-        if not os.getenv('gemini_model_name') in self.allowed_models:
-            raise ValueError("Use a multimodal model from Gemini")
+        if os.getenv('use_openai') == 'True':
+            if not os.getenv('openai_model_name') in self.allowed_models:
+                raise ValueError("Use a multimodal model from OpenAI")
+
+        elif os.getenv('use_gemini') == 'True':
+            if not os.getenv('gemini_model_name') in self.allowed_models:
+                raise ValueError("Use a multimodal model from Gemini")
 
         os.makedirs(self.output_folder, exist_ok=True)
 
@@ -175,7 +175,8 @@ class SlideDeckSummarizer:
             summary = self._summarize_all_slides_from_deck(deck)
 
             # write summary to text file
-            with open(Path(deck).stem + '.txt', 'w') as f:
+            new_fp = os.path.join(self.input_folder, Path(deck).stem + '.txt')
+            with open(new_fp, 'w') as f:
                 f.write(summary)
 
             # remove the pdf from the input dir
