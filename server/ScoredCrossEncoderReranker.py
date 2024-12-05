@@ -42,6 +42,8 @@ class ScoredCrossEncoderReranker(BaseDocumentCompressor):
         ]
 
         return feedback_list
+    
+    print('feedback_list', feedback_list)
 
     def compress_documents(
         self,
@@ -80,6 +82,7 @@ class ScoredCrossEncoderReranker(BaseDocumentCompressor):
                 docs_with_scores[i] = (doc, score + avg_rating)
         
         
-        
+        print('End with reranking en feedback')
         result = sorted(docs_with_scores, key=operator.itemgetter(1), reverse=True)
+        print('result', result)
         return [doc.copy(update={"metadata": {**doc.metadata, "relevance_score": score}}) for doc, score in result[:self.top_n]]

@@ -402,5 +402,31 @@ def save_feedback():
 #     return jsonify({"document_id": document_id, "feedback": feedback_list})
 
 
+@app.route("/check_feedback", methods=['GET'])
+def check_feedback():
+    """
+    Endpoint to debug and display feedback data from the database.
+    """
+    conn = sqlite3.connect('feedback.db')
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT * FROM Feedback")
+        rows = cursor.fetchall()
+
+        if rows:
+            feedback_data = [
+                {"query": row[0], "answer": row[1], "document_id": row[2], "rating": row[3], "timestamp": row[4]}
+                for row in rows
+            ]
+            return jsonify({"status": "success", "feedback": feedback_data})
+        else:
+            return jsonify({"status": "success", "feedback": [], "message": "No feedback data found"})
+    except sqlite3.Error as e:
+        return jsonify({"status": "error", "message": str(e)})
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0")
