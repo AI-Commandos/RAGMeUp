@@ -76,7 +76,7 @@ class RAGHelperSQL(RAGHelperLocal):
             doc_fetcher = lambda: docs
             return {
                 "docs": RunnableLambda(doc_fetcher),
-                "context": RunnableLambda(doc_fetcher) | RAGHelper.format_documents,
+                "context": RAGHelper.format_documents(RunnableLambda(doc_fetcher)),
                 "question": RunnablePassthrough()
             } | LLMChain(llm=self.llm, prompt=prompt)
         return {"question": RunnablePassthrough()} | LLMChain(llm=self.llm, prompt=prompt)
