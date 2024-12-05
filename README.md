@@ -1,4 +1,4 @@
-# RAG Me Up
+# RAG Me Up 
 RAG Me Up is a generic framework (server + UIs) that enables you do to RAG on your own dataset **easily**. Its essence is a small and lightweight server and a couple of ways to run UIs to communicate with the server (or write your own).
 
 RAG Me Up can run on CPU but is best run on any GPU with at least 16GB of vRAM when using the default instruct model.
