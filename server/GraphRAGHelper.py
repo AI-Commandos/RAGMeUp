@@ -49,9 +49,25 @@ class GraphRAGHelper(RAGHelper):
 
         # # Create RAG chains
         # self.rag_fetch_new_chain = self._create_rag_chain()
-        # self.rewrite_ask_chain, self.rewrite_chain = self._initialize_rewrite_chains()
-
+        self.rewrite_ask_chain, self.rewrite_chain = self._initialize_rewrite_chains()
     
+    def load_data(self):
+        """
+        Loads data from various file types and chunks it into an ensemble retriever.
+        """
+        if os.path.exists(self.document_chunks_pickle):
+            self.logger.info("documents chunk pickle exists, reusing it.")
+            self._load_chunked_documents() 
+        else:
+            self.logger.info("loading the documents for the first time.")
+            docs = self._load_documents()
+            self.logger.info("chunking the documents.")
+            self._split_and_store_documents(docs)
+        
+        # Store knowledge graph in Neo4j
+        self.construct_graph(self.chunked_documents)
+        self.save_graph_to_neo4j()
+
     def _initialize_llm(self):
         """Initialize the LLM based on the available hardware and configurations."""
         llm_model = os.getenv('llm_model')
@@ -88,7 +104,7 @@ class GraphRAGHelper(RAGHelper):
     
     def _get_bnb_config(self):
         """Get the BitsAndBytes configuration for quantization."""
-        return RAGHelperLocal.get_bnb_config()
+        return RAGHelperLocal._get_bnb_config()
     
     def _create_llm_pipeline(self):
         """Create and return the LLM pipeline for text generation."""
@@ -132,8 +148,6 @@ class GraphRAGHelper(RAGHelper):
 
         return {"context": self.retrieve_documents, "question": RunnablePassthrough()} | rewrite_ask_llm_chain
 
-        # TODO: recreate cypher query and traverse the knowledge graph again
-
     def _create_rewrite_chain(self):
         """Create and return the rewrite chain."""
         rewrite_thread = [{'role': 'user', 'content': os.getenv('rewrite_query_prompt')}]
@@ -163,17 +177,17 @@ class GraphRAGHelper(RAGHelper):
         else:
             return user_query
         
-    @staticmethod
+    @staticmethod 
     def _prepare_conversation_thread(history):
         """Prepare the conversation thread for the user interaction."""
-        RAGHelperLocal.prepare_conversation_thread(history, False)
+        return RAGHelperLocal._prepare_conversation_thread(history, False)
 
     def _create_prompt_template(self, thread):
         """Create a prompt template using the tokenizer and the conversation thread."""
         prompt_template = self.tokenizer.apply_chat_template(thread, tokenize=False)
         return PromptTemplate(input_variables=["question"], template=prompt_template)
     
-    def _create_llm_chain(self, fetch_new_documents, prompt):
+    def _create_llm_chain(self, prompt):
         """Create the LLM chain for invoking the GraphRAG pipeline."""
         return {"question": RunnablePassthrough()} | LLMChain(llm=self.llm, prompt=prompt)
     
@@ -248,19 +262,18 @@ class GraphRAGHelper(RAGHelper):
         thread = self._prepare_conversation_thread(history)
         prompt = self._create_prompt_template(thread)
 
+        self.logger.info("Prepared conversation thread and created prompt template.")
+
         # Create llm chain
-        llm_chain = self._create_llm_chain(prompt)
+        # llm_chain = self._create_llm_chain(prompt)
 
         user_query = self.handle_rewrite(user_query)
         # Check if we need to apply Re2 to mention the question twice
         if os.getenv("use_re2") == "True":
             user_query = f'{user_query}\n{os.getenv("re2_prompt")}{user_query}'
 
-        # Invoke LLM chain to create Cypher query
-        cypher_query = llm_chain.invoke(user_query)
-
-        # Execute Cypher query to retrieve documents
-        response = self.retrieve_documents(cypher_query)
+        # Retrieve documents
+        response = self.retrieve_documents(user_query)
 
         return (thread, response)
 
@@ -276,7 +289,7 @@ class GraphRAGHelper(RAGHelper):
         new_chunks = self._split_documents(new_docs)
         self._update_chunked_documents(new_chunks)
         self._add_to_vector_database(new_chunks)
-        self.construct_graph(new_docs)
+        self.construct_graph(new_chunks)
         self.save_graph_to_neo4j()
 
     def delete_document(self, filename):
