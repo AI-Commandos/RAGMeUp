@@ -51,6 +51,9 @@ class RAGHelperCloud(RAGHelper):
         self.initialize_provenance_attribution()
         self.initialize_rewrite_loops()
 
+    def get_llm(self):
+        return self.llm
+    
     def initialize_llm(self):
         """Initialize the Language Model based on environment configurations."""
         if os.getenv("use_openai") == "True":
@@ -372,7 +375,7 @@ class RAGHelperCloud(RAGHelper):
             return None
 
         schema = response.json()  # Assuming schema is returned in JSON format
-        schema_text = "\n".join([f"{key}: {value}" for key, value in schema.items()])
+        # schema_text = "\n".join([f"{key}: {value}" for key, value in schema.items()])
 
         # Construct schema text for the prompt
         schema_text = self.format_schema_for_prompt(schema)

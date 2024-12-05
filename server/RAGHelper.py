@@ -4,6 +4,8 @@ import pickle
 import requests
 import base64
 import csv
+import json
+import re
 
 from langchain.retrievers import (ContextualCompressionRetriever,
                                   EnsembleRetriever)
@@ -16,6 +18,7 @@ from langchain_community.document_loaders import (CSVLoader, DirectoryLoader,
                                                   UnstructuredExcelLoader,
                                                   UnstructuredPowerPointLoader)
 from langchain_community.retrievers import BM25Retriever
+from langchain.prompts import ChatPromptTemplate
 from langchain_core.documents.base import Document
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_milvus.vectorstores import Milvus
@@ -70,6 +73,8 @@ class RAGHelper:
         self.json_text_content = os.getenv("json_text _content", "false").lower() == 'true'
         self.json_schema = os.getenv("json_schema")
         self.neo4j = os.getenv("neo4j_location")
+        self.add_docs_to_neo4j = os.getenv("file_upload_using_llm")
+        self.dynamic_neo4j_schema = os.getenv("dynamic_neo4j_schema")
 
     @staticmethod
     def format_documents(docs):
@@ -549,17 +554,96 @@ class RAGHelper:
             self.logger.info(f'Succesfully loaded {len(payloads)} records into payloads')
         except:
             self.logger.info(f"server responded with: {response.text}")
+    
+    def get_llm(self):
+        """Accessor method to get the LLM. Subclasses can override this."""
+        return None
 
-    def add_document_to_graphdb(self,file,filetype):
-        if filetype == "pdf":
-            schema = requests.get(url=self.neo4j+'/get_schema')
-            #text 1: bla bla, schema 1: quote, topic, relatoinship: wants. output: {"quote": "ik wil een bak vouwen","topic": "bier","relation":"wants"}
-            # schema, file
-            #ask llm
-            #create json from llm output and add to graph db using add_instances endpoint
-        if filetype == "docx":
-            schema = requests.get(url=self.neo4j+'/get_schema')
-            
+    def escape_curly_braces_in_query(self, json_string):
+        # Function to escape braces in the matched 'query' string
+        def escape_braces(match):
+            query_content = match.group(1)
+            escaped_content = query_content.replace('{', '\\\\{').replace('}', '\\\\}')
+            return '"query": "' + escaped_content + '"'
+        
+        # Regular expression to find 'query' fields
+        pattern = r'"query":\s*"([^"]*)"'
+        return re.sub(pattern, escape_braces, json_string)
+
+
+    def add_document_to_graphdb(self,page_content,metadata):
+        llm = self.get_llm()
+        if llm is None:
+            self.logger.error("LLM is not available in RAGHelper.")
+            return None
+        if metadata.get("source").lower().split(".")[-1] == "pdf":
+            try:
+                schema_response = requests.get(url=self.neo4j+'/schema')
+                if schema_response.status_code != 200:
+                    self.logger.info("Failed to retrieve schema from the graph database.")
+                    return None
+                schema = schema_response.json()
+                # schema = "\n".join([f"{key}: {value}" for key, value in schema.items()])
+
+                # Construct schema text for the prompt
+                schema_text = self.format_schema_for_prompt(schema)
+                
+                # Load prompt components from .env
+                retrieval_instruction = os.getenv('neo4j_insert_instruction')
+                retrieval_few_shot = os.getenv('neo4j_insert_few_shot')
+                retrieval_question = os.getenv('neo4j_insert_schema').replace("{schema}", schema_text).replace("{data}",page_content)
+                
+                retrieval_instruction = retrieval_instruction.replace("{", "{{").replace("}", "}}")
+                retrieval_few_shot = retrieval_few_shot.replace("{", "{{").replace("}", "}}")
+                retrieval_question = retrieval_question.replace("{", "{{").replace("}", "}}")
+
+                # Combine into a single prompt
+                retrieval_thread = [
+                    ('system', retrieval_instruction + "\n\n" + retrieval_few_shot),
+                    ('human', retrieval_question)
+                ]
+
+                rag_prompt = ChatPromptTemplate.from_messages(retrieval_thread)
+                self.logger.info("Initializing retrieval for RAG.")
+
+
+                # Create an LLM chain
+                llm_chain = rag_prompt | llm
+                # Invoke the LLM chain and get the response
+                try:
+                    llm_response = llm_chain.invoke({})
+                    # self.logger.info(f"llm response is: {llm_response}")
+                    response_text = self.extract_response_content(llm_response).strip()
+                    self.logger.info(f"The LLM response is: {response_text}")
+
+                except Exception as e:
+                    self.logger.error(f"Error during LLM invocation: {e}")
+                    return None
+
+                # Escape the curly braces in 'query' strings
+                escaped_data = self.escape_curly_braces_in_query(response_text)
+
+                # Now parse the JSON
+                try:
+                    json_data = json.loads(escaped_data)
+                    print("Parsed JSON data:", json_data)
+                except json.JSONDecodeError as e:
+                    print("Error parsing JSON:", e)
+
+                def unescape_curly_braces(json_data):
+                    for item in json_data:
+                        item['query'] = item['query'].replace('\\{', '{').replace('\\}', '}')
+                    return json_data
+
+                json_data = unescape_curly_braces(json_data)
+               
+                response = requests.post(url = self.neo4j+'/add_instances',json=json_data)
+                self.logger.info(f'{response}')
+                if response == '<Response [200]>':
+                    self.logger.info(f'Succesfully loaded {len(json_data)} records into payloads')
+                
+            except Exception as e:
+                self.logger.error(f"Error adding document to the graph database: {e}")
 
     def add_document(self, filename):
         """
@@ -576,12 +660,9 @@ class RAGHelper:
             self.add_csv_to_graphdb(filename)
         new_docs = self._load_document(filename)
         self.logger.info("adding documents to graphdb.")
-        # for doc in new_docs:
-        #     self.logger.info(f'this is the columns part you get from the loader: {doc.page_content.split(":", 1)[0]}')
-        #     self.logger.info(f'this is the values part you get from the loader: {doc.page_content.split(":", 1)[1]}')
-            # self.logger.info(f'this is the page content: {doc.page_content}')
-            # self.logger.info(f'this is filetype {doc.metadata.get("source").lower().split(".")[-1]}')
-            # self.add_document_to_graphdb(doc.page_content,doc.metadata.get("source").lower().split('.')[-1])
+        if self.add_docs_to_neo4j:
+            for doc in new_docs:
+                self.add_document_to_graphdb(doc.page_content,doc.metadata)
         
         self.logger.info("chunking the documents.")     
         new_chunks = self._split_documents(new_docs)
