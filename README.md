@@ -6,6 +6,8 @@ RAG Me Up can run on CPU but is best run on any GPU with at least 16GB of vRAM w
 Combine the power of RAG with the power of fine-tuning - check out our [LLaMa2Lang repository](https://github.com/UnderstandLingBV/LLaMa2Lang) on fine-tuning LLMs which can then be used in RAG Me Up.
 
 # Updates
+**For the specific changes made by group 11, they are described in the README_Group11.md file on this GitHub**
+
 - **2024-09-23** Hybrid retrieval with Postgres only (dense vectors  with pgvector and sparse BM25 with pg_search)
 - **2024-09-06** Implemented [Re2](https://arxiv.org/abs/2309.06275)
 - **2024-09-04** Added an evaluation script that uses Ragas to evaluate your RAG pipeline
