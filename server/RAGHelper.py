@@ -534,7 +534,7 @@ class RAGHelper:
             #     response = requests.post(url_add_csv, files=files)
         # except:
         try:
-            self.logger.info('Trying directly')
+            self.logger.info('Uploading csv instances using json')
             with open(path, mode="r", encoding="utf-8") as csvfile:
                 reader = csv.DictReader(csvfile,delimiter=';')
                 self.logger.info(reader.fieldnames) #we can also find the appropriate names and relations and get them below, so we can make a format you have to follow and then the csv will always upload
@@ -558,34 +558,11 @@ class RAGHelper:
 
     def add_document_to_graphdb(self,file,filetype):
         if filetype == "pdf":
-            columns = file.page_content.split(":", 1)[0]
-            values = file.page_content.split(":", 1)[1]
-            try:
-                url = f"{self.neo4j}/add_csv"
-                query = "MATCH (n) RETURN n"  # Replace this with your actual query
-                base64_file = self.encode_file_to_base64(file) # Encode the file to Base64
-                payload = {
-                    "query": query,
-                    "file": base64_file
-                }
-                response = requests.post(url, json=payload)
-                response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
-                self.logger.info(response.status_code)
-            except:
-                try:
-                    url = f"{self.neo4j}/add_instance"
-                    payload = {
-                        "query": "MERGE (q:Quote {text: $quoteText}) MERGE (t:Topic {name: $topicName}) MERGE (q)-[:IS_PART_OF]->(t)",
-                        "parameters": {
-                        "quoteText": "Yes sir welcome quote",
-                        "topicName": "welcome word"
-                        }
-                    }
-                    response = requests.post(url, json=payload)
-                    response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
-                    self.logger.info(response.status_code)
-                except:
-                    self.logger.info(f"could not add .csv to neo4j")
+            schema = requests.get(url=self.neo4j+'/get_schema')
+            #text 1: bla bla, schema 1: quote, topic, relatoinship: wants. output: {"quote": "ik wil een bak vouwen","topic": "bier","relation":"wants"}
+            # schema, file
+            #ask llm
+            #create json from llm output and add to graph db using add_instances endpoint
 
     def add_document(self, filename):
         """
