@@ -58,7 +58,7 @@ class RAGHelper:
         self.vector_store_k = int(os.getenv("vector_store_k"))
         self.chunk_size = int(os.getenv("chunk_size"))
         self.chunk_overlap = int(os.getenv("chunk_overlap"))
-        self.breakpoint_threshold_amount = os.getenv('breakpoint_threshold_amount', 'None')
+        self.breakpoint_threshold_amount = int(os.getenv('breakpoint_threshold_amount')) if os.getenv('breakpoint_threshold_amount', 'None') != 'None' else None
         self.number_of_chunks = None if (value := os.getenv('number_of_chunks',
                                                             None)) is None or value.lower() == 'none' else int(value)
         self.breakpoint_threshold_type = os.getenv('breakpoint_threshold_type')
