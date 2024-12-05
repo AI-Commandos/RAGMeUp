@@ -72,9 +72,11 @@ class RAGHelperSQL(RAGHelperLocal):
         """Create the LLM chain for invoking the RAG pipeline."""
         if fetch_new_documents:
             docs = self.ensemble_retriever.invoke(user_query)
+            # Create a lambda function that retrieves docs
+            doc_fetcher = lambda: docs
             return {
-                "docs": docs,
-                "context": RAGHelper.format_documents(docs),
+                "docs": RunnableLambda(doc_fetcher),
+                "context": RunnableLambda(doc_fetcher) | RAGHelper.format_documents,
                 "question": RunnablePassthrough()
             } | LLMChain(llm=self.llm, prompt=prompt)
         return {"question": RunnablePassthrough()} | LLMChain(llm=self.llm, prompt=prompt)
