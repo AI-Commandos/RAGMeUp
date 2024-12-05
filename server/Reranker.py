@@ -1,65 +1,95 @@
+from rank_bm25 import BM25Okapi
+import sqlite3
+import pandas as pd
+
 class Reranker:
-    def __init__(self, 
-                 feedback_db='feedback.db'):
+    def __init__(self, feedback_db='feedback.db'):
         self.feedback_db = feedback_db
 
-
-    def get_feedback():
+    def get_feedback(self):
         """
         Fetch feedback for a specific document from the feedback database.
         """
-        conn = sqlite3.connect(self.feedback.db)
-        # cursor = conn.cursor()
-
-        query = f"""
+        conn = sqlite3.connect(self.feedback_db)
+        
+        query = """
         SELECT query, answer, document_id, rating
         FROM Feedback 
-        WHERE document_id = ?
-        """	
+        """
         
-        # cursor.execute(
-        #     "SELECT query, answer, rating, timestamp FROM Feedback WHERE document_id = ?",
-        #     (document_id,)
-        # )
-        # feedback = cursor.fetchall()
-
-        feedback_df = pd.read_sql_query(query, conn)
+        feedback = pd.read_sql_query(query, conn)
         conn.close()
+        return feedback
+    
 
-        # # Format feedback as a list of dictionaries
-        # feedback_list = [
-        #     {"query": row[0], "answer": row[1], "rating": row[2], "timestamp": row[3]} for row in feedback
-        # ]
-        print('feedback_df in Reranker.py:', feedback_df)
-        return feedback_df
+    def retrieve_with_bm25(self, query, documents):
+        """
+        Retrieve documents based on BM25 scores.
+        """
+        # Tokenize the documents
+        tokenized_docs = [doc.split() for doc in documents]
 
+        # Initialize BM25
+        bm25 = BM25Okapi(tokenized_docs)
 
-    def compute_relevance_score(bm25_score, feedback_score, alpha=0.7, beta=0.3):
+        # Tokenize the query
+        tokenized_query = query.split()
+
+        # Retrieve scores
+        scores = bm25.get_scores(tokenized_query)
+
+        # Combine documents with their scores
+        retrieved_docs = [{"document": doc, "bm25_score": score} for doc, score in zip(documents, scores)]
+
+        return retrieved_docs
+
+    def compute_relevance_score(self, bm25_score, feedback_score, alpha=0.7, beta=0.3):
         """
         Compute the relevance score based on BM25 score and user feedback.
         """
         return alpha * bm25_score + beta * feedback_score
 
-    def rerank_documents_with_feedback(query, documents, feedback_db):
+    def rerank_documents_with_feedback(self, query, documents):
         """
         Rerank documents based on BM25 scores and user feedback.
         """
         # Retrieve documents with BM25 scores
-        retrieved_docs = retrieve_with_bm25(query)
+        retrieved_docs = self.retrieve_with_bm25(query, documents)
 
         # Fetch feedback scores for the documents
         for doc in retrieved_docs:
-            feedback = get_feedback()  # Fetch cumulative thumbs feedback
-            print('feedback in rerank_documents_with_feedback:', feedback)
-            doc["feedback_score"] = feedback if feedback is not None else 0
+            feedback = self.get_feedback()
+            feedback_score = sum([f[3] for f in feedback]) if feedback else 0
+            doc["feedback_score"] = feedback_score
 
-        # Compute new relevance scores
+        # Compute relevance scores
         for doc in retrieved_docs:
-            doc["relevance_score"] = compute_relevance_score(
-                bm25_score=doc["bm25_score"], 
-                feedback_score=doc["feedback_score"]
-            )
+            doc["relevance_score"] = self.compute_relevance_score(doc["bm25_score"], doc["feedback_score"])
 
         # Sort documents by relevance score
         reranked_docs = sorted(retrieved_docs, key=lambda x: x["relevance_score"], reverse=True)
+
         return reranked_docs
+    
+    def main_reranker(self):
+        feedback_df = self.get_feedback()
+        print(feedback_df)
+        
+
+    
+def main():
+    # Example usage
+    try:
+        reranker = Reranker()
+        reranker.main_reranker(
+            
+        )
+    
+    except Exception as e:
+        print(f"Reranking failed: {e}")
+    
+
+if __name__ == "__main__":
+    main()
+    
+
