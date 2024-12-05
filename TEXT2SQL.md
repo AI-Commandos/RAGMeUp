@@ -1,4 +1,4 @@
-# Text2SQL Component in a Retrieval-Augmented Generation (RAG) Framework
+# Text2SQL component in RAGMeUp
 
 ## Overview
 This project introduces a **Text2SQL retrieval component** into an existing Retrieval-Augmented Generation (RAG) framework. The component allows the system to transform natural language queries into SQL queries, enabling data retrieval from structured databases instead of the retrieval of unstructured documents.
@@ -7,55 +7,55 @@ The implementation integrates a PostgreSQL database for Text2SQL processing and 
 
 ## How our process differs:
 
-### 1. **Retrieval Type**
+### 1. **Retrieval type**
 - **Original RAGMeUp**: 
   - Focuses on unstructured document retrieval using a hybrid method combining dense (vector-based) and sparse (BM25) retrieval mechanisms.
-- **Text2SQL Component**: 
-  - Adds a new retrieval mode, enabling queries against structured databases using SQL. This shifts the focus from document embeddings to relational data.
+- **Text2SQL component**: 
+  - Adds a new retrieval mode, enabling queries against structured databases using SQL. This changes the setting from document embeddings to relational data.
 
 ---
 
-### 2. **Database Integration**
+### 2. **Database integration**
 - **Original RAGMeUp**:
   - Utilizes vector databases like Milvus or PostgreSQL with `pgvector` and `pg_search` for hybrid retrieval.
-- **Text2SQL Component**:
+- **Text2SQL component**:
   - Incorporates PostgreSQL directly for executing SQL queries. This involves dynamically generating and validating database schemas and loading CSV-based relational data into PostgreSQL tables.
 
 ---
 
-### 3. **Provenance Attribution**
+### 3. **Provenance attribution**
 - **Original RAGMeUp**:
-  - Implements several provenance methods (e.g., rerank, attention weights, similarity, LLM-assisted attribution) for unstructured document sources.
-- **Text2SQL Component**:
-  - Relies on inherent provenance tracking provided by the SQL query itself, which is returned alongside the result. While this is sufficient for concise queries, challenges arise for more complex queries that return a lot of records. In that case provenance should still be used.
+  - Implements several provenance methods for unstructured document sources.
+- **Text2SQL component**:
+  - Relies on inherent provenance tracking provided by the SQL query itself, which is returned alongside the result. While this is okay for situations in which a few rows are returned, queries that return a lot of records would still need to use provenance. However, currently the maximum number of records returned by the retriever is 50. Note that each record corresponds to a retrieved document. Therefore making provenance attribution possible on the records for future work. 
 
 ---
 
-### 4. **LLM Integration**
+### 4. **LLM integration**
 - **Original RAGMeUp**:
   - Uses LLMs for answering user's questions based on the query and the documents (context) retrieved by the hybrid retriever, incorporating both dense and sparse retrieval. 
-- **Text2SQL Component**:
-  - Adapts the LLM to generate SQL queries based on the user's query and the database schema, replacing the hybrid retrieval mechanism.
+- **Text2SQL component**:
+  - Adapts the LLM in order to additionally generate SQL queries with the LLM based on the user's query and the database schema, replacing the hybrid retrieval mechanism.
 
 ---
 
-### 5. **Pipeline Changes**
+### 5. **Pipeline changes**
 - **Original RAGMeUp**:
-  - Features a sequential pipeline for chunking, embedding generation, retrieval, and response generation tailored to document-based queries.
-- **Text2SQL Component**:
+  - Features a sequential pipeline for chunking, embedding generation, retrieval, and response generation specifically for document-based (unstructured) queries.
+- **Text2SQL component**:
   - Adds a separate route for SQL query generation, validation, and execution. Afterwards the retrieved database records are injected into the prompt. Just like the documents in the original RAGMeUp
 
-### 6. **Data Handling**
+### 6. **Data handling**
 - **Original RAGMeUp**:
   - Processes and chunks unstructured data into embeddings stored in a vector database.
-- **Text2SQL Component**:
+- **Text2SQL component**:
   - Skips chunking and embedding; instead, loads relational data directly into a database for SQL-based retrieval. It is important to note that currently only CSV files are supported and they must be put in the folder that is specified in the `.env` in the `data_directory` environment variable.
 
 ---
 
 ## Key Changes and features added to the code base.
 
-### 1. **Environment Configuration**
+### 1. **Environment configuration**
 - Added new configurations to the `.env.template` for Text2SQL support:
   - `TEXT2SQL_DB_URI`: Database URI for PostgreSQL.
     - In order for this to work you must host a separate SQL database somewhere that colab can connect to and place the URI in this environment variable.
@@ -68,7 +68,7 @@ The implementation integrates a PostgreSQL database for Text2SQL processing and 
 
 ---
 
-### 2. **PostgreSQL Text2SQL Retriever**
+### 2. **PostgreSQL Text2SQL retriever**
 A new class, `PostgresText2SQLRetriever`, is introduced. It:
 - Uses a pretrained LLM to generate SQL queries from user prompts based on the database schema.
 - Connects to a PostgreSQL database to execute the queries and fetch results.
@@ -90,7 +90,7 @@ Within this file two other classes are declared but not used. Those include:
 
 ---
 
-### 3. **RAGHelperSQL Class**
+### 3. **RAGHelperSQL class**
 A new helper class, `RAGHelperSQL`, extends the RAG framework to incorporate SQL-based retrieval:
 - Initializes the Text2SQL retriever described above and overwrites the ```load_data()``` method such that CSV files are loaded in from the specified data directory.
 - Inherits all methods from the RAGHelperLocal class. However, only inherits the constructor of the RAGHelper base class.
@@ -100,13 +100,13 @@ A new helper class, `RAGHelperSQL`, extends the RAG framework to incorporate SQL
 
 ---
 
-### 4. **Server Integration**
+### 4. **Server**
 - Updated the server initialization (`server.py`) to instantiate `RAGHelperSQL` if `use_text2sql` is enabled.
 - Adjusted routes to process and format SQL query results for chat responses.
 
 ---
 
-### 5. **Prompt and Query Generation**
+### 5. **Prompt and query generation**
 - A prompt template is defined for generating SQL queries using an LLM, with key rules:
   - Use PostgreSQL dialect.
   - Output SQL only, enclosed in triple backticks (\`\`\`).
@@ -125,7 +125,7 @@ Added new dependencies in `requirements.txt`:
 
 ## Usage
 
-### Environment Setup
+### Environment setup
 1. Configure `.env` with the following:
    ```env
    TEXT2SQL_DB_URI=postgresql://user:password@host:port/dbname
@@ -137,7 +137,7 @@ Added new dependencies in `requirements.txt`:
     - Then we hosted it for free on ngrok with:
         - ```ngrok tcp 5432```
 
-## Running the Server
+## Running the server
 1. Start the server with: ```python server.py```
 2. Place the ngrok url in ```application.conf```'s environment variable ```server_url```
 3. Navigate to ```localhost:9000``` in your browser.
@@ -148,11 +148,11 @@ The following image shows a screenshot of a question asked to the RAG framework.
 
 ![Example](example_question.png)
 
-In this image you can see that with our component the document the assistant refers to is a row retrieved from the database, which in this case is the count of rows in the games table. The provenance provided in this answer is the SQL statement that was provided by the LLM and subsequently executed. 
+In this image you can see that with our component the document the assistant refers to is a row retrieved from the database, which in this case is the count of rows in the games table. The provenance provided in this answer is the SQL statement that was provided by the LLM and subsequently executed. As you can see the answer could have been formatted differently as the SQL statement is now referred to as document 0, however we simply passed the SQL statement and answer through the same template as the original RAGMeUp framework does.
 
 ## Dataset
 
-The data we used for testing this component was a kaggle dataset found [here](https://www.kaggle.com/datasets/technika148/football-database). It contains several several relational database tables that can be put into a database directly.
+The data we used for testing this component was a kaggle dataset found [here](https://www.kaggle.com/datasets/technika148/football-database). It contains several several relational database tables that can be put into a database directly. So in order for us to have run this RAGMeUp framework with this component we had uploaded the csv files of this dataset to our Google Drive, subsequently mounting the drive to colab and setting the ```data_directory``` environment variable to the correct path.
 
 ## Findings
 
