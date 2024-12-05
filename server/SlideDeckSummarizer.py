@@ -11,11 +11,8 @@ from langchain.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
 
 load_dotenv('.env')
 
-
 class SlideDeckSummarizer:
-
     def __init__(self, input_folder, llm):
-
         self.input_folder = input_folder
         self.slide_deck_fps = list()
         self.deck_as_images = {}
@@ -40,9 +37,6 @@ class SlideDeckSummarizer:
 
         Parameters:
             file_path (str): Path to the PDF file.
-
-        Returns:
-            str: "Normal Text Document" or "Slide Deck"
         """
         try:
             pdf_reader = PyPDF2.PdfReader(file_path)
