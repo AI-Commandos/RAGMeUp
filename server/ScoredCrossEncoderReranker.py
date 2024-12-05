@@ -43,7 +43,6 @@ class ScoredCrossEncoderReranker(BaseDocumentCompressor):
 
         return feedback_list
     
-    print('feedback_list', feedback_list)
 
     def compress_documents(
         self,
@@ -76,6 +75,7 @@ class ScoredCrossEncoderReranker(BaseDocumentCompressor):
         for i, (doc, score) in enumerate(docs_with_scores):
             feedback = get_feedback(doc.metadata.get("document_id", ""))
             # You could adjust the score based on feedback here, e.g., adding the average rating to the score
+            print('feedback in crossencoder', feedback)
             if feedback:
                 avg_rating = sum(f["rating"] for f in feedback) / len(feedback)
                 # Modify score based on feedback (this is just an example)
