@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper_local import RAGHelperLocal
+from RAGHelper_sql import RAGHelperSQL
 from pymilvus import Collection, connections
 from werkzeug.utils import secure_filename
 
@@ -41,9 +42,12 @@ load_dotenv()
 if any(os.getenv(key) == "True" for key in ["use_openai", "use_gemini", "use_azure", "use_ollama"]):
     logger.info("Instantiating the cloud RAG helper.")
     raghelper = RAGHelperCloud(logger)
+elif os.getenv("use_text2sql") == "True":
+    logger.info("Instantiating the SQL RAG helper.")
+    raghelper = RAGHelperSQL(logger)
 else:
     logger.info("Instantiating the local RAG helper.")
-    raghelper = RAGHelperLocal(logger)
+    raghelper = RAGHelperSQL(logger)
 
 
 @app.route("/add_document", methods=['POST'])
@@ -103,9 +107,9 @@ def chat():
         docs = response['docs']
 
     # Break up the response for local LLMs
-    if isinstance(raghelper, RAGHelperLocal):
+    if isinstance(raghelper, RAGHelperSQL) or isinstance(raghelper, RAGHelperLocal):
         end_string = os.getenv("llm_assistant_token")
-        reply = response['text'][response['text'].rindex(end_string) + len(end_string):]
+        reply = response['text']
 
         # Get updated history
         new_history = [{"role": msg["role"], "content": msg["content"].format_map(response)} for msg in new_history]

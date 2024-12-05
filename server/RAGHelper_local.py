@@ -175,12 +175,12 @@ class RAGHelperLocal(RAGHelper):
         if os.getenv("use_rewrite_loop") == "True":
             response = self.rewrite_ask_chain.invoke(user_query)
             end_string = os.getenv("llm_assistant_token")
-            reply = response['text'][response['text'].rindex(end_string) + len(end_string):]
+            reply = response['text']
             reply = re.sub(r'\W+ ', '', reply)
 
             if reply.lower().startswith('no'):
                 response = self.rewrite_chain.invoke(user_query)
-                reply = response['text'][response['text'].rindex(end_string) + len(end_string):]
+                reply = response['text']
                 return reply
             else:
                 return user_query
@@ -197,11 +197,19 @@ class RAGHelperLocal(RAGHelper):
         Returns:
             tuple: The conversation thread and the LLM response with potential provenance scores.
         """
+
+        self.logger.info("Check if new documents are needed")
         fetch_new_documents = self._should_fetch_new_documents(user_query, history)
+        self.logger.info("Preparing conversation thread")
         thread = self._prepare_conversation_thread(history, fetch_new_documents)
+        self.logger.info("Determine input variables")
         input_variables = self._determine_input_variables(fetch_new_documents)
+        self.logger.info(f"Input variables: {input_variables}")
+        self.logger.info("Create prompt template")
         prompt = self._create_prompt_template(thread, input_variables)
 
+        self.logger.info(f"Prompt: {prompt}")
+        self.logger.info("Create LLM chain")
         llm_chain = self._create_llm_chain(fetch_new_documents, prompt)
 
         # Handle rewrite and re2
@@ -209,9 +217,13 @@ class RAGHelperLocal(RAGHelper):
         if os.getenv("use_re2") == "True":
             user_query = f'{user_query}\n{os.getenv("re2_prompt")}{user_query}'
         
+        self.logger.info("Invoke RAG chain")
         reply = self._invoke_rag_chain(user_query, llm_chain)
 
-        if fetch_new_documents:
+        self.logger.info(f"LLM response: {reply}")
+
+        # In case of text2sql, we don't track provenance.
+        if fetch_new_documents and os.getenv("provenance_method") != "text2sql":
             self._track_provenance(user_query, reply, thread)
 
         return thread, reply
@@ -267,7 +279,7 @@ class RAGHelperLocal(RAGHelper):
     def _extract_reply(response):
         """Extract and clean the LLM reply from the response."""
         end_string = os.getenv("llm_assistant_token")
-        reply = response['text'][response['text'].rindex(end_string) + len(end_string):]
+        reply = response['text']
         return re.sub(r'\W+ ', '', reply)
 
     def _track_provenance(self, user_query, reply, thread):

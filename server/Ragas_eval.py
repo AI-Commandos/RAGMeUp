@@ -126,7 +126,7 @@ for qa_pair in qa_pairs:
         elif 'answer' in response:
             answer = response["answer"]
     else:
-        answer = response['text'][response['text'].rindex(end_string)+len(end_string):]
+        answer = response['text']
 
     result_dict = qa_pair
     result_dict['answer'] = answer

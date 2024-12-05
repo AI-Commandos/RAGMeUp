@@ -16,6 +16,7 @@ torch==2.4.0
 torchvision
 torchaudio
 flask
+sqlparse==0.5.2
 python-dotenv==1.0.1
 docx2txt==0.8
 unstructured==0.14.3
