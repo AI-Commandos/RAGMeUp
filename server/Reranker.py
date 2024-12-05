@@ -21,6 +21,27 @@ class Reranker:
         conn.close()
         return feedback
     
+    def get_documents():
+        """
+        Retrieve a list of documents from the data directory.
+
+        This endpoint checks the configured data directory and returns a list of files
+        that match the specified file types.
+
+        Returns:
+            JSON response containing the list of files.
+        """   
+        data_dir = os.getenv('data_directory')
+        file_types = os.getenv("file_types", "").split(",")
+
+        # Filter files based on specified types
+        files = [f for f in os.listdir(data_dir)
+                if os.path.isfile(os.path.join(data_dir, f)) and os.path.splitext(f)[1][1:] in file_types]
+        
+        print('files in get_documents:', files)
+        print('files type in get_documents:', type(files))
+        return jsonify(files)
+        
 
     def retrieve_with_bm25(self, query, documents):
         """
@@ -83,10 +104,12 @@ class Reranker:
     def main_reranker(self):
         feedback_df = self.get_feedback()
         combined_df = self.combiner(feedback_df)
+        documents = self.get_documents()
         print(feedback_df)
         print('document_id colum:', feedback_df['document_id'])
         print('document_id type:', type(feedback_df['document_id']))
         print('document_id series:', feedback_df['document_id'])
+        
         
 
     
@@ -95,7 +118,6 @@ def main():
     try:
         reranker = Reranker()
         reranker.main_reranker(
-            
         )
     
     except Exception as e:
