@@ -41,62 +41,68 @@ class Reranker:
         print('files in get_documents:', files)
         print('files type in get_documents:', type(files))
         return jsonify(files)
-        
-
-    def retrieve_with_bm25(self, query, documents):
-        """
-        Retrieve documents based on BM25 scores.
-        """
-        # Tokenize the documents
-        tokenized_docs = [doc.split() for doc in documents]
-
-        # Initialize BM25
-        bm25 = BM25Okapi(tokenized_docs)
-
-        # Tokenize the query
-        tokenized_query = query.split()
-
-        # Retrieve scores
-        scores = bm25.get_scores(tokenized_query)
-
-        # Combine documents with their scores
-        retrieved_docs = [{"document": doc, "bm25_score": score} for doc, score in zip(documents, scores)]
-
-        return retrieved_docs
-
-    def compute_relevance_score(self, bm25_score, feedback_score, alpha=0.7, beta=0.3):
-        """
-        Compute the relevance score based on BM25 score and user feedback.
-        """
-        return alpha * bm25_score + beta * feedback_score
-
-    def rerank_documents_with_feedback(self, query, documents):
-        """
-        Rerank documents based on BM25 scores and user feedback.
-        """
-        # Retrieve documents with BM25 scores
-        retrieved_docs = self.retrieve_with_bm25(query, documents)
-
-        # Fetch feedback scores for the documents
-        for doc in retrieved_docs:
-            feedback = self.get_feedback()
-            feedback_score = sum([f[3] for f in feedback]) if feedback else 0
-            doc["feedback_score"] = feedback_score
-
-        # Compute relevance scores
-        for doc in retrieved_docs:
-            doc["relevance_score"] = self.compute_relevance_score(doc["bm25_score"], doc["feedback_score"])
-
-        # Sort documents by relevance score
-        reranked_docs = sorted(retrieved_docs, key=lambda x: x["relevance_score"], reverse=True)
-
-        return reranked_docs
     
     def combiner(self, feedback):
         print('feedback in combiner:', feedback)
-        for doc_id in range(len(feedback['document_id'])):
-            print('doc_id:', doc_id)
-            print('document_id:', feedback['document_id'][doc_id])
+        for doc in range(len(feedback['document_id'])):
+            print('doc:', doc)
+            print('document:', feedback['document_id'][doc])
+            for doc_id in range(len(feedback['document_id'][doc])):
+                print('doc_id:', doc_id)
+                print('document_id:', feedback['document_id'][doc].iloc[doc_id])
+            
+
+    # def retrieve_with_bm25(self, query, documents):
+    #     """
+    #     Retrieve documents based on BM25 scores.
+    #     """
+    #     # Tokenize the documents
+    #     tokenized_docs = [doc.split() for doc in documents]
+
+    #     # Initialize BM25
+    #     bm25 = BM25Okapi(tokenized_docs)
+
+    #     # Tokenize the query
+    #     tokenized_query = query.split()
+
+    #     # Retrieve scores
+    #     scores = bm25.get_scores(tokenized_query)
+
+    #     # Combine documents with their scores
+    #     retrieved_docs = [{"document": doc, "bm25_score": score} for doc, score in zip(documents, scores)]
+
+    #     return retrieved_docs
+
+    # def compute_relevance_score(self, bm25_score, feedback_score, alpha=0.7, beta=0.3):
+    #     """
+    #     Compute the relevance score based on BM25 score and user feedback.
+    #     """
+    #     return alpha * bm25_score + beta * feedback_score
+
+    # def rerank_documents_with_feedback(self, query, documents):
+    #     """
+    #     Rerank documents based on BM25 scores and user feedback.
+    #     """
+    #     # Retrieve documents with BM25 scores
+    #     retrieved_docs = self.retrieve_with_bm25(query, documents)
+
+    #     # Fetch feedback scores for the documents
+    #     for doc in retrieved_docs:
+    #         feedback = self.get_feedback()
+    #         feedback_score = sum([f[3] for f in feedback]) if feedback else 0
+    #         doc["feedback_score"] = feedback_score
+
+    #     # Compute relevance scores
+    #     for doc in retrieved_docs:
+    #         doc["relevance_score"] = self.compute_relevance_score(doc["bm25_score"], doc["feedback_score"])
+
+    #     # Sort documents by relevance score
+    #     reranked_docs = sorted(retrieved_docs, key=lambda x: x["relevance_score"], reverse=True)
+
+    #     return reranked_docs
+    
+
+                
         
         
         
