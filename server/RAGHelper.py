@@ -22,6 +22,11 @@ from lxml import etree
 from PostgresBM25Retriever import PostgresBM25Retriever
 from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
 from tqdm import tqdm
+from text2_sql import TextToSQL
+from document_sql_combiner import DocumentSQLCombiner
+from transformers import pipeline
+
+
 
 
 class RAGHelper:
@@ -47,7 +52,8 @@ class RAGHelper:
         self.vector_store_sparse_uri = os.getenv('vector_store_sparse_uri')
         self.vector_store_uri = os.getenv('vector_store_uri')
         self.document_chunks_pickle = os.getenv('document_chunks_pickle')
-        self.data_dir = os.getenv('data_directory')
+        self.data_dir = os.getenv("data_directory", "/content/RAGMeUp/server/data")
+        self.logger.info(f"Initialized data directory: {self.data_dir}")
         self.file_types = os.getenv("file_types").split(",")
         self.splitter_type = os.getenv('splitter')
         self.vector_store = os.getenv("vector_store")
@@ -66,6 +72,21 @@ class RAGHelper:
         self.xml_xpath = os.getenv("xml_xpath")
         self.json_text_content = os.getenv("json_text _content", "false").lower() == 'true'
         self.json_schema = os.getenv("json_schema")
+        self.llm = pipeline("text-generation", model="gpt2")
+        self.sql_db=os.getenv('sql_db')
+        if not self.vector_store_sparse_uri:
+            self.logger.error("Environment variable 'vector_store_sparse_uri' is not set.")
+            raise ValueError("Missing Postgres connection URI in 'vector_store_sparse_uri'")
+
+        # Initialize Text-to-SQL
+        text_to_sql_model = os.getenv("text_to_sql_model", "suriya7/t5-base-text-to-sql")
+        self.logger.info(f"Initializing TextToSQL with model: {text_to_sql_model}")
+        self.text_to_sql = TextToSQL(model_name=text_to_sql_model, db_uri= self.sql_db)
+
+        # Initialize DocumentSQLCombiner (optional, only if needed)
+        self.document_sql_combiner = DocumentSQLCombiner()
+
+        self.logger.info("RAGHelper initialized successfully with Text-to-SQL support.")
 
     @staticmethod
     def format_documents(docs):
@@ -182,6 +203,14 @@ class RAGHelper:
         Returns:
             list: A list of loaded Document objects.
         """
+        print(f"Data directory: {self.data_dir}")
+        print(f"Files in data directory: {os.listdir(self.data_dir)}")
+        self.logger.info(f"Starting to load documents from data directory: {self.data_dir}")
+        if not os.path.exists(self.data_dir):
+            self.logger.error(f"Data directory does not exist: {self.data_dir}")
+            return []
+        files_in_directory = os.listdir(self.data_dir)
+        self.logger.info(f"Files in data directory: {files_in_directory}")
         docs = []
         for file_type in self.file_types:
             try:
@@ -239,8 +268,10 @@ class RAGHelper:
                 elif file_type == "xml":
                     docs += self._load_xml_files()
             except Exception as e:
+                self.logger.error(f"Error loading {file_type} files: {e}")
                 print(f"Error loading {file_type} files: {e}")
 
+        self.logger.info(f"Number of documents loaded: {len(docs)}")
         return self._filter_metadata(docs)
 
     def _load_json_document(self, filename):
@@ -324,6 +355,7 @@ class RAGHelper:
                      metadata={**doc.metadata, 'id': hashlib.md5(doc.page_content.encode()).hexdigest()})
             for doc in self.text_splitter.split_documents(docs)
         ]
+        self.logger.info(f"Number of chunks created: {len(chunked_documents)}")
         return chunked_documents
 
     def _split_and_store_documents(self, docs):
@@ -388,11 +420,23 @@ class RAGHelper:
 
     def _initialize_bm25retriever(self):
         """Initializes in memory BM25Retriever."""
+        self.logger.info(f"Number of documents loaded for BM25: {len(self.chunked_documents)}")
+        if not self.chunked_documents:
+            self.logger.error("No documents available to initialize BM25Retriever. Check document loading.")
+            for file_type in self.file_types:
+                self.logger.warning(f"Ensure {file_type} files are present in the data directory: {self.data_dir}")
+            raise ValueError("No documents available to initialize BM25Retriever. Check document loading.")
         self.logger.info("Initializing BM25Retriever.")
-        self.sparse_retriever = BM25Retriever.from_texts(
-            [x.page_content for x in self.chunked_documents],
-            metadatas=[x.metadata for x in self.chunked_documents]
-        )
+        try:
+            self.logger.info("Initializing BM25Retriever.")
+            self.sparse_retriever = BM25Retriever.from_texts(
+                [x.page_content for x in self.chunked_documents],
+                metadatas=[x.metadata for x in self.chunked_documents]
+            )
+            self.logger.info("BM25Retriever successfully initialized.")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize BM25Retriever: {e}")
+            raise
 
     def _initialize_postgresbm25retriever(self):
         """Initializes in memory PostgresBM25Retriever."""
@@ -405,6 +449,17 @@ class RAGHelper:
                 for d in self.chunked_documents:
                     self.sparse_retriever.add_documents([d], ids=[d.metadata["id"]])
                     pbar.update(1)
+    def retrieve_from_sql(self, user_query):
+        sql_query = self.text_to_sql.translate(user_query)
+        self.logger.info(f"Received user query for SQL retrieval: {user_query}")
+        try:
+            sql_results = self.text_to_sql.execute(sql_query)
+            self.logger.info(f"Generated SQL Query: {sql_query}")  # 打印生成的 SQL 查询
+        except Exception as e:
+            self.logger.error(f"Error executing SQL: {e}")
+            sql_results = []
+        self.logger.info(f"SQL Query Results: {sql_results}")
+        return [{"type": "sql_result", "content": result} for result in sql_results]
 
     def _initialize_retrievers(self):
         """Initializes the sparse retriever, ensemble retriever, and rerank retriever."""
@@ -487,13 +542,6 @@ class RAGHelper:
         """Extract skills from the CV document."""
         # Implement your skill extraction logic here
         return []
-    
-    def _deduplicate_chunks(self):
-        """Ensure there are no duplicate entries in the data."""
-        self.chunked_documents = list({
-                doc.metadata["id"]: doc for doc in self.chunked_documents
-            }.values()
-        )
 
     def load_data(self):
         """
@@ -508,7 +556,6 @@ class RAGHelper:
             self.logger.info("chunking the documents.")
             self._split_and_store_documents(docs)
 
-        self._deduplicate_chunks()
         self._initialize_vector_store()
         self._setup_retrievers()
 
@@ -532,3 +579,81 @@ class RAGHelper:
 
         # Add new chunks to the vector database
         self._add_to_vector_database(new_chunks)
+    def inference_pipeline(self, user_query, history=None, fetch_new_documents=True):
+        """
+        Integrates dense and sparse search with text-to-sql to generate the final answer.
+
+        Args:
+            user_query (str): The user's natural language query.
+            history (list, optional): The context history.
+            fetch_new_documents (bool, optional): Whether to re-search for new documents.
+
+        Returns:
+            dict: Includes the generated answer, the retrieved documents, and the history.
+        """
+        self.logger.info(f"Starting inference pipeline with user query: {user_query}")
+        self.logger.info(f"History: {history}, Fetch New Documents: {fetch_new_documents}")
+        retrieved_docs = {"dense_results": [], "sparse_results": [], "sql_results": []}
+
+
+        # If there is no history or if a new search is required
+        if not history or fetch_new_documents:
+            self.logger.info("Starting new retrieval process.")
+
+            # 1. Milvus/pgvector
+            if self.db:
+                dense_results = self.db.search(user_query)
+                self.logger.info(f"Dense retrieval results: {len(dense_results)} documents retrieved.")
+                retrieved_docs["dense_results"] = dense_results
+
+            # 2. BM25
+            if self.sparse_retriever:
+                sparse_results = self.sparse_retriever.retrieve(user_query)
+                self.logger.info(f"Sparse retrieval results: {len(sparse_results)} documents retrieved.")
+                retrieved_docs["sparse_results"] = sparse_results
+
+            # 3. Text-to-SQL
+            self.logger.info("Forcing SQL retrieval for testing.")
+            sql_results = self.retrieve_from_sql(user_query)
+            self.logger.info(f"SQL retrieval results: {len(sql_results)} results retrieved.")
+            retrieved_docs["sql_results"] = sql_results
+
+        else:
+            # If there is a history record, use it directly.
+            self.logger.info("Using history for retrieval context.")
+            retrieved_docs = history
+        
+        formatted_sql_results = [
+            {"type": "sql_result", "content": f"Result: {result['content']}"}
+            for result in retrieved_docs["sql_results"]
+            if "content" in result
+        ]
+        all_retrieved_docs = (
+            retrieved_docs["dense_results"]
+            + retrieved_docs["sparse_results"]
+            + retrieved_docs["sql_results"]
+        )
+
+        if hasattr(self, "llm") and self.llm:
+            self.logger.info("Generating final answer using Hugging Face LLM.")
+            context = "\n".join(
+                [doc["content"] for doc in all_retrieved_docs if "content" in doc]
+            )
+            prompt = f"{context}\n\nQuestion: {user_query}\nAnswer:"
+            try:
+                llm_response = self.llm(prompt, max_length=200, do_sample=True, top_p=0.95)
+                answer = llm_response[0]["generated_text"] if llm_response else "No answer generated."
+            except Exception as e:
+                self.logger.error(f"Error generating answer: {e}")
+                answer = "Error occurred while generating the answer."
+        else:
+            self.logger.error("LLM is not initialized. Returning only retrieved documents.")
+            answer = "LLM not available. Please check your configuration."
+        
+        self.logger.info(f"SQL Results: {retrieved_docs['sql_results']}")
+        
+        return {
+            "answer": answer,
+            "documents": retrieved_docs,  
+            "all_results": all_retrieved_docs,  
+        }
