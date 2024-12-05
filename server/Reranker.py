@@ -74,6 +74,8 @@ class Reranker:
     def main_reranker(self):
         feedback_df = self.get_feedback()
         print(feedback_df)
+        print('document_id colum:', feedback_df['document_id'])
+        print('document_id type:', type(feedback_df['document_id']))
         
 
     
