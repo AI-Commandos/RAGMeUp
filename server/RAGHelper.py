@@ -18,7 +18,6 @@ from langchain_experimental.text_splitter import SemanticChunker
 from langchain_milvus.vectorstores import Milvus
 from langchain_postgres.vectorstores import PGVector
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from colbert.infra import ColBERT, Searcher
 from lxml import etree
 from PostgresBM25Retriever import PostgresBM25Retriever
 from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
