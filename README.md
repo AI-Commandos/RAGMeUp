@@ -176,5 +176,25 @@ RAG Me Up uses Ragas to evaluate your pipeline. You can run an evaluation based 
 - `ragas_answer_instruction` The instruction prompt used to generate the answers of the Ragas input pairs.
 - `ragas_answer_query` The query prompt used to generate the answers of the Ragas input pairs.
 
-# Funding
-We are actively looking for funding to democratize AI and advance its applications. Contact us at info@commandos.ai if you want to invest.
+## Tasks 
+
+- Github cloned from one person from the group
+
+- Putting the data in the drive and (renaming for conveniency and interpretability)
+- Read documentation : WHICH ONE? - Finn
+-  
+- Evaluation metrics - Flynn
+- ColBert - Finn & Jesper
+
+Things we tried:
+- Retrieval document: SQL
+- Different ways of implementing  Colbert -> Chose ragatouille 
+
+- Motivation and relevance
+- https://www.youtube.com/watch?v=cN6S0Ehm7_8 
+![image](https://github.com/user-attachments/assets/3f0df668-1013-4e91-8720-d93b9f3cbf5d)
+
+
+Future ideas:
+- specific indication of what part of a document was used
+- Metadata: Grootte bestand, 
