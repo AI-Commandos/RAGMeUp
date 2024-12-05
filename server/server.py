@@ -3,11 +3,8 @@ from flask import Flask, request, jsonify, send_file
 import logging
 from dotenv import load_dotenv
 import os
-from DeepEval_eval import LongDistanceInformationExtraction
-from DeepEval_eval import CounterfactualErrorHandling
 from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper_local import RAGHelperLocal
-from DeepEval_eval import generate_and_evaluate_qa_pairs_server
 from pymilvus import Collection, connections
 from deepeval import evaluate
 from deepeval.metrics import (
@@ -21,6 +18,7 @@ from deepeval.metrics import (
 )
 from deepeval.test_case import LLMTestCase
 import random
+
 
 def load_bashrc():
     """
@@ -40,17 +38,104 @@ def load_bashrc():
                     os.environ[key] = value
 
 
+# Define custom metric classes
+
+class CounterfactualErrorHandling:
+    """Custom metric to evaluate counterfactual error handling in LLMs."""
+
+    def __init__(self, threshold: float = 0.5):
+        self.threshold = threshold
+        self.name = "CounterfactualHandling Metrics"
+        self.include_reason = True
+        self.strict_mode = True
+
+    @property
+    def __name__(self):
+        return self.name
+
+    def measure(self, test_case: LLMTestCase):
+        """Evaluate if the LLM can handle counterfactual questions properly."""
+        question = test_case.input.lower()
+        if "if" in question and "not" in question:
+            score = 1.0 if "error" not in test_case.actual_output.lower() else 0.0
+        else:
+            score = 0.0
+        self.score = score
+        self.passed = score >= self.threshold
+        if self.include_reason:
+            self.reason = "Handled counterfactual correctly." if self.passed else "Failed to handle counterfactual."
+
+    async def a_measure(self, test_case: LLMTestCase):
+        """Asynchronous evaluation method."""
+        return self.measure(test_case)
+
+    def is_successful(self):
+        """Determine if the metric evaluation was successful."""
+        return self.passed
+
+
+class LongDistanceInformationExtraction:
+    """Custom metric to evaluate long-distance information extraction."""
+
+    def __init__(self, threshold: float = 0.5, distance_threshold: int = 50):
+        self.threshold = threshold
+        self.distance_threshold = distance_threshold
+        self.name = "LongDistance Information Extraction Metrics"
+        self.include_reason = True
+        self.strict_mode = True
+
+    @property
+    def __name__(self):
+        return self.name
+
+    def measure(self, test_case: LLMTestCase):
+        """Evaluate if the LLM extracts relevant information across long distances in context."""
+        context = test_case.retrieval_context
+        input_text = test_case.input.lower()
+        if len(context) > self.distance_threshold:
+            relevant_content = any(input_text in doc.lower() for doc in context)
+            score = 1.0 if relevant_content else 0.0
+        else:
+            score = 0.0
+        self.score = score
+        self.passed = score >= self.threshold
+        if self.include_reason:
+            self.reason = "Successfully extracted long-distance information." if self.passed else "Failed to extract long-distance information."
+
+    async def a_measure(self, test_case: LLMTestCase):
+        """Asynchronous evaluation method."""
+        return self.measure(test_case)
+
+    def is_successful(self):
+        """Determine if the metric evaluation was successful."""
+        return self.passed
+
+
+# Default metric configurations
+llm_model = os.getenv("llm_model", "gpt-3.5-turbo")
+metrics = [
+    AnswerRelevancyMetric(threshold=0.7, model=llm_model),
+    FaithfulnessMetric(threshold=0.7, model=llm_model),
+    ContextualPrecisionMetric(threshold=0.7, model=llm_model),
+    ContextualRecallMetric(threshold=0.7, model=llm_model),
+    ContextualRelevancyMetric(threshold=0.7, model=llm_model),
+    HallucinationMetric(threshold=0.5, model=llm_model),
+    ToolCorrectnessMetric(threshold=0.5),
+    CounterfactualErrorHandling(threshold=0.7),
+    LongDistanceInformationExtraction(threshold=0.7, distance_threshold=50)
+]
 # Initialize Flask application
 app = Flask(__name__)
+
+# Load environment variables
+load_dotenv()
+load_bashrc()
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Disable parallelism in tokenizers to avoid warnings
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
-# Load environment variables from .env file
-load_bashrc()
-load_dotenv()
 
 # Instantiate the RAG Helper class based on the environment configuration
 if any(os.getenv(key) == "True" for key in ["use_openai", "use_gemini", "use_azure", "use_ollama"]):
@@ -89,39 +174,53 @@ def deepeval_evaluate():
     Endpoint to run DeepEval evaluation logic.
     Expects JSON input specifying evaluation parameters.
     """
-    if isinstance(raghelper, RAGHelperCloud):
-            # Parse input JSON
-            json_data = request.get_json()
-            if not json_data:
-                return jsonify({"error": "Invalid input. JSON data is required."}), 400
+    json_data = request.get_json()
+    sample_size = int(json_data.get("sample_size", 10))
+    qa_pairs_count = int(json_data.get("qa_pairs", 5))
 
-            # Extract parameters
-            sample_size = int(json_data.get("sample_size", 10))
-            qa_pairs_count = int(json_data.get("qa_pairs", 5))
-            # Call the generate_and_evaluate_qa_pairs function
-            results, qa_pairs = generate_and_evaluate_qa_pairs_server(
-                raghelper=raghelper,
-                sample_size=sample_size,
-                qa_pairs_count=qa_pairs_count,
-                llm_model=os.getenv("llm_model"),
-                end_string=os.getenv("llm_assistant_token"),
-                logger=logger
-            )
+    # Load and shuffle documents
+    documents = raghelper.chunked_documents
+    random.shuffle(documents)
+    document_sample = documents[:min(sample_size, len(documents))]
 
-            # Return the evaluation results
-            return jsonify({
-                "evaluation_results": results,
-                "qa_pairs": qa_pairs
-            })
+    # Generate QA pairs
+    qa_pairs = []
+    for _ in range(qa_pairs_count):
+        random.shuffle(document_sample)
+        selected_docs = document_sample[:min(len(document_sample), 10)]
+        formatted_docs = RAGHelperLocal.format_documents(selected_docs)
 
-    else:
-        logger.error(f"Deep Eval cannot be run in Local LLMs yet.")
+        # Generate question and answer
+        question = "Generated question placeholder"  # Replace with actual generation logic
+        answer = "Generated answer placeholder"  # Replace with actual generation logic
 
+        qa_pairs.append({
+            "question": question,
+            "ground_truth": answer,
+            "context": [doc.page_content for doc in selected_docs],
+        })
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
-    app.run(host="0.0.0.0", port=5000)
+    logger.info(f"Generated QA Pairs: {qa_pairs}")
+    for i, pair in enumerate(qa_pairs):
+        if not pair["question"] or not pair["ground_truth"] or not pair["context"]:
+            logger.error(f"Incomplete QA pair at index {i}: {pair}")
+
+    # Prepare test cases
+    test_cases = [
+        LLMTestCase(
+            input=pair["question"],
+            actual_output=pair["ground_truth"],
+            expected_output=pair["ground_truth"],
+            retrieval_context=pair["context"],
+        )
+        for pair in qa_pairs
+    ]
+
+    # Evaluate
+    results = evaluate(test_cases, metrics)
+    logger.info(f"Evaluation Results: {results}")
+
+    return jsonify({"evaluation_results": results})
 
 
 @app.route("/chat", methods=['POST'])
@@ -168,7 +267,8 @@ def chat():
             's': doc.metadata['source'],
             'c': doc.page_content,
             **({'pk': doc.metadata['pk']} if 'pk' in doc.metadata else {}),
-            **({'provenance': float(doc.metadata['provenance'])} if 'provenance' in doc.metadata and doc.metadata['provenance'] is not None else {})
+            **({'provenance': float(doc.metadata['provenance'])} if 'provenance' in doc.metadata and doc.metadata[
+                'provenance'] is not None else {})
         } for doc in docs if 'source' in doc.metadata]
     else:
         new_docs = docs
@@ -273,5 +373,10 @@ def delete_document():
     return jsonify({"count": result.delete_count})
 
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0")
+public_url = ngrok.connect(5000)
+print(f" * Tunnel URL: {public_url}")
+
+if __name__ == '__main__':
+    public_url = ngrok.connect(5000)
+    logger.info(f"Public URL: {public_url}")
+    app.run(port=5000)
