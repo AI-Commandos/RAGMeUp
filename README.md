@@ -21,6 +21,35 @@ We modified the RAG Me Up framework to include a Neo4j-based graph integration a
 1. **Integrated Neo4j** as a new component for data retrieval, allowing the framework to utilize graph-based queries.
 2. **Added a new type of dataset and use-case**, demonstrating how a graph structure could enhance retrival insights from the data.
 3. **Implemented a loader** to import a csv file into a Neo4j graph database, creating a graph structure with nodes and relationships based on the dataset.
+4. **Implemented Graph based retrieval** where we create cypher queries by combining schema information and the user question. Furthermore, using few shot prompting technique, the LLM will return None when the question can not be relevantly answered using a Cypher query.
+
+### Implementation Details: Graph-Based Retrieval
+
+In this project, we extended the default RAG pipeline by integrating Neo4j for graph-based retrieval. A new retriever function, `graph_retriever`, was developed to enable querying a Neo4j database using schema-aware Cypher queries. This integration enhances the retrieval process by leveraging graph-based relationships and attributes. Below are the key aspects of this implementation:
+
+1. **Neo4j Schema Integration**  
+   - Dynamically retrieves the database schema using the `/schema` endpoint.
+   - Formats the schema into a prompt-friendly text representation for the LLM.
+
+2. **LLM-Driven Query Generation**  
+   - Combines schema information and user queries to create schema-aware prompts.
+   - Employs a few-shot learning approach to guide the LLM in generating Cypher queries.
+
+3. **Query Execution and Data Retrieval**  
+   - Executes the LLM-generated Cypher query against the Neo4j database.
+   - Converts query results into LangChain `Document` object, enriched with metadata for downstream processing.
+
+4. **Fallback Mechanism**  
+   - When the LLM determines a query cannot be answered using the schema, it returns `None` to avoid unnecessary computations or invalid results.
+
+
+### Why Graph-Based Retrieval?
+
+Graph-based retrieval systems provide a unique advantage for modeling complex relationships in structured data. By integrating Neo4j into the RAG framework, this project achieves:
+- **Improved Data Enrichment**: Query results are enriched with contextual attributes from the graph.
+- **Logical Consistency**: Graph relationships ensure results adhere to defined dependencies.
+- **Enhanced Traceability**: Results are linked to specific nodes and edges in the graph for transparency.
+
 
 # Dataset Overview
 
