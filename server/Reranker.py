@@ -1,10 +1,17 @@
 from rank_bm25 import BM25Okapi
 import sqlite3
 import pandas as pd
+import os
+import json
 
 class Reranker:
-    def __init__(self, feedback_db='feedback.db'):
+    def __init__(self, feedback_db='feedback.db', data_dir='data_directory'):
         self.feedback_db = feedback_db
+        self.data_dir = data_dir
+        print('data_directory in INIT:', self.data_dir)
+        # data_directory = os.getenv('data_directory')
+        # print('data_directory in INIT:', data_directory)
+        # self.data_dir = data_directory
 
     def get_feedback(self):
         """
@@ -21,7 +28,7 @@ class Reranker:
         conn.close()
         return feedback
     
-    def get_documents():
+    def get_documents(self):
         """
         Retrieve a list of documents from the data directory.
 
@@ -30,9 +37,14 @@ class Reranker:
 
         Returns:
             JSON response containing the list of files.
-        """   
-        data_dir = os.getenv('data_directory')
+        # """   
+        # data_dir = self.data_dir    
+        # print('data_dir in get_documents:', data_dir)    
+        
+        data_directory = os.getenv('data_directory')
+        print('data_directory in get_documents:', data_directory)
         file_types = os.getenv("file_types", "").split(",")
+        print('file_types:', file_types)
 
         # Filter files based on specified types
         files = [f for f in os.listdir(data_dir)
@@ -40,16 +52,40 @@ class Reranker:
         
         print('files in get_documents:', files)
         print('files type in get_documents:', type(files))
+        
         return jsonify(files)
     
     def combiner(self, feedback):
         print('feedback in combiner:', feedback)
         for doc in range(len(feedback['document_id'])):
-            print('doc:', doc)
-            print('document:', feedback['document_id'][doc])
-            for doc_id in range(len(feedback['document_id'][doc])):
-                print('doc_id:', doc_id)
-                print('document_id:', feedback['document_id'][doc].iloc[doc_id])
+            document_ids = feedback['document_id'][doc].replace('[', '').replace(']', '').replace("'", "").split(',')
+            # print('document_ids:', document_ids)
+            # print('document_ids length:', len(document_ids))
+            
+            rating = feedback['rating'][doc]
+            # print('rating:', rating)
+            
+            for doc_id in range(len(document_ids)):
+                print('document_id:', document_ids[doc_id])
+                document_id = document_ids[doc_id]
+                
+                # Create a new dataframe with document_id and rating
+                new_row = pd.DataFrame({'document_id': [document_id], 'rating': [rating]})
+                
+
+                if 'combined_df' not in locals():
+                    combined_df = new_row
+                    
+                # Append the new row to the combined dataframe
+                if document_id in combined_df['document_id'].values:
+                    combined_df.loc[combined_df['document_id'] == document_id, 'rating'] += rating
+                else:
+                    combined_df = pd.concat([combined_df, new_row], ignore_index=True)
+
+        print('combined_df:', combined_df)
+        print('combined_df length:', len(combined_df))
+        
+        return combined_df
             
 
     # def retrieve_with_bm25(self, query, documents):

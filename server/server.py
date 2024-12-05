@@ -152,57 +152,16 @@ def get_documents():
 
     Returns:
         JSON response containing the list of files.
-    """
-    print("GET /get_documents endpoint has been called!")
-    logging.debug("GET /get_documents endpoint has been called!")
-    
+    """   
     data_dir = os.getenv('data_directory')
+    print('data_dir in get_documents server.py:', data_dir)
     file_types = os.getenv("file_types", "").split(",")
-    
-    # Print the data directory and file types being used
-    print(f"Data Directory in GET: {data_dir}")
-    print(f"File Types in GET: {file_types}")
-
-    logging.debug(f"Data Directory in GET: {data_dir}")
-    logging.debug(f"File Types in GET: {file_types}")
 
     # Filter files based on specified types
     files = [f for f in os.listdir(data_dir)
              if os.path.isfile(os.path.join(data_dir, f)) and os.path.splitext(f)[1][1:] in file_types]
     
-    # Print the list of files found
-    print(f"Files Found in GET: {files}")
-    logging.debug(f"Files Found in GET: {files}")
-    
-    # # Initialize result structure
-    # documents_with_feedback = []
-
-    # # Connect to feedback database
-    # conn = sqlite3.connect('feedback.db')
-    # cursor = conn.cursor()
-
-    # for filename in files:
-    #     # Query for feedback related to this file
-    #     cursor.execute(
-    #         "SELECT query, answer, rating, timestamp FROM Feedback WHERE document_id = ?",
-    #         (filename,)
-    #     )
-    #     feedback = cursor.fetchall()
-
-    #     # Format feedback as a list of dictionaries
-    #     feedback_list = [
-    #         {"query": row[0], "answer": row[1], "rating": row[2], "timestamp": row[3]} for row in feedback
-    #     ]
-
-    #     # Append document with feedback
-    #     documents_with_feedback.append({"filename": filename, "feedback": feedback_list})
-
-    # logging.debug(f"Files get docuemnts_with_feedback in GET: {documents_with_feedback}")
-        
-    # conn.close()
-
-    # return jsonify(documents_with_feedback)
-    
+   
     return jsonify(files)
 
 

@@ -67,6 +67,7 @@ class ScoredCrossEncoderReranker(BaseDocumentCompressor):
         
         # Score documents using CrossEncoder model
         scores = self.model.score([(query, doc.page_content) for doc in documents])
+        # Voeg min-max score toe als van o-1 wil je de score tussen 0 en 1 hebben
         docs_with_scores = list(zip(documents, scores))
 
         print("docs_with_scores", docs_with_scores)
