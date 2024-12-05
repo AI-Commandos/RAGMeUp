@@ -71,11 +71,22 @@ class Reranker:
 
         return reranked_docs
     
+    def combiner(self, feedback):
+        print('feedback in combiner:', feedback)
+        for doc_id in range(len(feedback['document_id'])):
+            print('doc_id:', doc_id)
+            print('document_id:', feedback['document_id'][doc_id])
+        
+        
+        
+    
     def main_reranker(self):
         feedback_df = self.get_feedback()
+        combined_df = self.combiner(feedback_df)
         print(feedback_df)
         print('document_id colum:', feedback_df['document_id'])
         print('document_id type:', type(feedback_df['document_id']))
+        print('document_id series:', feedback_df['document_id'])
         
 
     
