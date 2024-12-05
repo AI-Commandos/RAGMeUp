@@ -7,6 +7,8 @@ Another compelling reason for implementing ColBERT is the efficiency in managing
 
 Finally, the project provides an opportunity for hands-on learning with advanced concepts in machine learning and information retrieval, including transformer-based models, indexing, and clustering. Working with ColBERT deepens our understanding of how neural networks can be optimized for retrieval tasks, offering valuable insights into AI techniques. This means we can explore how these systems can be applied to real-world problems, creating a more engaging, powerful, and responsive chatbot, while also building technical expertise that’s highly relevant nowadays
 
+Therefore, including this reranker model in the RAG Framework should not only support more efficient reranking, which can lead to more documents which are able to be added to each answer given the higher efficiency. Furthermore, in the inclusion of this model, the answers of the model should, as described, be a better fit for those queries which are ambiguous or need contextual information.
+
 ## Implementation
 
 In order to implement ColBERT as a reranker, a couple of functions and files had to be added/changed.
@@ -169,7 +171,7 @@ These were the steps that were taken.
 - Lastly, the current implementation fixates the number of returned documents, rather than a dynamic number of documents which are returned.
 
 
-These were the most prevalent steps for replacing FlashRank with ColBERT.
+These were the most prevalent steps for replacing FlashRank with a late-interaction model like ColBERT.
 
 For implementing further changes take a look at: https://github.com/AI-Commandos/RAGMeUp/compare/main...LvR33:RAGMeUp:ElanoIter
 
