@@ -6,6 +6,9 @@ from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper_local import RAGHelperLocal
 from pymilvus import Collection, connections
 from werkzeug.utils import secure_filename
+from pyngrok import ngrok
+import json
+
 
 def load_bashrc():
     """
@@ -45,6 +48,46 @@ else:
     logger.info("Instantiating the local RAG helper.")
     raghelper = RAGHelperLocal(logger)
 
+
+@app.route("/test_hyde", methods=['POST'])
+def test_hyde():
+    """
+    Test the HyDE embedding functionality with a user-provided query.
+
+    This endpoint generates a hypothetical document embedding for a user-provided query
+    and returns the embedding vector.
+
+    Returns:
+        JSON response with the embedding vector and dimension.
+    """
+    # Parse the JSON payload
+    json_data = request.get_json()
+    query = json_data.get("query", "").strip()
+
+    if not query:
+        return jsonify({"error": "The 'query' field is required in the request body."}), 400
+
+    logger.info(f"Testing HyDE embedding with provided query: {query}")
+
+    if not os.getenv("hyde_enabled", "False").lower() == "true":
+        return jsonify({"error": "HyDE is not enabled in the configuration"}), 400
+
+    try:
+        # Generate HyDE embeddings
+        hyde_embedding = raghelper.embed_query_with_hyde(query)
+
+        # Return a sample of the embedding for validation
+        response = {
+            "embedding_sample": hyde_embedding[1:10],  # First 10 values for brevity
+            "dimension": len(hyde_embedding),
+            "message": f"HyDE embedding generated successfully for query: {query}"
+        }
+        logger.info("HyDE embedding generated successfully.")
+        return jsonify(response), 200
+
+    except Exception as e:
+        logger.error(f"Error generating HyDE embedding: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/add_document", methods=['POST'])
 def add_document():
@@ -92,6 +135,7 @@ def chat():
         JSON response containing the assistant's reply, history, documents, and other metadata.
     """
     json_data = request.get_json()
+    print(f"Input json data = {json.dumps(json_data, indent=4)}")
     prompt = json_data.get('prompt')
     history = json_data.get('history', [])
     original_docs = json_data.get('docs', [])
@@ -105,8 +149,8 @@ def chat():
     # Break up the response for local LLMs
     if isinstance(raghelper, RAGHelperLocal):
         end_string = os.getenv("llm_assistant_token")
-        reply = response['text'][response['text'].rindex(end_string) + len(end_string):]
-
+        reply = response['answer'][response['answer'].rindex(end_string) + len(end_string):]
+        #reply = response['answer']
         # Get updated history
         new_history = [{"role": msg["role"], "content": msg["content"].format_map(response)} for msg in new_history]
         new_history.append({"role": "assistant", "content": reply})
@@ -229,5 +273,8 @@ def delete_document():
     return jsonify({"count": result.delete_count})
 
 
+public_url = ngrok.connect(5001)
+print(f" * Tunnel URL: {public_url}")
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0")
+    app.run(port=5001)

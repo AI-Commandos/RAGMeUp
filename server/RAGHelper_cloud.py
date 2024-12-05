@@ -143,6 +143,13 @@ class RAGHelperCloud(RAGHelper):
         Returns:
             tuple: A tuple containing the conversation thread and the reply.
         """
+        # Apply HyDE if enabled
+        if os.getenv("hyde_enabled", "False").lower() == "true":
+            hyde_query = self.apply_hyde_if_enabled(user_query)
+            retrieval_query = hyde_query  # Use HyDE query for retrieval
+        else:
+            retrieval_query = user_query  # Use original query if HyDE is disabled
+
         fetch_new_documents = self.should_fetch_new_documents(user_query, history)
 
         thread = self.create_interaction_thread(history, fetch_new_documents)
@@ -154,9 +161,13 @@ class RAGHelperCloud(RAGHelper):
 
         if fetch_new_documents:
             context_retriever = self.ensemble_retriever if self.rerank else self.rerank_retriever
+
+            # First, get documents using the HyDE query
+            retrieved_docs = context_retriever.invoke(retrieval_query)
+            formatted_docs = RAGHelper.format_documents(retrieved_docs)
+
             retriever_chain = {
-                "docs": context_retriever,
-                "context": context_retriever | RAGHelper.format_documents,
+                "context": lambda x: formatted_docs,
                 "question": RunnablePassthrough()
             }
             llm_chain = prompt | self.llm | StrOutputParser()
@@ -164,7 +175,7 @@ class RAGHelperCloud(RAGHelper):
                 retriever_chain
                 | RunnablePassthrough.assign(
                     answer=lambda x: llm_chain.invoke(
-                        {"docs": x["docs"], "context": x["context"], "question": x["question"]}
+                        {"context": x["context"], "question": x["question"]}
                     ))
                 | combine_results
             )
@@ -188,9 +199,18 @@ class RAGHelperCloud(RAGHelper):
         # Invoke RAG pipeline
         reply = rag_chain.invoke(user_query)
 
+
+
         # Track provenance if needed
         if fetch_new_documents and os.getenv("provenance_method") in ['rerank', 'attention', 'similarity', 'llm']:
-            self.track_provenance(reply, user_query)
+            # Previously docs was in the reply. but since the documents are now retrieved outside the chain,
+            # they are no more in the reply
+            if "docs" not in reply:
+                reply["docs"] = retrieved_docs
+                reply["context"] = formatted_docs
+
+            self.track_provenance(reply=reply,
+                                  user_query=user_query)
 
         return (thread, reply)
 
@@ -243,17 +263,18 @@ class RAGHelperCloud(RAGHelper):
         """
         return retriever_chain | llm_chain
 
-    def track_provenance(self, reply: str, user_query: str) -> None:
+    def track_provenance(self, reply: dict, user_query: str) -> None:
         """Track the provenance of the response if applicable.
 
         Args:
             reply (str): The response from the LLM.
             user_query (str): The original user query.
+            retrieved_documents: the documents that are retrieved by the RAG
         """
         # Add the user question and the answer to our thread for provenance computation
         # Retrieve answer and context
         answer = reply.get('answer')
-        context = reply.get('docs')
+        context = reply.get("docs")
 
         provenance_method = os.getenv("provenance_method")
         self.logger.info(f"Provenance method: {provenance_method}")
