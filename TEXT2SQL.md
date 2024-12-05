@@ -156,7 +156,7 @@ The data we used for testing this component was a kaggle dataset found [here](ht
 
 ## Findings
 
-Please note that due to the inherent nature of the Text2SQL retrieval component, there are no serialized database chunks to upload. Our implementation just loads in relational data into a postgres database in order to subsequently execute LLM generated SQL statements on. Therefore we also did not use milvus but resorted to a simple PostgreSQL database. 
+Please note that due to the inherent nature of the Text2SQL retrieval component, there are no serialized database chunks to upload. Our implementation just loads in relational data into a postgres database in order to subsequently execute LLM generated SQL statements on. Therefore we also did not use milvus but resorted to a simple PostgreSQL database. Another important mention is that because of this relational nature of the data we were also not able to use the course materials for this RAG system, seeing that documents like powerpoint slides and literature do not belong in relational SQL databases.
 
 Before we started using the already available LLM for the Text2SQL functionality, we used a T5 model on HuggingFace specifically fine-tuned for Text2SQL, however, the performance of this model was very poor. Even when providing the model with the correct database schema it would still hallucinate and create SQL statements with non-existent tables and fields. Therefore we opted for the LLM in the current implementation.
 
