@@ -42,7 +42,7 @@ In this project, we extended the default RAG pipeline by integrating Neo4j for g
 
 3. **Query Execution and Data Retrieval**
 
-   - Executes the LLM-generated Cypher query against the Neo4j database.
+   - Executes the LLM-generated Cypher query against the Neo4j database using the `/query` endpoint.
    - Converts query results into LangChain `Document` object, enriched with metadata for downstream processing.
 
 4. **Fallback Mechanism**
