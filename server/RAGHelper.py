@@ -2,6 +2,8 @@ import hashlib
 import os
 import pickle
 
+from ResponseCitationVerifier import ResponseVerifier
+
 from langchain.retrievers import (ContextualCompressionRetriever,
                                   EnsembleRetriever)
 from langchain.retrievers.document_compressors import FlashrankRerank
@@ -22,6 +24,8 @@ from lxml import etree
 from PostgresBM25Retriever import PostgresBM25Retriever
 from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
 from tqdm import tqdm
+
+from CitationAwareReranker import CitationAwareReranker
 
 
 class RAGHelper:
@@ -58,7 +62,7 @@ class RAGHelper:
         self.vector_store_k = int(os.getenv("vector_store_k"))
         self.chunk_size = int(os.getenv("chunk_size"))
         self.chunk_overlap = int(os.getenv("chunk_overlap"))
-        self.breakpoint_threshold_amount = int(os.getenv('breakpoint_threshold_amount')) if os.getenv('breakpoint_threshold_amount', 'None') != 'None' else None
+        self.breakpoint_threshold_amount = os.getenv('breakpoint_threshold_amount', 'None')
         self.number_of_chunks = None if (value := os.getenv('number_of_chunks',
                                                             None)) is None or value.lower() == 'none' else int(value)
         self.breakpoint_threshold_type = os.getenv('breakpoint_threshold_type')
@@ -66,6 +70,10 @@ class RAGHelper:
         self.xml_xpath = os.getenv("xml_xpath")
         self.json_text_content = os.getenv("json_text _content", "false").lower() == 'true'
         self.json_schema = os.getenv("json_schema")
+
+        self.logger = logger
+        self.citation_verifier = None
+        self.citation_verification = os.getenv('citation_verification', 'True').lower() == 'true'
 
     @staticmethod
     def format_documents(docs):
@@ -419,19 +427,22 @@ class RAGHelper:
 
     def _initialize_reranker(self):
         """Initialize the reranking model based on environment settings."""
-        if self.rerank_model == "flashrank":
-            self.logger.info("Setting up the FlashrankRerank.")
-            self.compressor = FlashrankRerank(top_n=self.rerank_k)
-        else:
-            self.logger.info("Setting up the ScoredCrossEncoderReranker.")
-            self.compressor = ScoredCrossEncoderReranker(
-                model=HuggingFaceCrossEncoder(model_name=self.rerank_model),
-                top_n=self.rerank_k
+        if os.getenv("rerank") == "True":
+            if os.getenv("rerank_model") == "flashrank":
+                self.logger.info("Setting up the FlashrankRerank.")
+                self.compressor = FlashrankRerank(top_n=int(os.getenv("rerank_k")))
+            else:
+                self.logger.info("Setting up the CitationAwareReranker.")
+                self.compressor = CitationAwareReranker(
+                    model=HuggingFaceCrossEncoder(model_name="cross-encoder/ms-marco-TinyBERT-L-2-v2"),
+                    top_n=int(os.getenv("rerank_k"))
+                )
+
+            self.logger.info("Setting up the ContextualCompressionRetriever.")
+            self.rerank_retriever = ContextualCompressionRetriever(
+                base_compressor=self.compressor,
+                base_retriever=self.ensemble_retriever
             )
-        self.logger.info("Setting up the ContextualCompressionRetriever.")
-        self.rerank_retriever = ContextualCompressionRetriever(
-            base_compressor=self.compressor, base_retriever=self.ensemble_retriever
-        )
 
     def _setup_retrievers(self):
         """Sets up the retrievers based on specified configurations."""
@@ -487,13 +498,6 @@ class RAGHelper:
         """Extract skills from the CV document."""
         # Implement your skill extraction logic here
         return []
-    
-    def _deduplicate_chunks(self):
-        """Ensure there are no duplicate entries in the data."""
-        self.chunked_documents = list({
-                doc.metadata["id"]: doc for doc in self.chunked_documents
-            }.values()
-        )
 
     def load_data(self):
         """
@@ -508,7 +512,6 @@ class RAGHelper:
             self.logger.info("chunking the documents.")
             self._split_and_store_documents(docs)
 
-        self._deduplicate_chunks()
         self._initialize_vector_store()
         self._setup_retrievers()
 
@@ -532,3 +535,24 @@ class RAGHelper:
 
         # Add new chunks to the vector database
         self._add_to_vector_database(new_chunks)
+
+    def initialize_citation_verifier(self):
+        """Initialize the citation verifier if enabled."""
+        if self.citation_verification:
+            self.logger.info("Initializing citation verifier")
+            self.citation_verifier = ResponseVerifier()
+
+    def verify_response_citations(self, response, docs):
+        """Verify citations in response against source documents."""
+        if not self.citation_verification or not self.citation_verifier:
+            return response, {}
+
+        try:
+            modified_response, verification_results = self.citation_verifier.verify_response(
+                response,
+                docs
+            )
+            return modified_response, verification_results
+        except Exception as e:
+            self.logger.error(f"Error verifying citations: {str(e)}")
+            return response, {"error": str(e)}

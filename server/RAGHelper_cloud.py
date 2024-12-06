@@ -33,6 +33,7 @@ class RAGHelperCloud(RAGHelper):
     def __init__(self, logger):
         """Initialize the RAGHelperCloud instance with required models and configurations."""
         super().__init__(logger)
+        self.initialize_citation_verifier()
         self.rewrite_chain = None
         self.rewrite_ask_chain = None
         self.attributor = None
@@ -161,23 +162,23 @@ class RAGHelperCloud(RAGHelper):
             }
             llm_chain = prompt | self.llm | StrOutputParser()
             rag_chain = (
-                retriever_chain
-                | RunnablePassthrough.assign(
-                    answer=lambda x: llm_chain.invoke(
-                        {"docs": x["docs"], "context": x["context"], "question": x["question"]}
-                    ))
-                | combine_results
+                    retriever_chain
+                    | RunnablePassthrough.assign(
+                answer=lambda x: llm_chain.invoke(
+                    {"docs": x["docs"], "context": x["context"], "question": x["question"]}
+                ))
+                    | combine_results
             )
         else:
             retriever_chain = {"question": RunnablePassthrough()}
             llm_chain = prompt | self.llm | StrOutputParser()
             rag_chain = (
-                retriever_chain
-                | RunnablePassthrough.assign(
-                    answer=lambda x: llm_chain.invoke(
-                        {"question": x["question"]}
-                    ))
-                | combine_results
+                    retriever_chain
+                    | RunnablePassthrough.assign(
+                answer=lambda x: llm_chain.invoke(
+                    {"question": x["question"]}
+                ))
+                    | combine_results
             )
 
         user_query = self.handle_rewrite(user_query)
@@ -187,6 +188,19 @@ class RAGHelperCloud(RAGHelper):
 
         # Invoke RAG pipeline
         reply = rag_chain.invoke(user_query)
+
+        if fetch_new_documents:
+            # Extract answer
+            answer = reply.get('answer')
+            # Verify citations
+            modified_answer, verification_results = self.verify_response_citations(
+                answer,
+                reply.get('docs', [])
+            )
+
+            # Update response
+            reply['answer'] = modified_answer
+            reply['citation_verification'] = verification_results
 
         # Track provenance if needed
         if fetch_new_documents and os.getenv("provenance_method") in ['rerank', 'attention', 'similarity', 'llm']:

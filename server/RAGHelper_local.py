@@ -39,6 +39,8 @@ class RAGHelperLocal(RAGHelper):
         # Initialize provenance method
         self.attributor = DocumentSimilarityAttribution() if os.getenv("provenance_method") == "similarity" else None
 
+        self.initialize_citation_verifier()
+
     def _initialize_llm(self):
         """Initialize the LLM based on the available hardware and configurations."""
         llm_model = os.getenv('llm_model')
@@ -208,8 +210,25 @@ class RAGHelperLocal(RAGHelper):
         user_query = self.handle_rewrite(user_query)
         if os.getenv("use_re2") == "True":
             user_query = f'{user_query}\n{os.getenv("re2_prompt")}{user_query}'
-        
+
         reply = self._invoke_rag_chain(user_query, llm_chain)
+
+        if fetch_new_documents:
+            # Extract answer part
+            end_string = os.getenv("llm_assistant_token")
+            answer = reply['text'][reply['text'].rindex(end_string) + len(end_string):]
+            print(answer)
+            # Verify citations
+            modified_answer, verification_results = self.verify_response_citations(
+                answer,
+                reply['docs']
+            )
+            print(modified_answer)
+
+            # Update response
+            reply['text'] = reply['text'][:reply['text'].rindex(end_string) + len(end_string)] + modified_answer
+            reply['citation_verification'] = verification_results
+            print(reply)
 
         if fetch_new_documents:
             self._track_provenance(user_query, reply, thread)
@@ -279,7 +298,8 @@ class RAGHelperLocal(RAGHelper):
             new_history.append({"role": "assistant", "content": answer})
             context = RAGHelper.format_documents(reply['docs']).split("\n\n<NEWDOC>\n\n")
 
-            provenance_scores = self._compute_provenance(provenance_method, user_query, reply, context, answer, new_history)
+            provenance_scores = self._compute_provenance(provenance_method, user_query, reply, context, answer,
+                                                         new_history)
             for i, score in enumerate(provenance_scores):
                 reply['docs'][i].metadata['provenance'] = score
 
