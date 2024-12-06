@@ -83,6 +83,18 @@ MERGE (q)-[:IS_PART_OF]->(t)
 4. **Logs Status:**
 
    - Logs all significant steps, including the number of records successfully uploaded or any server responses.
+  
+#### Reasoning for specific use-case of topics and quotes
+
+The use-case of GraphRAG is developed on a dataset that consists of customer feedback data, collected through an NPS (Net Promoter Score) survey. It aims to use detected topics in the customer feedback to pinpoint recurring issues. It includes the following elements:
+
+1. *Quote of the Feedback*:  
+   Customers’ responses to the follow-up question:  
+   "Please tell us more about why you wouldn’t recommend [Organization]."  
+   These responses provide qualitative insights into customer satisfaction and dissatisfaction.
+
+2. *Topics Detected in the Quote*:  
+   Automatically identified themes or topics in the feedback, such as 'Relieving of concerns', or 'Relationship with your point of contact'. Topics are derived using natural language processing (NLP) and help cluster feedback for actionable analysis.
 
 #### 2. `add_document_to_graphdb`
 
