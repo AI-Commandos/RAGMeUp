@@ -146,44 +146,33 @@ After computing the relevance scores for all documents, the dataframe is sorted 
 
 ## Remarks on Reranker
 
-
-Unfortunately, we were unable to successfully implement the reranker with user feedback in the RAGMeUp framework. Despite extensive efforts to integrate this functionality, several challenges impeded our progress.
+Unfortunately, we were not able to successfully implement the reranker with user feedback in the RAGMeUp framework. Despite trying many approaches, we ran into several challenges that stopped us from finishing the task.
 
 ### Challenges Faced
 
 ### 1. Difficulty Integrating the Reranker
-- We designed a separate class for the reranker (`Reranker`) to handle feedback-based reranking. However, integrating it into the RAGMeUp pipeline presented numerous challenges.
-- The reranker required access to critical inputs: the query, the retrieved documents, and the feedback database. Managing these dependencies within the existing framework was a significant obstacle.
-- Retrieving feedback from the database and incorporating it into the reranker’s scoring algorithm posed its own set of challenges:
-  - **Feedback Retrieval and BM25 Score**: While retrieving feedback and the BM25 score were achievable within the custom class (`Reranker`), attempting to do so within the framework itself proved impossible. The framework’s structure did not provide an easy way to access and pass the required data (feedback, BM25 score) at the right stages of processing.
-  - Feedback retrieval logic was implemented, but ensuring the data was correctly formatted and accessible to the reranker during scoring was complex.
-  - The blending of feedback-based scores with BM25 or cross-encoder scores required significant tuning and validation, which was difficult given other integration hurdles.
+- We created a separate class for the reranker (`Reranker`) to handle feedback-based reranking. However, trying to fit it into the RAGMeUp framework was difficult.
+- The reranker needed important inputs like the query, the documents, and the feedback database. Managing these inputs within the framework was a big challenge.
+- Getting the feedback from the database and using it in the reranker’s scoring system was also difficult:
+  - Feedback and BM25 Score: We were able to get feedback and the BM25 score working in the custom class (`Reranker`), but doing this inside the framework itself wasn’t possible. The framework didn’t make it easy to access the required data (feedback, BM25 score) at the right time.
+  - The logic to retrieve feedback was in place, but making sure it was in the correct format and available when needed in the reranker was complex.
+  - Combining feedback scores with BM25 or cross-encoder scores took a lot of effort but was hard to check and adjust because of the other integration problems.
 
 ### 2. Query Retrieval
-- The reranker relies on a query to calculate relevance scores. At some point, we managed to retrieve the query, but then outputting the reranked documents was not working.
+- The reranker needs a query to calculate relevance scores. We managed to get the query at some point, but the output with the reranked documents wasn’t working as expected.
 
-### 5. Adjustments to `ScoredCrossEncoderReranker.py`
-- Modifications to `ScoredCrossEncoderReranker.py` aimed to integrate feedback retrieval, document retrieval, and score calculation. However:
-  - Dependencies, such as the feedback database, documents, and query, were difficult to manage.
-  - Testing and validation of these changes were complicated due to unresolved integration issues, including mismatches between expected and actual inputs.
+### 3. Adjustments to `ScoredCrossEncoderReranker.py`
+- We made changes to `ScoredCrossEncoderReranker.py` to add feedback retrieval, document retrieval, and score calculation. But:
+  - Managing dependencies like the feedback database, documents, and the query was still a struggle.
+  - Testing and validating these changes was difficult because there were issues with how the components were integrated, leading to mismatches between expected and actual inputs.
 
-### 5. `BaseCrossEncoder` as an Abstract Class
-- The `BaseCrossEncoder` used in `ScoredCrossEncoderReranker.py` is an abstract class. It cannot be instantiated directly, requiring either the implementation of its abstract methods or substitution with a concrete subclass.
-- This constraint significantly delayed testing and debugging of the reranker because no suitable concrete implementation was readily available or compatible with the framework.
-
-### 6. `__fields_set__` and `arbitrary_types_allowed` Errors
-- Modifications to the reranker introduced Pydantic-related errors:
-  - The `__fields_set__` attribute error occurred when Pydantic validation expected certain fields to be set during initialization, but they were missing or misconfigured.
-  - Similarly, the `arbitrary_types_allowed` configuration was required to allow non-standard types (e.g., the feedback database or cross-encoder model). However, managing Pydantic validations for these fields proved challenging, especially when combined with dynamic dependencies like feedback retrieval.
-
-### 7. Testing and Debugging
-- Testing the reranker in isolation or as part of the RAGMeUp framework was particularly challenging. The lack of intermediate testing points or clear dependency injection mechanisms made it difficult to validate individual components.
-- Errors related to dependency misconfigurations, abstract class constraints, and input mismatches compounded the difficulty of debugging and slowed progress.
+### 4. Testing and Debugging
+- Testing the reranker, whether on its own or within the RAGMeUp framework, was challenging. The lack of clear points to test or easy ways to inject dependencies made it hard to verify each part.
+- Errors related to misconfigured dependencies, abstract class constraints, and input mismatches made debugging more difficult and slowed down the process.
 
 ## Conclusion
 
-The challenges outlined above demonstrate the complexity of integrating user feedback-based reranking into the RAGMeUp framework. Key obstacles included dependency management, abstract class constraints, validation errors (`__fields_set__` and `arbitrary_types_allowed`), and testing limitations. While significant progress was made in structuring the reranker and integrating feedback logic, the inherent difficulties prevented us from achieving a functional implementation. Notably, feedback retrieval and BM25 scoring were manageable within the custom class (`Reranker`), but integrating these steps within the larger RAGMeUp framework proved impractical due to the rigid architecture and integration hurdles.
-
+The challenges above highlight the difficulty of integrating feedback-based reranking into the RAGMeUp framework. Key issues included managing dependencies, dealing with abstract class constraints, handling Pydantic errors (`__fields_set__` and `arbitrary_types_allowed`), and testing problems. While we made progress in structuring the reranker and adding feedback logic, we couldn’t get a working implementation due to these issues. Feedback retrieval and BM25 scoring were possible within the custom `Reranker` class, but fitting these steps into the larger RAGMeUp framework was too difficult because of the framework’s limitations and integration issues.
 
 
 ## Chat LLM
