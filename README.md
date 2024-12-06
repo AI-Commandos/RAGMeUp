@@ -20,8 +20,8 @@ ROUGE evaluates recall by measuring how much of the reference text is captured i
 **Latency Measurement**
 Using Python’s _time_ module, we measured:
 - **Retrieval Latency:** Time taken to retrieve relevant documents.
--**Answer Generation Latency:** Time taken to generate the final response from the model.
-This combination of quality (BLEU and ROUGE) and speed (latency) metrics allowed us to holistically evaluate the model's performance.
+- **Answer Generation Latency:** Time taken to generate the final response from the model.
+This combination of quality (BLEU and ROUGE) and speed (latency) metrics allowed us to evaluate the model's performance.
 
 ### 2. ColBERT (Contextualized Late Interaction over BERT)
 RAG models are complex models, and to optimize their performance, many components need to be optimized. The model used for retrieval is an important component of the RAG model, as it is what sets RAG apart from other models. 
