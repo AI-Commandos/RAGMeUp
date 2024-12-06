@@ -174,7 +174,7 @@ class RAGHelperCloud(RAGHelper):
                 | RunnablePassthrough.assign(
                     answer=lambda x: llm_chain.invoke(
                         {"docs": x["docs"], "context": x["context"], "question": x["question"]}
-                    ).get("text", "No answer available.")
+                    )
                 )
                 | combine_results
             )
@@ -185,7 +185,7 @@ class RAGHelperCloud(RAGHelper):
                 | RunnablePassthrough.assign(
                     answer=lambda x: llm_chain.invoke(
                         {"question": x["question"]}
-                    ).get("text", "No answer available.")
+                    )
                 )
                 | combine_results
             )
