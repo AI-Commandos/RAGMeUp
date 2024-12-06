@@ -15,10 +15,7 @@ The steps taken in the process of this assignment are as follows:
 - The reranker component of the RAG model was changed from FlashRank to ColBERT.
 - Additional evaluation metrics (ROUGE and BLEU scores) were added to the RAG model, ensuring relevant output.
 
-
-### 1. Additional Evaluation Metrics (BLEU and ROUGE Scores)
-
-### 2. ColBERT (Contextualized Late Interaction over BERT)
+### 1. ColBERT (Contextualized Late Interaction over BERT)
 RAG models are complex models, and to optimize their performance, many components need to be optimized. The model used for retrieval is an important component of the RAG model, as it is what sets RAG apart from other models. 
 
 In a RAG model, the reranker selects the set of documents retrieved by the retrieval component to ensure the most relevant information is passed to the generator. It reorders the initial set of retrieved documents to ensure the retrieved documents are relevant for answering the query, essentially giving them a ‘second look’ before sending them to the model. This improves the quality of the generated output by providing the generator with relevant information.
@@ -26,7 +23,7 @@ RAG technology is slow as LLM calls introduce latency. Calling the reranking mod
 
 Various means of changing the reranker component have been attempted, however, the final implementation was performed through RAGatouille. RAGatouille’s focus lies entirely in simplifying the implementation of state-of-the-art methods to optimize RAG models, offering pre-trained ColBERT alongside methods to easily fine-tune them. 
 
-## ROUGE and BLEU Scores
+### 2. Additional Evaluation Metrics (ROUGE and BLEU Scores)
 BLEU and ROUGE scores were implemented as additional evaluation metrics to better assess the quality of generated responses.
 
 - **ROUGE (Recall-Oriented Understudy for Gisting Evaluation):**
