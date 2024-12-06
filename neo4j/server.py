@@ -2,7 +2,7 @@ import csv
 from neo4j import GraphDatabase
 from flask import Flask, jsonify, request
 from pyngrok import ngrok
-
+import os
 
 # Define the Graph_whisperer class to interact with Neo4j
 class Graph_whisperer:
@@ -120,8 +120,12 @@ class Graph_whisperer:
 # Initialize Flask app
 app = Flask(__name__)
 
+
+neo4j_location = os.getenv('neo4j_location')
+neo4j_user = os.getenv('neo4j_user')
+neo4j_password = os.getenv('neo4j_password')
 # Initialize Neo4j database connection
-neo4j_db = Graph_whisperer("Your_neo4j_location", "Your_User", "Your_Password")
+neo4j_db = Graph_whisperer(neo4j_location, neo4j_user, neo4j_password)
 
 
 @app.route("/add_instances", methods=["POST"])
@@ -183,7 +187,8 @@ def run_query():
 
 if __name__ == "__main__":
     # # Set ngrok auth token and expose the app
-    ngrok.set_auth_token("Your NGROK_token")  # Replace with your actual ngrok auth token
+    ngrok_token = os.getenv('ngrok_token')
+    ngrok.set_auth_token(ngrok_token)  # Replace with your actual ngrok auth token
     public_url = ngrok.connect(4000)  # Expose port 5000
     print(f"ngrok tunnel available at: {public_url}")
     
