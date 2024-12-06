@@ -1,3 +1,10 @@
+# Group 6 NLP
+- Jespers Spuesens
+- Finn Franken
+- Flynn van den Brekel
+
+**Our contribution is written in this Report until # RAG Me Up**
+
 # Report
 The steps taken in the process of this assignment are as follows:
 - The Original RAGMeUp Repository was cloned to our group’s GitHub account.
@@ -41,7 +48,8 @@ With the inclusion of ColBERT, our RAG pipeline retrieves more relevant document
 1. NLG Metrics are Imperfect:
 Additional metrics like BERTScore or human evaluation could provide a more nuanced assessment.
 
-2. Limited time and resources 
+2. Limited time and knowledge of RAG framework
+With more time and 
 
 
 ### Future Directions
