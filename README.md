@@ -1,3 +1,83 @@
+# Group 6 NLP
+- Jespers Spuesens
+- Finn Franken
+- Flynn van den Brekel
+
+**Our contribution is written in this Report until # RAG Me Up**
+
+# Report
+The steps taken in the process of this assignment are as follows:
+- The Original RAGMeUp Repository was cloned to our group’s GitHub account.
+- The documentation was read thoroughly to gain an understanding of the pipeline.
+- The course data (Lecture slides, papers, book chapters) were collected and renamed for interpretation clarity. This renamed data was uploaded into the bot’s data storage, allowing the RAG model to retrieve information from this material.
+
+## Adjustments and additions to the RAG components 
+- The reranker component of the RAG model was changed from FlashRank to ColBERT.
+- Additional evaluation metrics (ROUGE and BLEU scores) were added to the RAG model, ensuring relevant output.
+
+### 1. ColBERT (Contextualized Late Interaction over BERT)
+RAG models are complex models, and to optimize their performance, many components need to be optimized. The model used for retrieval is an important component of the RAG model, as it is what sets RAG apart from other models. 
+
+In a RAG model, the reranker selects the set of documents retrieved by the retrieval component to ensure the most relevant information is passed to the generator. It reorders the initial set of retrieved documents to ensure the retrieved documents are relevant for answering the query, essentially giving them a ‘second look’ before sending them to the model. This improves the quality of the generated output by providing the generator with relevant information.
+RAG technology is slow as LLM calls introduce latency. Calling the reranking model introduces additional latency, and that is where ColBERT comes in, as it is one of the fastest available models. ColBERT is a reranking model that uses BERT embeddings to understand the context of the query (Khattab & Zaharia, 2020). ColBERT uses BERT to independently encode queries and documents, creating detailed embeddings. Instead of matching everything upfront, it compares these embeddings later using a lightweight scoring method. This approach keeps the model powerful while allowing pre-computed document embeddings, making it much faster. 
+
+Various means of changing the reranker component have been attempted, however, the final implementation was performed through RAGatouille. RAGatouille’s focus lies entirely in simplifying the implementation of state-of-the-art methods to optimize RAG models, offering pre-trained ColBERT alongside methods to easily fine-tune them. 
+
+### 2. Additional Evaluation Metrics (ROUGE and BLEU Scores)
+BLEU and ROUGE scores were implemented as additional evaluation metrics to better assess the quality of generated responses.
+
+**ROUGE (Recall-Oriented Understudy for Gisting Evaluation):**
+  
+ROUGE scores measure how well a generated text overlaps with reference text in terms of word sequences. These function by comparing the chatbot’s answers against ground truths, returning the overlap in unigrams through the ROUGE-1 score, the overlap in bigrams through the ROUGE-2 score, and the overlap in the longest common subsequence through the ROUGE-L score, allowing it to assess the fluency of the text. The average of these ROUGE scores is returned to display the readability of the generated output.
+
+**BLEU (Bilingual Evaluation Understudy):**
+  
+BLEU works in a similar manner. It measures how close the generated text is to the reference text considering n-gram precision, but there are some important differences. BLEU calculates precision for multiple n-grams (unigrams, bigrams, trigrams, etc.) and combines them into a single score. It doesn't focus on a specific n-gram but rather evaluates how well the generated text matches the reference across all these n-grams. Alongside this, BLEU applies a brevity penalty to prevent rewarding overly short outputs. A higher BLEU score indicates that the generated response closely matches the ground truth in terms of word choice and structure.
+
+**Latency Measurement:**
+  
+Finally, the latency of the bot is assessed by tracking the time that passes between the user submitting a query and the bot outputting a response. This is an important evaluation metric to include when testing the effectiveness of the ColBERT reranker, as it is supposedly faster than most other available rerankers.
+
+Using Python’s _time_ module, we measured:
+- **Retrieval Latency:** Time taken to retrieve relevant documents.
+- **Answer Generation Latency:** Time taken to generate the final response from the model.
+This combination of quality (BLEU and ROUGE) and speed (latency) metrics allowed us to evaluate the model's performance.
+
+### Implications and Limitations
+
+#### Implications
+- Improved Answer Relevance:
+With the inclusion of ColBERT, our RAG pipeline retrieves more relevant documents and does this faster than with FlashRank.
+
+#### Limitations
+- NLG Metrics are Imperfect:
+Additional metrics like BERTScore or human evaluation could provide a more nuanced assessment.
+
+- Limited time and knowledge of RAG framework
+As we had limited time and technical expertise, we faced challenges in fully integrating and visualizing the evaluation metrics. Although we successfully computed the latency and readability metrics, we could not display them in the user interface or a separate visualization, which would have greatly enhanced the interpretability and accessibility of these evaluations. 
+
+
+### Future Directions
+Our primary focus was to improve the speed of the RAG model and improve the relevance of the retrieved documents per query. This was achieved through the implementation of ColBERT and additional evaluation metrics. However, there are many more aspects of the RAG model that could be optimized. One of those aspects is the type of data the model can take for information retrieval. By adding additional data types the model becomes more flexible in which data it can use, simplifying the process of expanding its database. 
+Furthermore, we believe that the display of sources after submitting a query to the model could be more detailed. The model currently shows the document alongside a provenance score to display the reliability of the retrieved document. However, we believe it would be beneficial to have the system highlight the lines of text in the document from which the information was retrieved, making it easier for the user to find the context and learn more about the topic of their query. Alongside this, a good feature to add would be a separate window that displays the sources cited in the retrieved paper based on the relevance of the source to the user query.
+
+Additionally, we believe that it could be beneficial to the user to see the metadata of the retrieved files, such as filesize, and number of words. This gives a clear indication of the file quickly and concisely, allowing the user to effortlessly select or download the file they wish to delve deeper into without first having to open it. Ease of use should be a priority when working with LLMs and anything that can speed up the process or make the process easier for the user should be considered for implementation.
+
+
+### Sources used:
+- ColBERT Information: https://www.pondhouse-data.com/blog/advanced-rag-colbert-reranker
+
+- RAGatouille: https://github.com/AnswerDotAI/RAGatouille 
+
+- RAG From Scratch: https://www.youtube.com/watch?v=cN6S0Ehm7_8
+  
+- Visualization of ColBERT
+![image](https://github.com/user-attachments/assets/3f0df668-1013-4e91-8720-d93b9f3cbf5d)
+
+- Paper introducing ColBERT: Khattab, O., & Zaharia, M. (2020, April 27). ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction over BERT. arXiv.org. https://arxiv.org/abs/2004.12832
+- BLEU and ROUGE Score Information: https://medium.com/@sthanikamsanthosh1994/understanding-bleu-and-rouge-score-for-nlp-evaluation-1ab334ecadcb
+
+
 # RAG Me Up
 RAG Me Up is a generic framework (server + UIs) that enables you do to RAG on your own dataset **easily**. Its essence is a small and lightweight server and a couple of ways to run UIs to communicate with the server (or write your own).
 
@@ -163,7 +243,7 @@ The LLM that is used to generate messages is now also used to attribute the prov
 - `breakpoint_threshold_type` Sets the breakpoint threshold type when using the `SemanticChunker` ([see here](https://python.langchain.com/v0.2/docs/how_to/semantic-chunker/)). Can be one of: percentile, standard_deviation, interquartile, gradient
 - `breakpoint_threshold_amount` The amount to use for the threshold type, in float. Set to `None` to leave default
 - `number_of_chunks` The number of chunks to use for the threshold type, in int. Set to `None` to leave default
-
+  
 # Evaluation
 While RAG evaluation is difficult and subjective to begin with, frameworks such as [Ragas](https://docs.ragas.io/en/stable/) can give some metrics as to how well your RAG pipeline and its prompts are working, allowing us to benchmark one approach over the other quantitatively.
 
@@ -176,5 +256,3 @@ RAG Me Up uses Ragas to evaluate your pipeline. You can run an evaluation based 
 - `ragas_answer_instruction` The instruction prompt used to generate the answers of the Ragas input pairs.
 - `ragas_answer_query` The query prompt used to generate the answers of the Ragas input pairs.
 
-# Funding
-We are actively looking for funding to democratize AI and advance its applications. Contact us at info@commandos.ai if you want to invest.
