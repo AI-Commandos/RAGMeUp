@@ -251,10 +251,11 @@
     // Function to handle chat submission
     function handleChat() {
         // Disable submit buttons and input fields
+        const query = $('.query-input:visible').val(); 
+
         $('.submit-btn').prop('disabled', true);
         $('.query-input').prop('disabled', true);
         $("#mainContainer").hide();
-        const query = $('.query-input:visible').val();
         $('.query-input').val('');
         $("#inputbar").hide();
 
