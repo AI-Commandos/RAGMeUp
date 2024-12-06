@@ -105,7 +105,6 @@ def chat():
         new_history = [{"role": msg[0], "content": msg[1].format_map(response)} for msg in new_history]
         new_history.append({"role": "assistant", "content": response['answer']})
         reply = response['answer']
-    reply += "\n \n extra text"
     # Make sure we format the docs properly
 
     if len(original_docs) == 0 or 'docs' in response:
