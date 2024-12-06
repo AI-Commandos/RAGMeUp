@@ -12,8 +12,8 @@ The steps taken in the process of this assignment are as follows:
 - The course data (Lecture slides, papers, book chapters) were collected and renamed for interpretation clarity. This renamed data was uploaded into the bot’s data storage, allowing the RAG model to retrieve information from this material.
 
 ## Adjustments and additions to the RAG components 
-1. The reranker component of the RAG model was changed from FlashRank to ColBERT.
-2. Additional evaluation metrics (ROUGE and BLEU scores) were added to the RAG model, ensuring relevant output.
+- The reranker component of the RAG model was changed from FlashRank to ColBERT.
+- Additional evaluation metrics (ROUGE and BLEU scores) were added to the RAG model, ensuring relevant output.
 
 
 ### 1. Additional Evaluation Metrics (BLEU and ROUGE Scores)
