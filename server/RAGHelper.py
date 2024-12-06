@@ -74,7 +74,7 @@ class RAGHelper:
         self.json_schema = os.getenv("json_schema")
         self.neo4j = os.getenv("neo4j_location")
         self.add_docs_to_neo4j = os.getenv("file_upload_using_llm")
-        self.dynamic_neo4j_schema = os.getenv("dynamic_neo4j_schema")
+        self.dynamic_neo4j_schema = os.getenv("dynamic_neo4j_schema") == "True"
 
     @staticmethod
     def format_documents(docs):
@@ -522,11 +522,6 @@ class RAGHelper:
         self._initialize_vector_store()
         self._setup_retrievers()
     
-    # def encode_file_to_base64(file_path):
-    #     with open(file_path, "rb") as file:
-    #         encoded_file = base64.b64encode(file.read()).decode('utf-8')
-    #     return encoded_file
-        
     def add_csv_to_graphdb(self,filename):
         path = os.path.join(self.data_dir,filename)
         url_add_instance = f"{self.neo4j}/add_instances"
@@ -534,7 +529,7 @@ class RAGHelper:
             self.logger.info('Uploading csv instances using json')
             with open(path, mode="r", encoding="utf-8") as csvfile:
                 reader = csv.DictReader(csvfile,delimiter=';')
-                self.logger.info(reader.fieldnames) #we can also find the appropriate names and relations and get them below, so we can make a format you have to follow and then the csv will always upload
+                self.logger.info(reader.fieldnames) #This can be changed to a format you have to follow and then the csv will always upload
                 payloads = []
                 for row in reader:
                     payloads.append(
@@ -578,20 +573,27 @@ class RAGHelper:
             return None
         if metadata.get("source").lower().split(".")[-1] == "pdf":
             try:
-                schema_response = requests.get(url=self.neo4j+'/schema')
-                if schema_response.status_code != 200:
-                    self.logger.info("Failed to retrieve schema from the graph database.")
-                    return None
-                schema = schema_response.json()
-                # schema = "\n".join([f"{key}: {value}" for key, value in schema.items()])
+                if self.dynamic_neo4j_schema == True:
+                    schema_response = requests.get(url=self.neo4j+'/schema')
+                    if schema_response.status_code != 200:
+                        self.logger.info("Failed to retrieve schema from the graph database.")
+                        return None
+                    schema = schema_response.json()
+                    # schema = "\n".join([f"{key}: {value}" for key, value in schema.items()])
 
-                # Construct schema text for the prompt
-                schema_text = self.format_schema_for_prompt(schema)
+                    # Construct schema text for the prompt
+                    schema_text = self.format_schema_for_prompt(schema)
+                    
+                    self.logger.info(f'this is the text: {schema_text}')
+
+                    retrieval_question = os.getenv('neo4j_insert_schema').replace("{schema}", schema_text).replace("{data}",page_content)
+                else:
+                    retrieval_question = os.getenv('neo4j_insert_data_only').replace("{data}",page_content)
                 
                 # Load prompt components from .env
                 retrieval_instruction = os.getenv('neo4j_insert_instruction')
                 retrieval_few_shot = os.getenv('neo4j_insert_few_shot')
-                retrieval_question = os.getenv('neo4j_insert_schema').replace("{schema}", schema_text).replace("{data}",page_content)
+                
                 
                 retrieval_instruction = retrieval_instruction.replace("{", "{{").replace("}", "}}")
                 retrieval_few_shot = retrieval_few_shot.replace("{", "{{").replace("}", "}}")
@@ -616,32 +618,30 @@ class RAGHelper:
                     response_text = self.extract_response_content(llm_response).strip()
                     self.logger.info(f"The LLM response is: {response_text}")
 
+                    # Escape the curly braces in 'query' strings
+                    escaped_data = self.escape_curly_braces_in_query(response_text)
+
+                    # Now parse the JSON
+                    try:
+                        json_data = json.loads(escaped_data)
+                        print("Parsed JSON data:", json_data)
+                    except json.JSONDecodeError as e:
+                        print("Error parsing JSON:", e)
+
+                    def unescape_curly_braces(json_data):
+                        for item in json_data:
+                            item['query'] = item['query'].replace('\\{', '{').replace('\\}', '}')
+                        return json_data
+
+                    json_data = unescape_curly_braces(json_data)
+                
+                    response = requests.post(url = self.neo4j+'/add_instances',json=json_data)
+                    self.logger.info(f'{response}')
+                    if response == '<Response [200]>':
+                        self.logger.info(f'Succesfully loaded {len(json_data)} records into payloads')
                 except Exception as e:
                     self.logger.error(f"Error during LLM invocation: {e}")
                     return None
-
-                # Escape the curly braces in 'query' strings
-                escaped_data = self.escape_curly_braces_in_query(response_text)
-
-                # Now parse the JSON
-                try:
-                    json_data = json.loads(escaped_data)
-                    print("Parsed JSON data:", json_data)
-                except json.JSONDecodeError as e:
-                    print("Error parsing JSON:", e)
-
-                def unescape_curly_braces(json_data):
-                    for item in json_data:
-                        item['query'] = item['query'].replace('\\{', '{').replace('\\}', '}')
-                    return json_data
-
-                json_data = unescape_curly_braces(json_data)
-               
-                response = requests.post(url = self.neo4j+'/add_instances',json=json_data)
-                self.logger.info(f'{response}')
-                if response == '<Response [200]>':
-                    self.logger.info(f'Succesfully loaded {len(json_data)} records into payloads')
-                
             except Exception as e:
                 self.logger.error(f"Error adding document to the graph database: {e}")
 

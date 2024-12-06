@@ -2,7 +2,7 @@ import csv
 from neo4j import GraphDatabase
 from flask import Flask, jsonify, request
 from pyngrok import ngrok
-
+import os
 
 # Define the Graph_whisperer class to interact with Neo4j
 class Graph_whisperer:
@@ -20,14 +20,6 @@ class Graph_whisperer:
     def add_document(self, payload):
         with self.driver.session() as session:
             return session.execute_write(self._add_document, payload)
-
-    def update_instance(self, message):
-        with self.driver.session() as session:
-            return session.execute_write(self._get_or_create_greeting, message)
-
-    def delete_instance(self, message):
-        with self.driver.session() as session:
-            return session.execute_write(self._get_or_create_greeting, message)
 
     def get_meta_schema(self):
         """
@@ -128,8 +120,12 @@ class Graph_whisperer:
 # Initialize Flask app
 app = Flask(__name__)
 
+
+neo4j_location = os.getenv('neo4j_location')
+neo4j_user = os.getenv('neo4j_user')
+neo4j_password = os.getenv('neo4j_password')
 # Initialize Neo4j database connection
-neo4j_db = Graph_whisperer("bolt://localhost:7687", "neo4j", "TOPICdb1")
+neo4j_db = Graph_whisperer(neo4j_location, neo4j_user, neo4j_password)
 
 
 @app.route("/add_instances", methods=["POST"])
@@ -154,17 +150,6 @@ def add_csv():
         return jsonify({"last inserted instance": insert_result})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-# @app.route("/bak")
-# def home():
-#     try:
-#         # Retrieve or create greeting message from Neo4j
-#         greeting = neo4j_db.get_or_create_greeting("Hello, Neo4j!")
-#         return jsonify({"greeting": greeting})
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
-
 
 @app.route("/close_db")
 def close_db():
@@ -202,31 +187,10 @@ def run_query():
 
 if __name__ == "__main__":
     # # Set ngrok auth token and expose the app
-    ngrok.set_auth_token("2opsfNbDyWCJoIS83NSp8crnATD_4NxoJDAgSAh1aK2fWGAnK")  # Replace with your actual ngrok auth token
+    ngrok_token = os.getenv('ngrok_token')
+    ngrok.set_auth_token(ngrok_token)  # Replace with your actual ngrok auth token
     public_url = ngrok.connect(4000)  # Expose port 5000
     print(f"ngrok tunnel available at: {public_url}")
-
+    
     # Start Flask app
     app.run(host="0.0.0.0",port=4000)
-
-# from flask import Flask
-# from pyngrok import ngrok
-
-# # Initialize Flask app
-# app = Flask(__name__)
-
-# # Define Flask route
-# @app.route("/")
-# def home():
-#     return "Hello, Flask with ngrok!"
-
-# if __name__ == "__main__":
-#     # Step 3: Authenticate ngrok with your auth token
-#     ngrok.set_auth_token("")  # Replace with your actual auth token
-
-#     # Step 4: Start ngrok tunnel and integrate with Flask
-#     public_url = ngrok.connect(5000)  # Expose port 5000
-#     print(f"ngrok tunnel available at: {public_url}")
-
-#     # Start Flask app
-#     app.run(port=5000)

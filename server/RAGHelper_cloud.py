@@ -374,8 +374,7 @@ class RAGHelperCloud(RAGHelper):
             self.logger.error(f"Failed to retrieve schema from {schema_url}.")
             return None
 
-        schema = response.json()  # Assuming schema is returned in JSON format
-        # schema_text = "\n".join([f"{key}: {value}" for key, value in schema.items()])
+        schema = response.json()
 
         # Construct schema text for the prompt
         schema_text = self.format_schema_for_prompt(schema)
@@ -423,21 +422,6 @@ class RAGHelperCloud(RAGHelper):
                     self.logger.error(f"Failed to execute query: {response_text}")
                     return None
 
-                # query_results = query_response.json().get("results", [])
-                # self.logger.info(f"The found query results: {query_results}")
-
-                # # Format results as LangChain Documents
-                # documents = [
-                #     Document(
-                #         page_content=", ".join(f"{key}: {value}" for key, value in record.items()),
-                #         metadata={"source": "graph_db", **record}
-                #     )
-                #     for record in query_results
-                # ]
-                # formatted_query = RAGHelper.format_documents(documents)
-                # self.logger.info(f"The found formatted documents: {formatted_query}")
-                # return documents
-
                 query_results = query_response.json().get("results", [])
                 self.logger.info(f"The found query results: {query_results}")
 
@@ -463,16 +447,6 @@ class RAGHelperCloud(RAGHelper):
             except Exception as e:
                 self.logger.error(f"Error executing query or formatting results: {e}")
                 return None
-        
-        
-    # the schema of the database = quote, topic, is part of, you have to create a cypher query that can answer a user_query, if it is not possible to answer the question with the schema and the data in it return None, else return a valid cypher query
-    # example1 :
-    # example 2: 
-    
-    # userquery = what is the size of an elephant
-    # lmm response = None
-    # what topics are there?
-    # llm response = cypher query
 
     def format_schema_for_prompt(self, schema):
         """
