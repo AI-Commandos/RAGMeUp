@@ -1,5 +1,10 @@
 # Group 11 changes to RAGMeUp
 
+## Made by:
+**Elano Beer - 2065718 - ([e.h.u.beer@tilburguniversity.edu](mailto::e.h.u.beer@tilburguniversity.edu))**
+**Lars van Rijckevorsel - 2065745 - ([l.p.a.vanrijckevorsel@tilburguniversity.edu](mailto::l.p.a.vanrijckevorsel@tilburguniversity.edu))**
+**Wouter Mulder - 2065914 ([mailto::w.mulder@tilburguniversity.edu](mailto::w.mulder@tilburguniversity.edu))**
+
 ## Idea
 There were a lot of possibilities for changing or expanding the RAGMeUp framework for this assignment, eventually we decided to implement ColBERT as a reranker. Implementing ColBERT offers the chance to work with a state-of-the-art retrieval framework that uses deep learning to enhance semantic understanding. By leveraging BERT’s contextual embeddings, ColBERT allows the system to retrieve passages not only based on exact keyword matches but on deeper semantic relevance, which is particularly useful when dealing with ambiguous or context-sensitive queries. This aligns well with projects like chatbot applications or question-answering systems where precision and context matter.
 
