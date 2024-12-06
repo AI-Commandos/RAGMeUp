@@ -78,23 +78,28 @@ def chat():
         # Process graph response if available
         graph_file_path = None
         if graph_response:
-            try: 
+            if isinstance(graph_response, dict):
+                try: 
                 # Generate a unique filename for the graph
-                graph_file_name = f"graph_{uuid.uuid4()}.png"
-                graph_file_path = os.path.join('static', 'graphs', graph_file_name)
+                    graph_file_name = f"graph_{uuid.uuid4()}.png"
+                    graph_file_path = os.path.join('static', 'graphs', graph_file_name)
         
                 # Ensure the 'static/graphs' directory exists
-                os.makedirs(os.path.dirname(graph_file_path), exist_ok=True)
+                    os.makedirs(os.path.dirname(graph_file_path), exist_ok=True)
         
-                graph = pgv.AGraph(directed=True)
-                for node in graph_response.get('nodes', []):
-                    graph.add_node(node['id'], label=node['label'])
-                for edge in graph_response.get('edges', []):
-                    graph.add_edge(edge['source'], edge['target'], label=edge['label'])
-                graph.layout(prog='dot')
-                graph.draw(graph_file_path)
-            except Exception as e:
-                logger.error(f"Graph processing error: {e}")
+                    graph = pgv.AGraph(directed=True)
+                    logger.info(type(graph_response))
+                    for node in graph_response.get('nodes', []):
+                        graph.add_node(node['id'], label=node['label'])
+                    for edge in graph_response.get('edges', []):
+                        graph.add_edge(edge['source'], edge['target'], label=edge['label'])
+                    graph.layout(prog='dot')
+                    graph.draw(graph_file_path)
+                except Exception as e:
+                    logger.error(f"Graph processing error: {e}")
+                    graph_file_path = None
+            else:
+                logger.info("Graph response is not a dictionary, skipping graph creation.")
                 graph_file_path = None
 
         # Format the documents for the frontend
