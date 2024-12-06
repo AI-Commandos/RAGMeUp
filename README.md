@@ -207,7 +207,8 @@ ColBERT Information: https://www.pondhouse-data.com/blog/advanced-rag-colbert-re
 RAGatouille: https://github.com/AnswerDotAI/RAGatouille 
 
 RAG From Scratch: https://www.youtube.com/watch?v=cN6S0Ehm7_8 
-![image](https://github.com/user-attachments/assets/3f0df668-1013-4e91-8720-d93b9f3cbf5d)
+![afbeelding](https://github.com/user-attachments/assets/a845673d-f51e-40aa-8f9f-6409422ee99c)
+
 
 Paper introducing ColBERT: Khattab, O., & Zaharia, M. (2020, April 27). ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction over BERT. arXiv.org. https://arxiv.org/abs/2004.12832
 
