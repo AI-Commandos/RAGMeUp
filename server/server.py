@@ -3,7 +3,7 @@ import logging
 from dotenv import load_dotenv
 import os
 from RAGHelper_cloud import RAGHelperCloud
-from server.RAGHelper_local import RAGHelperLocal
+from RAGHelper_local import RAGHelperLocal
 from pymilvus import Collection, connections
 import sqlite3
 

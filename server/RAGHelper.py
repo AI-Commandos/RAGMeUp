@@ -20,8 +20,8 @@ from langchain_postgres.vectorstores import PGVector
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from lxml import etree
 from PostgresBM25Retriever import PostgresBM25Retriever
-from server.ScoredCrossEncoderReranker_original import ScoredCrossEncoderReranker # provided by the course
-from server.scored_cross_encoder_reranker_old import FeedbackAwareCrossEncoderReranker # created by us
+from ScoredCrossEncoderReranker_original import ScoredCrossEncoderReranker # provided by the course
+from scored_cross_encoder_reranker_old import FeedbackAwareCrossEncoderReranker # created by us
 from tqdm import tqdm
 
 from Reranker import Reranker
