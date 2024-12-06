@@ -21,7 +21,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from lxml import etree
 from PostgresBM25Retriever import PostgresBM25Retriever
 from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker # provided by the course
-from FeedbackAwareCrossEncoderReranker import FeedbackAwareCrossEncoderReranker # created by us
+from scored_cross_encoder_reranker import FeedbackAwareCrossEncoderReranker # created by us
 from tqdm import tqdm
 
 

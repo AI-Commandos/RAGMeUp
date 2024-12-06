@@ -10,6 +10,7 @@ from langchain.retrievers.document_compressors.cross_encoder import BaseCrossEnc
 
 from Reranker import Reranker
 
+print('Running scored-encoder-reranker.py')
 
 class FeedbackAwareCrossEncoderReranker(BaseDocumentCompressor):
     """Document compressor that uses CrossEncoder for reranking with feedback integration."""
