@@ -215,3 +215,6 @@ GraphRAG adds graph-based data structures to Retrieval Augmented Generation (RAG
 3. If this yields an error, this can be solved using these guides
    - Google Colab: https://stackoverflow.com/questions/58535604/installing-pygrahviz-in-google-colab
    - MacOS: https://stackoverflow.com/questions/69970147/how-do-i-resolve-the-pygraphviz-error-on-mac-os
+
+### To do:
+There is one breaking change in ui/scala/app/views/index.scala.html. After sending the second message, it breaks.
