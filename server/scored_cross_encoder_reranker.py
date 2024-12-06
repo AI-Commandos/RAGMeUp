@@ -20,7 +20,7 @@ class FeedbackAwareCrossEncoderReranker(BaseDocumentCompressor):
     """CrossEncoder model to use for scoring similarity between the query and documents."""
     top_n: int = 3
     """Number of documents to return."""
-    # encoder_feedback_df: pd.DataFrame
+    encoder_feedback_df: Optional[Any] = None
     """DataFrame containing document feedback ratings."""
     feedback_weight: float = 0.5
     """Weight given to feedback ratings in final scoring (0-1)."""
@@ -29,7 +29,7 @@ class FeedbackAwareCrossEncoderReranker(BaseDocumentCompressor):
         arbitrary_types_allowed = True
         extra = "forbid"
 
-    def __init__(self, model, feedback_db='feedback.db', feedback_weight= 0.5, top_n = 3):
+    def __init__(self, model: BaseCrossEncoder, feedback_db='feedback.db', feedback_weight= 0.5, top_n = 3):
         super().__init__()
         self.model = model
         self.feedback_db = feedback_db        
@@ -129,7 +129,7 @@ class FeedbackAwareCrossEncoderReranker(BaseDocumentCompressor):
         
 def main():
     # Example usage
-    try:
+    try:      
         Encoder_reranker = FeedbackAwareCrossEncoderReranker(
         model=BaseCrossEncoder,
         feedback_db='feedback.db',

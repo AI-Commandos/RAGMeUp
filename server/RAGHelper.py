@@ -424,10 +424,10 @@ class RAGHelper:
             self.logger.info("Setting up the FlashrankRerank.")
             self.compressor = FlashrankRerank(top_n=self.rerank_k)
         else:
-            # self.logger.info("Setting up the ScoredCrossEncoderReranker.") # provided by the course
-            # self.compressor = ScoredCrossEncoderReranker(
-            self.logger.info("Setting up the FeedbackAwareCrossEncoderReranker.") # our own implementation
-            self.compressor = FeedbackAwareCrossEncoderReranker(
+            self.logger.info("Setting up the ScoredCrossEncoderReranker.") # provided by the course
+            self.compressor = ScoredCrossEncoderReranker(
+            # self.logger.info("Setting up the FeedbackAwareCrossEncoderReranker.") # our own implementation
+            # self.compressor = FeedbackAwareCrossEncoderReranker(
                 model=HuggingFaceCrossEncoder(model_name="cross-encoder/ms-marco-MiniLM-L-6-v2"),
                 top_n=self.rerank_k,
                 feedback_df=self.feedback_df,
