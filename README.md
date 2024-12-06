@@ -46,14 +46,14 @@ This combination of quality (BLEU and ROUGE) and speed (latency) metrics allowed
 ### Implications and Limitations
 
 #### Implications
-1. Improved Answer Relevance:
+- Improved Answer Relevance:
 With the inclusion of ColBERT, our RAG pipeline retrieves more relevant documents and does this faster than with FlashRank.
 
 #### Limitations
-1. NLG Metrics are Imperfect:
+- NLG Metrics are Imperfect:
 Additional metrics like BERTScore or human evaluation could provide a more nuanced assessment.
 
-2. Limited time and knowledge of RAG framework
+- Limited time and knowledge of RAG framework
 As we had limited time and technical expertise, we faced challenges in fully integrating and visualizing the evaluation metrics. Although we successfully computed the latency and readability metrics, we could not display them in the user interface or a separate visualization, which would have greatly enhanced the interpretability and accessibility of these evaluations. 
 
 
