@@ -165,6 +165,7 @@ Unfortunately, we were not able to successfully implement the reranker with user
 - We made changes to `ScoredCrossEncoderReranker.py` to add feedback retrieval, document retrieval, and score calculation. But:
   - Managing dependencies like the feedback database, documents, and the query was still a struggle.
   - Testing and validating these changes was difficult because there were issues with how the components were integrated, leading to mismatches between expected and actual inputs.
+  - Some attempts can be seen in `ScoredCrossEncoderReranker_original.py` and `scored_cross_encoder_reranker.py`
 
 ### 4. Testing and Debugging
 - Testing the reranker, whether on its own or within the RAGMeUp framework, was challenging. The lack of clear points to test or easy ways to inject dependencies made it hard to verify each part.
