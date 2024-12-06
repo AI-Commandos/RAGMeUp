@@ -9,7 +9,7 @@ from langchain_core.documents import BaseDocumentCompressor, Document
 
 from langchain.retrievers.document_compressors.cross_encoder import BaseCrossEncoder
 
-from server.Reranker_1 import Reranker
+from Reranker import Reranker
 
 print('Running scored-encoder-reranker.py')
 
