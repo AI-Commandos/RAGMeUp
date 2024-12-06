@@ -181,11 +181,8 @@ The steps taken in the process of this assignment are as follows:
 - The Original RAGMeUp Repository was cloned to our group’s GitHub account.
 - The documentation was read thoroughly to gain an understanding of the pipeline.
 - The course data (Lecture slides, papers, book chapters) were collected and renamed for interpretation clarity. This renamed data was uploaded into the bot’s data storage, allowing the RAG model to retrieve information from this material.
-- Additional evaluation metrics (BLEU and ROUGE scores) were added to the RAG model, ensuring relevant output.
-- The reranker component of the RAG model was changed from FlashRank to ColBERT.
-
-### BLEU (Bilingual Evaluation Understudy) and ROUGE (Recall-Oriented Understudy for Gisting Evaluation) Scores
-[Talk about the eval metric and how latency was measured using time module]
+- The reranker component of the RAG model was changed to ColBERT.
+- Additional evaluation metrics (BLEU and ROUGE scores) were added to the RAG model to ensure relevant output.
 
 ### ColBERT (Contextualized Late Interaction over BERT)
 RAG models are complex models, and to optimize their performance, many components need to be optimized. The model used for retrieval is an important component of the RAG model, as it is what sets RAG apart from other models. 
@@ -194,6 +191,16 @@ In a RAG model, the reranker selects the set of documents retrieved by the retri
 RAG technology is slow as LLM calls introduce latency. Calling the reranking model introduces additional latency, and that is where ColBERT comes in, as it is one of the fastest available models. ColBERT is a reranking model that uses BERT embeddings to understand the context of the query (Khattab & Zaharia, 2020). ColBERT uses BERT to independently encode queries and documents, creating detailed embeddings. Instead of matching everything upfront, it compares these embeddings later using a lightweight scoring method. This approach keeps the model powerful while allowing pre-computed document embeddings, making it much faster. 
 
 Various means of changing the reranker component have been attempted, however, the final implementation was performed through RAGatouille. RAGatouille’s focus lies entirely in simplifying the implementation of state-of-the-art methods to optimize RAG models, offering pre-trained ColBERT alongside methods to easily fine-tune them. 
+
+### ROUGE (Recall-Oriented Understudy for Gisting Evaluation) and BLEU (Bilingual Evaluation Understudy) Scores
+BLEU and ROUGE scores were implemented as additional evaluation metrics to better assess the quality of generated responses. 
+BLEU
+
+ROUGE scores measure how well a generated text overlaps with reference text in terms of word sequences. These function by comparing the chatbot’s answers against ground truths, returning the overlap in unigrams through the ROUGE-1 score, the overlap in bigrams through the ROUGE-2 score, and the overlap in the longest common subsequence through the ROUGE-L score, allowing it to assess the fluency of the text. The average of these ROUGE scores is returned to display the readability of the generated output.
+
+BLEU works in a similar manner. It measures how close the generated text is to the reference text considering n-gram precision, but there are some important differences. BLEU calculates precision for multiple n-grams (unigrams, bigrams, trigrams, etc.) and combines them into a single score. It doesn't focus on a specific n-gram but rather evaluates how well the generated text matches the reference across all these n-grams. Alongside this, BLEU applies a brevity penalty to prevent rewarding overly short outputs.
+
+Finally, the latency of the bot is assessed by tracking the time that passes between the user submitting a query and the bot outputting a response. This is an important evaluation metric to include when testing the effectiveness of the ColBERT reranker, as it is supposedly faster than most other available rerankers.
 
 ### Future Directions
 Our primary focus was to improve the speed of the RAG model and improve the relevance of the retrieved documents per query. This was achieved through the implementation of ColBERT and additional evaluation metrics. However, there are many more aspects of the RAG model that could be optimized. One of those aspects is the type of data the model can take for information retrieval. By adding additional data types the model becomes more flexible in which data it can use, simplifying the process of expanding its database. 
@@ -209,15 +216,9 @@ RAGatouille: https://github.com/AnswerDotAI/RAGatouille
 RAG From Scratch: https://www.youtube.com/watch?v=cN6S0Ehm7_8 
 ![afbeelding](https://github.com/user-attachments/assets/a845673d-f51e-40aa-8f9f-6409422ee99c)
 
-
 Paper introducing ColBERT: Khattab, O., & Zaharia, M. (2020, April 27). ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction over BERT. arXiv.org. https://arxiv.org/abs/2004.12832
 
-## Tasks 
-- Evaluation metrics - Flynn
-- ColBert - Jesper
-
-Things we tried:
-- Retrieval document: SQL
+BLEU and ROUGE Score Information: https://medium.com/@sthanikamsanthosh1994/understanding-bleu-and-rouge-score-for-nlp-evaluation-1ab334ecadcb
 
 # Funding
 We are actively looking for funding to democratize AI and advance its applications. Contact us at info@commandos.ai if you want to invest.
