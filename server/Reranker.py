@@ -2,18 +2,18 @@ from rank_bm25 import BM25Okapi
 import sqlite3
 import pandas as pd
 import os
-import json
+from flask import jsonify
 
 class Reranker:
-    def __init__(self, feedback_db='feedback.db', data_dir='data_directory'):
+    def __init__(self, feedback_db='feedback.db', data_directory='data'):
         self.feedback_db = feedback_db
-        self.data_dir = data_dir
-        print('data_directory in INIT:', self.data_dir)
+        self.data_dir = os.getenv(data_directory)
+        # print('data_directory in INIT:', self.data_dir)
         # data_directory = os.getenv('data_directory')
         # print('data_directory in INIT:', data_directory)
         # self.data_dir = data_directory
 
-    def get_feedback(self):
+    def get_feedback_reranker(self):
         """
         Fetch feedback for a specific document from the feedback database.
         """
@@ -28,7 +28,7 @@ class Reranker:
         conn.close()
         return feedback
     
-    def get_documents(self):
+    def get_documents_reranker(self):
         """
         Retrieve a list of documents from the data directory.
 
@@ -39,24 +39,27 @@ class Reranker:
             JSON response containing the list of files.
         # """   
         # data_dir = self.data_dir    
-        # print('data_dir in get_documents:', data_dir)    
-        
+        # print('data_dir in get_documents_reranker:', data_dir)    
+        os.environ['data_directory'] = 'data'
+        os.environ["file_types"] = "txt,csv,pdf,json"
+
+
         data_directory = os.getenv('data_directory')
-        print('data_directory in get_documents:', data_directory)
+        print('data_directory in get_documents_reranker:', data_directory)
         file_types = os.getenv("file_types", "").split(",")
         print('file_types:', file_types)
 
         # Filter files based on specified types
-        files = [f for f in os.listdir(data_dir)
-                if os.path.isfile(os.path.join(data_dir, f)) and os.path.splitext(f)[1][1:] in file_types]
+        files = [f for f in os.listdir(data_directory)
+                if os.path.isfile(os.path.join(data_directory, f)) and os.path.splitext(f)[1][1:] in file_types]
         
-        print('files in get_documents:', files)
-        print('files type in get_documents:', type(files))
+        print('files in get_documents_reranker:', files)
+        print('files type in get_documents_reranker:', type(files))
         
         return jsonify(files)
     
     def combiner(self, feedback):
-        print('feedback in combiner:', feedback)
+        # print('feedback in combiner:', feedback)
         for doc in range(len(feedback['document_id'])):
             document_ids = feedback['document_id'][doc].replace('[', '').replace(']', '').replace("'", "").split(',')
             # print('document_ids:', document_ids)
@@ -66,7 +69,7 @@ class Reranker:
             # print('rating:', rating)
             
             for doc_id in range(len(document_ids)):
-                print('document_id:', document_ids[doc_id])
+                # print('document_id:', document_ids[doc_id])
                 document_id = document_ids[doc_id]
                 
                 # Create a new dataframe with document_id and rating
@@ -144,9 +147,9 @@ class Reranker:
         
     
     def main_reranker(self):
-        feedback_df = self.get_feedback()
+        feedback_df = self.get_feedback_reranker()
         combined_df = self.combiner(feedback_df)
-        documents = self.get_documents()
+        documents = self.get_documents_reranker()
         print(feedback_df)
         print('document_id colum:', feedback_df['document_id'])
         print('document_id type:', type(feedback_df['document_id']))
