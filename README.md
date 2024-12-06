@@ -86,7 +86,7 @@ MERGE (q)-[:IS_PART_OF]->(t)
   
 #### Reasoning for specific use-case of topics and quotes
 
-The use-case of GraphRAG is developed on a dataset that consists of customer feedback data, collected through an NPS (Net Promoter Score) survey. It aims to use detected topics in the customer feedback to pinpoint recurring issues. It includes the following elements:
+The use-case of the csv upload of GraphRAG is developed on a dataset that consists of customer feedback data, collected through an NPS (Net Promoter Score) survey. It aims to use detected topics in the customer feedback to pinpoint recurring issues. It includes the following elements:
 
 1. *Quote of the Feedback*:  
    Customers’ responses to the follow-up question:  
