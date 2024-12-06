@@ -27,12 +27,15 @@ Various means of changing the reranker component have been attempted, however, t
 BLEU and ROUGE scores were implemented as additional evaluation metrics to better assess the quality of generated responses.
 
 - **ROUGE (Recall-Oriented Understudy for Gisting Evaluation):**
+- 
 ROUGE scores measure how well a generated text overlaps with reference text in terms of word sequences. These function by comparing the chatbot’s answers against ground truths, returning the overlap in unigrams through the ROUGE-1 score, the overlap in bigrams through the ROUGE-2 score, and the overlap in the longest common subsequence through the ROUGE-L score, allowing it to assess the fluency of the text. The average of these ROUGE scores is returned to display the readability of the generated output.
 
 - **BLEU (Bilingual Evaluation Understudy):**
+- 
 BLEU works in a similar manner. It measures how close the generated text is to the reference text considering n-gram precision, but there are some important differences. BLEU calculates precision for multiple n-grams (unigrams, bigrams, trigrams, etc.) and combines them into a single score. It doesn't focus on a specific n-gram but rather evaluates how well the generated text matches the reference across all these n-grams. Alongside this, BLEU applies a brevity penalty to prevent rewarding overly short outputs. A higher BLEU score indicates that the generated response closely matches the ground truth in terms of word choice and structure.
 
 - **Latency Measurement:**
+- 
 Finally, the latency of the bot is assessed by tracking the time that passes between the user submitting a query and the bot outputting a response. This is an important evaluation metric to include when testing the effectiveness of the ColBERT reranker, as it is supposedly faster than most other available rerankers.
 
 Using Python’s _time_ module, we measured:
