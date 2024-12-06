@@ -108,7 +108,7 @@ The database was initially created in the Google Colab notebook, and then saved 
 
 The Reranker improves document relevance by integrating user feedback into the ranking process. This README outlines how user feedback is incorporated and used to rerank documents.
 
----
+
 
 ### 1. Feedback and Document Retrieval
 
@@ -126,46 +126,53 @@ A unified dataframe is created to merge all unique documents with their feedback
 This results in a single dataframe where each document is associated with its cumulative feedback score, or 0 if no feedback exists.
 
 
-### 3. Calculating Relevance Score
-To order the documents by relevance, a combined relevance score is calculated for each document using the formula:
-
-Relevance Score
-=
-𝛼
-⋅
-BM25 Weight
-+
-𝛽
-⋅
-Feedback Weight
-Relevance Score=α⋅BM25 Weight+β⋅Feedback Weight
-Parameters:
-
-BM25 Weight: The BM25 relevance score calculated based on the query and document content.
-Feedback Weight: The cumulative user feedback rating for the document.
-α (alpha): Weight for BM25 (set to 0.7).
-β (beta): Weight for user feedback (set to 0.3).
-These weights prioritize BM25 because it provides a robust measure of text relevance to the query, while feedback adds user-specific insights.
 
 ### 3. Calculating Relevance Scores
 
 To rank documents effectively, the Reranker calculates a Relevance Score for each document by combining the BM25 Weight and the User Feedback Weight. This is done using the following formula:
 
-**Relevance Score = α ⋅ BM25 Weight + β ⋅ Feedback Weight**
+*Relevance Score = α ⋅ BM25 Weight + β ⋅ Feedback Weight*
 
 Parameters:
 - **BM25 Weight**: The relevance score for a document based on the BM25 algorithm, which uses term frequency and inverse document frequency to measure query-document similarity.
 - **Feedback Weight**: The cumulative user feedback rating for a document.
-- **α (alpha)**: The weight given to BM25 scores (default: 0.7).
-- **β (beta)**: The weight given to user feedback scores (default: 0.3).
+- **α (alpha)**: The weight given to BM25 scores (set to 0.7).
+- **β (beta)**: The weight given to user feedback scores (set to 0.3).
 
 These weights prioritize BM25 because it provides a robust measure of text relevance to the query, while feedback adds user-specific insights.
 
 ### 4. Sorting and Output
 After computing the relevance scores for all documents, the dataframe is sorted in descending order of relevance score. The top-ranked documents are considered the most relevant.
 
-## Remarks on the Chat LLM Fine Tuner
+## Remarks on Reranker
 
+Unfortunately, we were not able to successfully implement the reranker with user feedback in the RAGMeUp framework. Despite trying many approaches, we ran into several challenges that stopped us from finishing the task.
+
+### Challenges Faced
+
+### 1. Difficulty Integrating the Reranker
+- We created a separate class for the reranker (`Reranker`) to handle feedback-based reranking. However, trying to fit it into the RAGMeUp framework was difficult.
+- The reranker needed important inputs like the query, the documents, and the feedback database. Managing these inputs within the framework was a big challenge.
+- Getting the feedback from the database and using it in the reranker’s scoring system was also difficult:
+  - Feedback and BM25 Score: We were able to get feedback and the BM25 score working in the custom class (`Reranker`), but doing this inside the framework itself wasn’t possible. The framework didn’t make it easy to access the required data (feedback, BM25 score) at the right time.
+  - The logic to retrieve feedback was in place, but making sure it was in the correct format and available when needed in the reranker was complex.
+  - Combining feedback scores with BM25 or cross-encoder scores took a lot of effort but was hard to check and adjust because of the other integration problems.
+
+### 2. Query Retrieval
+- The reranker needs a query to calculate relevance scores. We managed to get the query at some point, but the output with the reranked documents wasn’t working as expected.
+
+### 3. Adjustments to `ScoredCrossEncoderReranker.py`
+- We made changes to `ScoredCrossEncoderReranker.py` to add feedback retrieval, document retrieval, and score calculation. But:
+  - Managing dependencies like the feedback database, documents, and the query was still a struggle.
+  - Testing and validating these changes was difficult because there were issues with how the components were integrated, leading to mismatches between expected and actual inputs.
+
+### 4. Testing and Debugging
+- Testing the reranker, whether on its own or within the RAGMeUp framework, was challenging. The lack of clear points to test or easy ways to inject dependencies made it hard to verify each part.
+- Errors related to misconfigured dependencies, abstract class constraints, and input mismatches made debugging more difficult and slowed down the process.
+
+## Conclusion
+
+The challenges above highlight the difficulty of integrating feedback-based reranking into the RAGMeUp framework. Key issues included managing dependencies, dealing with abstract class constraints, handling Pydantic errors (`__fields_set__` and `arbitrary_types_allowed`), and testing problems. While we made progress in structuring the reranker and adding feedback logic, we couldn’t get a working implementation due to these issues. Feedback retrieval and BM25 scoring were possible within the custom `Reranker` class, but fitting these steps into the larger RAGMeUp framework was too difficult because of the framework’s limitations and integration issues.
 
 
 ## Chat LLM
