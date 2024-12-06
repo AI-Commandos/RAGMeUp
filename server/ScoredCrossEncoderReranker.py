@@ -18,6 +18,8 @@ class ScoredCrossEncoderReranker(BaseDocumentCompressor):
     top_n: int = 3
     """Number of documents to return."""
 
+    print('Running ScoredCrossEncoderReranker.py')
+
     class Config:
         arbitrary_types_allowed = True
         extra = "forbid"
