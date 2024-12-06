@@ -37,6 +37,7 @@ else:
     raghelper = RAGHelperLocal(logger)
 
 # set variables
+end_string = os.getenv("llm_assistant_token")
 k = int(os.getenv("rerank_k"))
 eval_ragas = os.getenv("eval_ragas").lower() == "true"
 testset_path = os.getenv("eval_testset_directory")
