@@ -11,24 +11,12 @@ The steps taken in the process of this assignment are as follows:
 - The documentation was read thoroughly to gain an understanding of the pipeline.
 - The course data (Lecture slides, papers, book chapters) were collected and renamed for interpretation clarity. This renamed data was uploaded into the bot’s data storage, allowing the RAG model to retrieve information from this material.
 
-## Actual adjustments and additions to the RAG components 
-1. Additional evaluation metrics (BLEU and ROUGE scores) were added to the RAG model, ensuring relevant output.
-2. The reranker component of the RAG model was changed from FlashRank to ColBERT.
+## Adjustments and additions to the RAG components 
+1. The reranker component of the RAG model was changed from FlashRank to ColBERT.
+2. Additional evaluation metrics (ROUGE and BLEU scores) were added to the RAG model, ensuring relevant output.
+
 
 ### 1. Additional Evaluation Metrics (BLEU and ROUGE Scores)
-
-**BLEU and ROUGE scores**
-- **BLEU (Bilingual Evaluation Understudy):**
-BLEU is a precision-based metric that calculates how much of the generated text overlaps with the reference text (ground truth). It focuses on n-gram overlap (phrases of size 1 to 4) and penalizes overly short outputs. A higher BLEU score indicates that the generated response closely matches the ground truth in terms of word choice and structure.
-
-- **ROUGE (Recall-Oriented Understudy for Gisting Evaluation):**
-ROUGE evaluates recall by measuring how much of the reference text is captured in the generated response.
-
-**Latency Measurement**
-Using Python’s _time_ module, we measured:
-- **Retrieval Latency:** Time taken to retrieve relevant documents.
-- **Answer Generation Latency:** Time taken to generate the final response from the model.
-This combination of quality (BLEU and ROUGE) and speed (latency) metrics allowed us to evaluate the model's performance.
 
 ### 2. ColBERT (Contextualized Late Interaction over BERT)
 RAG models are complex models, and to optimize their performance, many components need to be optimized. The model used for retrieval is an important component of the RAG model, as it is what sets RAG apart from other models. 
@@ -38,11 +26,28 @@ RAG technology is slow as LLM calls introduce latency. Calling the reranking mod
 
 Various means of changing the reranker component have been attempted, however, the final implementation was performed through RAGatouille. RAGatouille’s focus lies entirely in simplifying the implementation of state-of-the-art methods to optimize RAG models, offering pre-trained ColBERT alongside methods to easily fine-tune them. 
 
+**ROUGE and BLEU Scores**
+BLEU and ROUGE scores were implemented as additional evaluation metrics to better assess the quality of generated responses.
+
+- **ROUGE (Recall-Oriented Understudy for Gisting Evaluation):**
+ROUGE scores measure how well a generated text overlaps with reference text in terms of word sequences. These function by comparing the chatbot’s answers against ground truths, returning the overlap in unigrams through the ROUGE-1 score, the overlap in bigrams through the ROUGE-2 score, and the overlap in the longest common subsequence through the ROUGE-L score, allowing it to assess the fluency of the text. The average of these ROUGE scores is returned to display the readability of the generated output.
+
+- **BLEU (Bilingual Evaluation Understudy):**
+BLEU works in a similar manner. It measures how close the generated text is to the reference text considering n-gram precision, but there are some important differences. BLEU calculates precision for multiple n-grams (unigrams, bigrams, trigrams, etc.) and combines them into a single score. It doesn't focus on a specific n-gram but rather evaluates how well the generated text matches the reference across all these n-grams. Alongside this, BLEU applies a brevity penalty to prevent rewarding overly short outputs. A higher BLEU score indicates that the generated response closely matches the ground truth in terms of word choice and structure.
+
+**Latency Measurement**
+Finally, the latency of the bot is assessed by tracking the time that passes between the user submitting a query and the bot outputting a response. This is an important evaluation metric to include when testing the effectiveness of the ColBERT reranker, as it is supposedly faster than most other available rerankers.
+
+Using Python’s _time_ module, we measured:
+- **Retrieval Latency:** Time taken to retrieve relevant documents.
+- **Answer Generation Latency:** Time taken to generate the final response from the model.
+This combination of quality (BLEU and ROUGE) and speed (latency) metrics allowed us to evaluate the model's performance.
+
 ### Implications and Limitations
 
 #### Implications
 1. Improved Answer Relevance:
-With the inclusion of ColBERT, our RAG pipeline retrieves more relevant documents and does this faster than FlashRank.
+With the inclusion of ColBERT, our RAG pipeline retrieves more relevant documents and does this faster than with FlashRank.
 
 #### Limitations
 1. NLG Metrics are Imperfect:
@@ -65,11 +70,12 @@ Additionally, we believe that it could be beneficial to the user to see the meta
 - RAGatouille: https://github.com/AnswerDotAI/RAGatouille 
 
 - RAG From Scratch: https://www.youtube.com/watch?v=cN6S0Ehm7_8
+  
 - Visualization of ColBERT
 ![image](https://github.com/user-attachments/assets/3f0df668-1013-4e91-8720-d93b9f3cbf5d)
 
 - Paper introducing ColBERT: Khattab, O., & Zaharia, M. (2020, April 27). ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction over BERT. arXiv.org. https://arxiv.org/abs/2004.12832
-
+- BLEU and ROUGE Score Information: https://medium.com/@sthanikamsanthosh1994/understanding-bleu-and-rouge-score-for-nlp-evaluation-1ab334ecadcb
 
 
 # RAG Me Up
