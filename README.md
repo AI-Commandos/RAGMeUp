@@ -185,51 +185,33 @@ We are actively looking for funding to democratize AI and advance its applicatio
 ## GraphRAG Integration
 GraphRAG adds graph-based data structures to Retrieval Augmented Generation (RAG) to make it more useful. This lets the system understand and give answers that take into account the connections between different pieces of information. It also lets it retrieve and create responses with more nuanced and relational data.
 
+### Variables added to .env
+- `graph`: True or False, based on whether to use the graph
+- `graph_file`: location of the graph file
+- `graph_plot`: location of the graph plot
 
 ### Features
-1. Graph-Based Retrieval:
-   - Uses graph traversal algorithms to retrieve information based on relationships between nodes in the graph.
-2. Enhanced Contextual Reasoning:
-   - Considers interconnected data points and context during answer generation.
-3. Visualizations:
-   - Generates graph visualizations to illustrate the relationships between retrieved documents.
+1. Creation of a knowledge graph:
+   - In RAGHelper.py, the `_initialize_graph_store` function was created to build a knowledge graph based on the documents provided.
+2. Visualization of the graph:
+   - The `_initialize_graph_store` function generates a file graph.svg in the server directory which can be used for visualizations to illustrate the relationships between retrieved documents.
+3. Creation of a new LLM chain for the knowledge graph:
+   - A variable graphrag_chain is added to the RAGHelper, which can be used to get a response from the knowledge graph
+4. Usage of the graph:
+   - The `handle_user_interaction` returns a response based on the knowledge graph, in addition to the existing reponse
 
+### Explanation of the graph creation
+1. The documents are combined into one big text
+2. Langchain's GraphIndexCreator processes the text into a graph
+3. The graph is plotted using pygraphviz (and saved to the `graph_plot` environment variable)
+4. The graph is saved to a gml file for reuse (at the location of the `graph_file` environment variable)
 
-### How It Works
-1. Graph Creation:
-   - Documents are transformed into nodes and relationships (edges) based on predefined or dynamic criteria.
-2. Graph Traversal:
-   - A query traverses the graph to find the most relevant nodes based on relationships and context.
-3. Graph Reasoning:
-   - A reasoning module interprets the graph structure to refine or justify the response.
-
-
-### GraphRAG Pipeline Integration
-GraphRAG fits into the existing RAG pipeline as follows:
-1. Document Ingestion:
-   - Create a graph representation of the data during the indexing phase.
-2. Query Handling:
-   - Retrieve nodes from the graph based on the query.
-3. Answer Generation:
-   - Combine graph-based context with retrieved documents for nuanced responses.
-
-
-### Installation for GraphRAG
+### Installation of pygraphviz for GraphRAG
 1. Ensure Graphviz is installed:
    - `sudo apt-get install graphviz`
    - or `brew install graphviz` (MacOS)
 2. Install Python dependencies:
    - `pip install pygraphviz`
-3. Update the `requirements.txt`:
-   - Ensure `pygraphviz` is included.
-
-
-### GraphRAG Retrieval 
-1. After document chunking and embedding, a graph representation of the data is created.
-2. Queries can traverse this graph to identify nodes of interest and their relationships.
-3. The graph-based context is injected into the answer generation process.
-
-
-
-
-
+3. If this yields an error, this can be solved using these guides
+   - Google Colab: https://stackoverflow.com/questions/58535604/installing-pygrahviz-in-google-colab
+   - MacOS: https://stackoverflow.com/questions/69970147/how-do-i-resolve-the-pygraphviz-error-on-mac-os
