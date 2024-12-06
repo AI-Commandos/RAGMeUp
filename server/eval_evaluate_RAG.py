@@ -41,39 +41,35 @@ end_string = os.getenv("llm_assistant_token")
 k = int(os.getenv("rerank_k"))
 eval_ragas = os.getenv("eval_ragas").lower() == "true"
 testset_path = os.getenv("eval_testset_directory")
-test_models = ast.literal_eval(os.getenv("eval_models"))
+modelname = os.getenv("eval_RAG_instance_name")
 
 # load testset
 testset = pd.read_csv(testset_path + 'testset.csv')
 testset['true_doc_ids'] = testset['true_doc_ids'].apply(ast.literal_eval)
 
-# run RAGs on each question in the testset
+# run RAG on each question in the testset
 evalset = testset.copy()
 
-for modelname, params in test_models.items():
-  for param, value in params.items():
-      os.environ[param] = value
+RAG_answers = []
+RAG_doc_ids = []
+for question in testset['question']:
+    (nh, response) = raghelper.handle_user_interaction(question, [])
+    docs = response['docs']
+    if use_cloud:
+        if hasattr(response, 'content'):
+            answer = response.content
+        elif hasattr(response, 'answer'):
+            answer = response.answer
+        elif 'answer' in response:
+            answer = response["answer"]
+    else:
+        answer = response['text'][response['text'].rindex(end_string)+len(end_string):]
 
-  RAG_answers = []
-  RAG_doc_ids = []
-  for question in testset['question']:
-      (nh, response) = raghelper.handle_user_interaction(question, [])
-      docs = response['docs']
-      if use_cloud:
-          if hasattr(response, 'content'):
-              answer = response.content
-          elif hasattr(response, 'answer'):
-              answer = response.answer
-          elif 'answer' in response:
-              answer = response["answer"]
-      else:
-          answer = response['text'][response['text'].rindex(end_string)+len(end_string):]
+    RAG_answers.append(answer)
+    RAG_doc_ids.append([d.metadata.get("id", "no id found") for d in docs])
 
-      RAG_answers.append(answer)
-      RAG_doc_ids.append([d.metadata.get("id", "no id found") for d in docs])
-
-  evalset[f'{modelname}_answer'] = RAG_answers
-  evalset[f'{modelname}_doc_ids'] = RAG_doc_ids
+evalset[f'{modelname}_answer'] = RAG_answers
+evalset[f'{modelname}_doc_ids'] = RAG_doc_ids
 
 
 # Compute evaluation metrics
@@ -82,30 +78,28 @@ for modelname, params in test_models.items():
 if isinstance(evalset["true_doc_ids"].iloc[0], str):
   evalset["true_doc_ids"] = evalset["true_doc_ids"].apply(ast.literal_eval)
 
-for modelname in test_models:
+# Compute the count of intersecting IDs
+n_docs_colname = f'{modelname}_n_docs_identified'
+evalset[n_docs_colname] = evalset.apply(
+    lambda row: len(set(row["true_doc_ids"]) & set(row[f"{modelname}_doc_ids"])),
+    axis=1,
+)
 
-  # Compute the count of intersecting IDs
-  n_docs_colname = f'{modelname}_n_docs_identified'
-  evalset[n_docs_colname] = evalset.apply(
-      lambda row: len(set(row["true_doc_ids"]) & set(row[f"{modelname}_doc_ids"])),
-      axis=1,
-  )
+n_docs_top_k_colname = f'{modelname}_n_docs_identified_top_{k}'
+evalset[n_docs_top_k_colname] = evalset.apply(
+    lambda row: len(set(row["true_doc_ids"]) & set(row[f"{modelname}_doc_ids"][:k])),
+    axis=1,
+)
 
-  n_docs_top_k_colname = f'{modelname}_n_docs_identified_top_{k}'
-  evalset[n_docs_top_k_colname] = evalset.apply(
-      lambda row: len(set(row["true_doc_ids"]) & set(row[f"{modelname}_doc_ids"][:k])),
-      axis=1,
-  )
+recall_colname = f'{modelname}_recall'
+recall_top_k_colname = f'{modelname}_recall_top_{k}'
+evalset[recall_colname] = evalset[n_docs_colname] / evalset['true_doc_ids'].apply(len)
+evalset[recall_top_k_colname] = evalset[n_docs_top_k_colname] / evalset['true_doc_ids'].apply(len)
 
-  recall_colname = f'{modelname}_recall'
-  recall_top_k_colname = f'{modelname}_recall_top_{k}'
-  evalset[recall_colname] = evalset[n_docs_colname] / evalset['true_doc_ids'].apply(len)
-  evalset[recall_top_k_colname] = evalset[n_docs_top_k_colname] / evalset['true_doc_ids'].apply(len)
-
-  mean_recall = evalset[recall_colname].mean()
-  mean_recall_top_k = evalset[recall_top_k_colname].mean()
-  print(f'Model {modelname} has a recall of {mean_recall}')
-  print(f'Model {modelname} has a recall-top-{k} of {mean_recall_top_k}')
+mean_recall = evalset[recall_colname].mean()
+mean_recall_top_k = evalset[recall_top_k_colname].mean()
+print(f'Model {modelname} has a recall of {mean_recall}')
+print(f'Model {modelname} has a recall-top-{k} of {mean_recall_top_k}')
 
 # Add true doc contexts column
 with open(testset_path + 'rag_chunks.pickle', "rb") as file:
@@ -115,7 +109,24 @@ evalset['true_doc_contexts'] = evalset['true_doc_ids'].apply(
     lambda ids: [doc.page_content for doc in rag_chunks if doc.metadata['id'] in ids]
     )
 
-evalset.to_excel('eval_data.xlsx', index=False)
+# Ensure the base evalsets folder exists
+evalsets_folder = "evalsets"
+os.makedirs(evalsets_folder, exist_ok=True)
+
+# Determine the next available folder name
+folder_number = 1
+while True:
+    target_folder = os.path.join(evalsets_folder, str(folder_number))
+    if not os.path.exists(target_folder):
+        break
+    folder_number += 1
+
+# Create the new folder
+os.makedirs(target_folder)
+
+evalset.to_csv(os.path.join(target_folder, "evalset.csv"), index=False)
+evalset.to_excel(os.path.join(target_folder, "evalset.xlsx"), index=False)
+shutil.copy(testset_path + 'rag_chunks.pickle', os.path.join(target_folder, "rag_chunks.pickle"))
 
 
 
