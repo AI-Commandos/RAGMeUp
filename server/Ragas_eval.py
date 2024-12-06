@@ -172,7 +172,7 @@ def evaluate_pipeline(ragas_data):
     run_config = RunConfig(
         metrics=[context_precision, context_recall, faithfulness, answer_relevancy]
     )
-    ragas_scores = evaluate(ragas_data, run_config)
+    # ragas_scores = evaluate(ragas_data, run_config) # not anything relevant
 
     # --- Latency Metrics ---
     retrieval_times = [item['retrieval_time'] for item in ragas_data]
@@ -205,7 +205,7 @@ def evaluate_pipeline(ragas_data):
     }
 
     # --- Log Results ---
-    logger.info(f"RAGAS Scores: {ragas_scores}")
+    #logger.info(f"RAGAS Scores: {ragas_scores}")
     logger.info(f"Avg Retrieval Latency: {avg_retrieval_latency:.2f}s")
     logger.info(f"Avg Answer Latency: {avg_answer_latency:.2f}s")
     logger.info(f"Readability Metrics: {readability_scores}")
@@ -213,7 +213,7 @@ def evaluate_pipeline(ragas_data):
     # --- Save Results to File
     with open("evaluation_results.json", "w") as f:
         json.dump({
-            "ragas_scores": ragas_scores,
+           # "ragas_scores": ragas_scores, Did not mean anything ultimately 
             "latency": {
                 "retrieval": avg_retrieval_latency,
                 "answer": avg_answer_latency,
