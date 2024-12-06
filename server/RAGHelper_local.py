@@ -217,7 +217,9 @@ class RAGHelperLocal(RAGHelper):
             
         # rerank documents
         if os.getenv("rerank") == "True":
-            Reranker().main_reranker(user_query)
+            reranker_class = Reranker()
+            test = reranker_class.main_reranker(user_query)
+            print('test:', test)
 
         return thread, reply
 

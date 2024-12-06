@@ -204,7 +204,7 @@ def main():
     # Example usage
     try:
         reranker = Reranker()
-        reranker.main_reranker(
+        reranker.main_reranker('What is Word2Vec?'
         )
     
     except Exception as e:
