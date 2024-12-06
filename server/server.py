@@ -199,46 +199,7 @@ def get_document():
         print("File not found.")  # Debug print
         return jsonify({"error": "File not found"}), 404
     
-    # # Connect to the feedback database to retrieve feedback for the file
-    # conn = sqlite3.connect('feedback.db')
-    # cursor = conn.cursor()
-    
-    # cursor.execute('''
-    #     SELECT query, answer, rating, timestamp 
-    #     FROM Feedback 
-    #     WHERE document_id = ?
-    # ''', (file_path,))
-    
-    # feedback = cursor.fetchall()
-    # print(f"Feedback retrieved for {file_path}: {feedback}")  # Debug print
-    # conn.close()
-
-
-    # # Format feedback as a list of dictionaries
-    # feedback_list = [
-    #     {"query": row[0], "answer": row[1], "rating": row[2], "timestamp": row[3]}
-    #     for row in feedback
-    # ]
-    # print(f"Formatted feedback: {feedback_list}")  # Debug print
-    
-    # # Return the document along with its feedback metadata
-    # response = {
-    #     "filename": filename,
-    #     "feedback": feedback_list
-    # }
-    
-    # print(f"Response metadata: {response}")  # Debug print
-
-    # # Use `send_file` to include the actual file content as an attachment
-    # return send_file(
-    #     file_path,
-    #     mimetype='application/octet-stream',
-    #     as_attachment=True,
-    #     download_name=filename,
-    #     headers={"X-Metadata": json.dumps(response)}  # Optional: include metadata in headers
-    # )
-    
-
+   
     return send_file(file_path,
                      mimetype='application/octet-stream',
                      as_attachment=True,
@@ -300,84 +261,6 @@ def save_feedback():
     conn.close()
     
     return jsonify({"status": "success", "message": "Feedback saved"})
-
-# @app.route("/get_feedback", methods=['GET'])
-# def get_feedback():
-#     """
-#     Retrieve feedback for a specific document.
-
-#     Expects:
-#         - Query parameter: ?document_id=<filename>
-
-#     Returns:
-#         - Feedback associated with the document.
-#     """
-#     document_id = request.args.get("document_id")
-
-#     if not document_id:
-#         return jsonify({"error": "document_id is required"}), 400
-
-#     conn = sqlite3.connect('feedback.db')
-#     cursor = conn.cursor()
-
-#     cursor.execute(
-#         "SELECT query, answer, rating, timestamp FROM Feedback WHERE document_id = ?",
-#         (document_id,)
-#     )
-#     feedback = cursor.fetchall()
-
-#     conn.close()
-
-#     # Format feedback as a list of dictionaries
-#     feedback_list = [
-#         {"query": row[0], "answer": row[1], "rating": row[2], "timestamp": row[3]} for row in feedback
-#     ]
-
-#     return jsonify({"document_id": document_id, "feedback": feedback_list})
-
-
-# @app.route("/get_feedback", methods=['POST'])
-# def get_feedback():
-#     """
-#     Retrieve feedback for a specific document.
-
-#     Expects:
-#         - JSON payload: {"document_id": "<filename>"}
-
-#     Returns:
-#         - Feedback associated with the document.
-#     """
-#     data = request.json
-#     document_id = data.get("document_id")
-
-#     if not document_id:
-#         return jsonify({"error": "document_id is required"}), 400
-
-#     conn = sqlite3.connect('feedback.db')
-#     cursor = conn.cursor()
-
-#     cursor.execute(
-#         "SELECT query, answer, rating, timestamp FROM Feedback WHERE document_id = ?",
-#         (document_id,)
-#     )
-#     feedback = cursor.fetchall()
-
-#     conn.close()
-
-#     # Format feedback as a list of dictionaries
-#     feedback_list = [
-#         {"query": row[0], "answer": row[1], "rating": row[2], "timestamp": row[3]} for row in feedback
-#     ]
-
-#     return jsonify({"document_id": document_id, "feedback": feedback_list})
-
-
-@app.route("/reranker", methods=['GET'])
-def reranker_try():
-    reranker = Reranker()
-    feedback = reranker.get_feedback()
-    print('feedback in reranker_try:', feedback)
-    return jsonify(feedback)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0")
