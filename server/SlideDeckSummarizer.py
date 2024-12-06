@@ -1,34 +1,32 @@
 import os
+import re
+import shutil
 from dotenv import load_dotenv
 import PyPDF2
 from statistics import mean
 from pathlib import Path
-import base64
-from mimetypes import guess_type
 from pdf2image import convert_from_path
+from PIL import Image
+import google.generativeai as genai
+from tqdm import tqdm
 
-from langchain.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
-
-load_dotenv('.env')
+load_dotenv()
 
 class SlideDeckSummarizer:
-    def __init__(self, input_folder, llm):
+    def __init__(self, input_folder):
         self.input_folder = input_folder
         self.slide_deck_fps = list()
         self.deck_as_images = {}
         self.output_folder = 'output-rendered-images-of-slides'
-        self.llm = llm
-        self.allowed_models = {'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro',
-                               'gpt-4o', 'gpt-4-turbo'}
+        self.allowed_models = {'gemini-1.5-flash', 'gemini-1.5-pro'}
 
-        if os.getenv('use_openai') == 'True':
-            if not os.getenv('openai_model_name') in self.allowed_models:
-                raise ValueError("Use a multimodal model from OpenAI")
-
-        elif os.getenv('use_gemini') == 'True':
+        if os.getenv('use_gemini') == 'True':
             if not os.getenv('gemini_model_name') in self.allowed_models:
-                raise ValueError("Use a multimodal model from Gemini")
-
+                raise ValueError("Use a multimodal model from Gemini: gemini-1.5-flash or gemini-1.5-pro")
+            genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
+            self.model = genai.GenerativeModel(os.getenv('gemini_model_name'))
+        else:
+            raise ValueError("Use a multimodal model from Gemini: gemini-1.5-flash or gemini-1.5-pro")
         os.makedirs(self.output_folder, exist_ok=True)
 
     @staticmethod
@@ -102,35 +100,8 @@ class SlideDeckSummarizer:
             # keeping the paths to the rendered images as an attribute
             self.deck_as_images[path_to_slide_deck] = paths
 
-    def _summarize_slide(self, path_to_slide_as_image):
-
-        mime_type, _ = guess_type(path_to_slide_as_image)
-
-        # Default to png
-        if mime_type is None:
-            mime_type = 'image/png'
-
-        # Read and encode the image file
-        with open(path_to_slide_as_image, "rb") as image_file:
-            base64_encoded_data = base64.b64encode(image_file.read()).decode('utf-8')
-
-        # Construct the data URL
-        encoded_image_url = f"data:{mime_type};base64,{base64_encoded_data}"
-
-        prompt_template = HumanMessagePromptTemplate.from_template(
-            template=[
-                {"type": "text", "text": "Summarize this image"},
-                {
-                    "type": "image_url",
-                    "image_url": "{encoded_image_url}",
-                },
-            ]
-        )
-
-        summarize_image_prompt = ChatPromptTemplate.from_messages([prompt_template])
-        image_chain = summarize_image_prompt | self.llm  # pipe is used in langchain for creating a chain
-
-        return image_chain.invoke(input={"encoded_image_url": encoded_image_url})
+    def _natural_sort_key(self, key):
+        return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', key)]
 
     def _summarize_all_slides_from_deck(self, deck_filepath) -> str:
         """Method that will create a large string in the format:
@@ -145,29 +116,54 @@ class SlideDeckSummarizer:
         <THE SUMMARY>
 
         """
+        image_file_paths = self.deck_as_images[deck_filepath]
+        loaded_images = []
 
-        result_summaries = list()
-        for slide_image_fp in self.deck_as_images[deck_filepath]:
-            llm_summary = self._summarize_slide(slide_image_fp).content
-            slide_number = Path(slide_image_fp).stem.split("-")[-1]
-            result_summaries.append((slide_number, llm_summary))
+        # Sort files naturally and load them
+        for file in sorted(image_file_paths, key=self._natural_sort_key):
+            loaded_images.append(Image.open(file))
 
-        result_summaries.sort(key=lambda x: x[0])
+        prompt_1 = ("You are data science student that is following a lecture and making extensive notes of slides for his exam.\
+                  General Rules: \
+                   - Give the title or topic of the slide. \
+                   - Explain the material in way the professor would do it. \
+                   - Do not start with \'This slide says\' or anything similar. Rather make a story of it \
+                   - If the content of the slide is only one question, answer it.\
+                  Sequential Context: \
+                   - If a slide introduces entirely new content, summarize it fully. \
+                   - If a slide builds on or modifies the content of the previous slide, only describe the new or additional information. \
+                  Do not include any additional comments or use the web. \
+                  Example:\
+                  **Slide 11: WordPiece Tokenization**\
+                  It's also important to note that BERT's vocabulary isn't just a simple list of words. It uses WordPiece tokenization, which breaks words into subword units (including whole words, characters, and special subword tokens). This method helps to handle out-of-vocabulary words more effectively. \
+                  \n \
+                  ********* \
+                  \n\
+                  **Slide 12 & 13 & 14: Obtaining Word Vectors from BERT**\
+                  \n\
+                  Getting a word vector from BERT isn't trivial. A word will have different vector representations depending on its context within a sentence.  Various approaches and libraries handle this, but they all rely on some sort of pooling mechanism.  This contextualized nature is what makes BERT so powerful.\
+                  Explicitly let me know what you have to do and that you understand it. Also give an example of how you would it.")
+        prompt_2 = "Perfect, let's get started! Do not include any additional comments only go through the slides."
 
-        result_summary_string = str()
-        for slide_num, enrichment in result_summaries:
-            result_summary_string += f'-----SLIDE {slide_num}-----\n\n'
-            result_summary_string += f'{enrichment}\n\n\n'
-        return result_summary_string
+        chat_session = self.model.start_chat(
+            history=[]
+        )
+
+        chat_session.send_message(prompt_1)
+
+        response = chat_session.send_message([prompt_2] + loaded_images)
+
+        return response.text
 
     def transform_slidedecks_and_remove_pdf(self):
 
         self._select_slidedecks()
         self._convert_slides_to_images()
 
-        for deck in self.deck_as_images.keys():
+        for deck in tqdm(self.deck_as_images.keys()):
             summary = self._summarize_all_slides_from_deck(deck)
-
+            # summary = self._summarize_all_slides_from_deck(deck)
+            #
             # write summary to text file
             new_fp = os.path.join(self.input_folder, Path(deck).stem + '.txt')
             with open(new_fp, 'w') as f:
@@ -175,3 +171,11 @@ class SlideDeckSummarizer:
 
             # remove the pdf from the input dir
             os.remove(deck)
+        shutil.rmtree('output-rendered-images-of-slides')
+
+if __name__ == "__main__":
+    llm = []
+    load_dotenv()
+    slide_deck_summarizer = SlideDeckSummarizer('data/slides-test')
+    slide_deck_summarizer.transform_slidedecks_and_remove_pdf()
+
