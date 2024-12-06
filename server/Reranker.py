@@ -2,16 +2,13 @@ from rank_bm25 import BM25Okapi
 import sqlite3
 import pandas as pd
 import os
-from flask import jsonify
+# from flask import jsonify
 
 class Reranker:
     def __init__(self, feedback_db='feedback.db', data_directory='data'):
         self.feedback_db = feedback_db
         self.data_dir = os.getenv(data_directory)
-        # print('data_directory in INIT:', self.data_dir)
-        # data_directory = os.getenv('data_directory')
-        # print('data_directory in INIT:', data_directory)
-        # self.data_dir = data_directory
+
 
     def get_feedback_reranker(self):
         """
@@ -38,11 +35,9 @@ class Reranker:
         Returns:
             JSON response containing the list of files.
         # """   
-        # data_dir = self.data_dir    
-        # print('data_dir in get_documents_reranker:', data_dir)    
+  
         os.environ['data_directory'] = 'data'
         os.environ["file_types"] = "txt,csv,pdf,json"
-
 
         data_directory = os.getenv('data_directory')
         print('data_directory in get_documents_reranker:', data_directory)
@@ -56,39 +51,9 @@ class Reranker:
         print('files in get_documents_reranker:', files)
         print('files type in get_documents_reranker:', type(files))
         
-        return jsonify(files)
-    
-    def combiner(self, feedback):
-        # print('feedback in combiner:', feedback)
-        for doc in range(len(feedback['document_id'])):
-            document_ids = feedback['document_id'][doc].replace('[', '').replace(']', '').replace("'", "").split(',')
-            # print('document_ids:', document_ids)
-            # print('document_ids length:', len(document_ids))
-            
-            rating = feedback['rating'][doc]
-            # print('rating:', rating)
-            
-            for doc_id in range(len(document_ids)):
-                # print('document_id:', document_ids[doc_id])
-                document_id = document_ids[doc_id]
-                
-                # Create a new dataframe with document_id and rating
-                new_row = pd.DataFrame({'document_id': [document_id], 'rating': [rating]})
-                
-
-                if 'combined_df' not in locals():
-                    combined_df = new_row
-                    
-                # Append the new row to the combined dataframe
-                if document_id in combined_df['document_id'].values:
-                    combined_df.loc[combined_df['document_id'] == document_id, 'rating'] += rating
-                else:
-                    combined_df = pd.concat([combined_df, new_row], ignore_index=True)
-
-        print('combined_df:', combined_df)
-        print('combined_df length:', len(combined_df))
+        return files
         
-        return combined_df
+    
             
 
     # def retrieve_with_bm25(self, query, documents):
@@ -139,17 +104,54 @@ class Reranker:
     #     reranked_docs = sorted(retrieved_docs, key=lambda x: x["relevance_score"], reverse=True)
 
     #     return reranked_docs
+   
     
-
+def combiner(self, feedback, documents_lst):
+        # print('feedback in combiner:', feedback)
+        for doc in range(len(feedback['document_id'])):
+            document_ids = feedback['document_id'][doc].replace('[', '').replace(']', '').replace("'", "").split(',')
+            # print('document_ids:', document_ids)
+            # print('document_ids length:', len(document_ids))
+            
+            rating = feedback['rating'][doc]
+            # print('rating:', rating)
+            
+            for doc_id in range(len(document_ids)):
+                # print('document_id:', document_ids[doc_id])
+                document_id = document_ids[doc_id]
                 
+                # Create a new dataframe with document_id and rating
+                new_row = pd.DataFrame({'document_id': [document_id], 'rating': [rating]})
+                
+                # Check if feedback_rating_df exist otherwise create it
+                if 'feedback_rating_df' not in locals():
+                    feedback_rating_df = new_row
+                    
+                # Append the new row to the combined dataframe
+                if document_id in feedback_rating_df['document_id'].values:
+                    feedback_rating_df.loc[feedback_rating_df['document_id'] == document_id, 'rating'] += rating
+                else:
+                    feedback_rating_df = pd.concat([feedback_rating_df, new_row], ignore_index=True)
+
+        print('feedback_rating_df:', feedback_rating_df)
+        print('combined_df length:', len(feedback_rating_df))
         
-        
+        # Create a dataframe from documents_lst
+        documents_df = pd.DataFrame(documents_lst, columns=['document_id'])
+
+        # Merge feedback_rating_df with documents_df on document_id
+        combined_df = feedback_rating_df.merge(documents_df, on='document_id', how='inner')
+        print('combined_df:', combined_df)
+        return combined_df
+                
+       
         
     
     def main_reranker(self):
         feedback_df = self.get_feedback_reranker()
-        combined_df = self.combiner(feedback_df)
-        documents = self.get_documents_reranker()
+        documents_lst = self.get_documents_reranker()
+        combined_df = self.combiner(feedback_df, documents_lst)
+
         print(feedback_df)
         print('document_id colum:', feedback_df['document_id'])
         print('document_id type:', type(feedback_df['document_id']))
