@@ -195,7 +195,7 @@ def evaluate_pipeline(ragas_data):
     logger.info(f"Avg Answer Latency: {avg_answer_latency:.2f}s")
     logger.info(f"Readability Metrics: {readability_scores}")
 
-    # --- Save Results to File (Optional) ---
+    # --- Save Results to File
     with open("evaluation_results.json", "w") as f:
         json.dump({
             "ragas_scores": ragas_scores,
@@ -205,8 +205,6 @@ def evaluate_pipeline(ragas_data):
             },
             "readability": readability_scores
         }, f, indent=4)
-
-# Evaluate the RAG Pipeline with New Metrics
 # Evaluate the RAG Pipeline
 evaluation_result = evaluate_pipeline(ragas_data)
 
