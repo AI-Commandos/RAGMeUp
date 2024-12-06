@@ -34,11 +34,11 @@ Various means of changing the reranker component have been attempted, however, t
 ### Implications and Limitations
 
 #### Implications
-1. Improved Answer Relevance:
+- Improved Answer Relevance:
 With the inclusion of ColBERT, our RAG pipeline retrieves more relevant documents and does this faster than FlashRank.
 
 #### Limitations
-1. NLG Metrics are Imperfect:
+- NLG Metrics are Imperfect:
 Additional metrics like BERTScore or human evaluation could provide a more nuanced assessment.
 
 Small Dataset:
