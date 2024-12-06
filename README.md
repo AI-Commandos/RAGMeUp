@@ -1,180 +1,145 @@
-# RAG Me Up
-RAG  Me Up is a generic framework (server + UIs) that enables you do to RAG on your own dataset **easily**. Its essence is a small and lightweight server and a couple of ways to run UIs to communicate with the server (or write your own).
+# 📚 Study Buddy 🤖
 
-RAG Me Up can run on CPU but is best run on any GPU with at least 16GB of vRAM when using the default instruct model.
+>👋 Welcome to our report!
+> In the following we describe our thinking process behind the improvement we provided for [RAGMeUp](https://github.com/AI-Commandos/RAGMeUp) by Understandling.
+>
+> **Authors:**
+> 
+> Roman Nekrasov
+> 
+> Andy Huang
+> 
+> Huub Van de Voort
 
-Combine the power of RAG with the power of fine-tuning - check out our [LLaMa2Lang repository](https://github.com/UnderstandLingBV/LLaMa2Lang) on fine-tuning LLMs which can then be used in RAG Me Up.
+## Our Thinking Process
+To start, we really enjoyed the lectures and the assignments for the course Natural Language Processing (JM2050). Our participation in lectures also inspired the solution we developed. 
 
-# Updates
-- **2024-09-23** Hybrid retrieval with Postgres only (dense vectors  with pgvector and sparse BM25 with pg_search)
-- **2024-09-06** Implemented [Re2](https://arxiv.org/abs/2309.06275)
-- **2024-09-04** Added an evaluation script that uses Ragas to evaluate your RAG pipeline
-- **2024-08-30** Added Ollama compatibility
-- **2024-08-27** Using cross encoders now so you can specify your own reranking model
-- **2024-07-30** Added multiple provenance attribution methods
-- **2024-06-26** Updated readme, added more file types, robust self-inflection
-- **2024-06-05** Upgraded to Langchain v0.2
+As E. Tromp briefly already mentioned during the sessions, his lecture materials do not contain much text per slide and this might become an obstacle when incorporating those materials in a Retrieval Augmented Generation (RAG) system. After further investigation we also noticed that the lecture slides of Prof. U. Kaymak also contain many images which highly contribute to the understanding of the course but are not taking into consideration by the AS-IS version of [RAGMeUp](https://github.com/AI-Commandos/RAGMeUp).
 
-# Installation
-## Server
-```
-git clone https://github.com/UnderstandLingBV/RAGMeUp.git
-cd server
-pip install -r requirements.txt
-```
-Then run the server using `python server.py` from the server subfolder.
+To illustrate this issue more concretely, consider the following slide:
 
-## Scala UI
-Make sure you have JDK 17+. Download and install [SBT](https://www.scala-sbt.org/) and run `sbt run` from the `server/scala` directory or alternatively download the [compiled binary](https://github.com/UnderstandLingBV/RAGMeUp/releases/tag/scala-ui) and run `bin/ragemup(.bat)`
+<div style="text-align: center;">
+    <img src="paradigm-shift.png" width=50% alt="Slide 10 of Lecture 7">
+</div>
 
-## Using Postgres (adviced for production)
-RAG Me Up supports Postgres as hybrid retrieval database with both pgvector and pg_search installed. To run Postgres instead of Milvus, follow these steps.
+The slide contains much information about the evolution of Natural Language Processing Techniques (NLP). However, all information is captured within an image and for that reason it is not incorporated in the database of the RAG system. If we ask [RAGMeUp](https://github.com/AI-Commandos/RAGMeUp) a question about this slide it provides us with the following answer:
 
-- In the postgres folder is a Dockerfile, build it using `docker build -t ragmeup-pgvector-pgsearch .`
-- Run the container using `docker run --name ragmeup-pgvector-pgsearch -e POSTGRES_USER=langchain -e POSTGRES_PASSWORD=langchain -e POSTGRES_DB=langchain -p 6024:5432 -d ragmeup-pgvector-pgsearch`
-- Once in use, our custom PostgresBM25Retriever will automatically create the right indexes for you.
-- pgvector however, will not do this automatically so you have to create them yourself (perhaps after loading the documents first so the right tables are created):
-    - Make sure the vector column is an actual vector (it's not by default): `ALTER TABLE langchain_pg_embedding ALTER COLUMN embedding TYPE vector(384);`
-    - Create the index (may take a while with a lot of data): `CREATE INDEX ON langchain_pg_embedding USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);`
-- Be sure to set up the right paths in your .env file `vector_store_uri='postgresql+psycopg://langchain:langchain@localhost:6024/langchain'` and `vector_store_sparse_uri='postgresql://langchain:langchain@localhost:6024/langchain'`
+<div style="text-align: center;">
+    <img src="paradigm-shift-rag-answer.png" width=50% alt="The answer of the RAG system in relation to the slide">
+</div>
 
-# How does RAG Me Up work?
-RAG Me Up aims to provide a robust RAG pipeline that is configurable without necessarily writing any code. To achieve this, a couple of strategies are used to make sure that the user query can be accurately answered through the documents provided.
+To us the lecture materials are very informative, however, [RAGMeUp](https://github.com/AI-Commandos/RAGMeUp) is unable to extract as much information from them as we can. So we started to look for solutions to overcome this problem.
 
-The RAG pipeline is visualized in the image below:
-![RAG pipeline drawing](./ragmeup.drawio.svg)
+During our studying efforts we often use Multimodal Language Models to support us when interpreting images on slides and we are very satisfied with their ability to do so. For example, if we prompt [Google Gemini](https://gemini.google.com/) to provide us with an explanation of the same slide as we discussed earlier we end up with the following response:
 
-The following steps are executed. Take note that some steps are optional and can be turned off through configuring the `.env` file.
+>Certainly, let's break down the slide titled "Shifting Paradigms in NLP" from the JM2050 Natural Language Processing course.
+>
+>**Overall Theme:**
+>
+>The slide illustrates the evolution of Natural Language Processing (NLP) techniques, highlighting the shift from earlier approaches to more recent, powerful methods.
+>
+>**Key Paradigms:**
+>
+>1. **Word Vectors + Task-Specific Architectures:**
+>
+>   - This represents the traditional approach where words are represented as numerical vectors (embeddings) and then fed into specific neural network architectures designed for particular NLP tasks like sentiment analysis or machine translation.
+>
+>2. **Multi-layer Recurrent Neural Networks (RNNs):**
+>
+>   - RNNs were a significant advancement, enabling the processing of sequential data like text. They could capture dependencies between words in a sentence, making them suitable for tasks like language modeling and text generation. However, RNNs suffered from vanishing gradient problems, limiting their effectiveness with long sequences.
+>
+>3. **Pre-trained Transformers + Fine-tuning:**
+>
+>   - This is the current state-of-the-art in NLP. Pre-trained transformer models like BERT and GPT-3 are trained on massive amounts of text data to learn rich representations of language. These models can then be fine-tuned on specific tasks with relatively small amounts of data, leading to impressive performance gains.
+>
+>4. **What Next?:**
+>
+>   - This open-ended question points to the ongoing research and development in NLP. The field is constantly evolving, and we can expect even more powerful and sophisticated techniques to emerge in the future.
+>
+>**In Summary:**
+>
+>The slide demonstrates the progression from simpler, task-specific models to more powerful, general-purpose models capable of handling a wide range of NLP tasks with high accuracy. The current paradigm of pre-trained transformers and fine-tuning has revolutionized the field, and we eagerly anticipate the next breakthroughs in NLP.
+>
+>Let me know if you would like to delve into any specific aspect of the slide in more detail!
 
-__Top part - Indexing__
-1. You collect and make your documents available to RAG Me Up.
-2. Using different file type loaders, RAG Me Up will read the contents of your documents. Note that for some document types like JSON and XML, you need to specify additional configuration to tell RAG Me Up what to extract.
-3. Your documents get chunked using a recursive splitter.
-4. The chunks get converted into document (chunk) embeddings using an embedding model. Note that this model is usually a different one than the LLM you intend to use for chat.
-5. RAG Me Up uses a hybrid search strategy, combining dense vectors in the vector database with sparse vectors using BM25. By default, RAG Me Up uses a local [Milvus database](https://milvus.io/).
+This answer is by far much more valuable than the one by the RAG system and made us wonder, can we integrate this ability in a RAG system somehow?
 
-__Bottom part - Inference__
-1. Inference starts with a user asking a query. This query can either be an initial query or a follow-up query with an associated history and documents retrieved before. Note that both (chat history, documents) need to be passed on by a UI to properly handle follow-up querying.
-2. A check is done if new documents need to be fetched, this can be due to one of two cases:
-    - There is no history given in which case we always need to fetch documents
-    - **[OPTIONAL]** The LLM itself will judge whether or not the question - in isolation - is phrased in such a way that new documents are fetched or whether it is a follow-up question on existing documents. A flag called `fetch_new_documents` is set to indicate whether or not new documents need to be fetched.
-3. Documents are fetched from both the vector database (dense) and the BM25 index (sparse). Only executed if `fetch_new_documents` is set.
-4. **[OPTIONAL]** Reranking is applied to extract the most relevant documents returned by the previous step. Only executed if `fetch_new_documents` is set.
-5. **[OPTIONAL]** The LLM is asked to judge whether or not the documents retrieved contain an accurate answer to the user's query. Only executed if `fetch_new_documents` is set.
-    - If this is not the case, the LLM is used to rewrite the query with the instruction to optimize for distance based similarity search. This is then fed back into step 3. **but only once** to avoid lengthy or infinite loops.
-6. The documents are injected into the prompt with the user query. The documents can come from:
-    - The retrieval and reranking of the document databases, if `fetch_new_documents` is set.
-    - The history passed on with the initial user query, if `fetch_new_documents` is **not** set.
-7. The LLM is asked to answer the query with the given chat history and documents.
-8. The answer, chat history and documents are returned.
+---
 
-# Configuration
-RAG Me Up uses a `.env` file for configuration, see `.env.template`. The following fields can be configured:
+## Design Decisions
+After further investigation of potential solutions to our problem we found a [blog post by LangChain](https://blog.langchain.dev/multi-modal-rag-template/) which discusses the use of Multi Modal RAG on slide decks. The post discusses two approaches for this purpose, both of which first transform slides to images. In the first approach, for each image a multimodal embeddings is created and the complete image is retrieved and loaded into the prompt for user question answering. In the second approach, the LLM creates a summary for each image and for this summary and embedding is created. For question answering, the users question is compared to the summary in order to incorporate the associated image in the prompt. The evaluation shows that providing both the image and the summary with the prompt yields significant improvements over text only RAG.
 
-## LLM configuration
-- `llm_model` This is the main LLM (instruct or chat) model to use that you will converse with. Default is LLaMa3-8B
-- `llm_assistant_token` This should contain the unique query (sub)string that indicates where in a prompt template the assistant's answer starts
-- `embedding_model` The model used to convert your documents' chunks into vectors that will be stored in the vector store
-- `trust_remote_code` Set this to true if your LLM needs to execute remote code
-- `force_cpu` When set to True, forces RAG Me Up to run fully on CPU (not recommended)
+In our implementation, we leveraged the large context window of Google Gemini to provide a comprehensive summary of the complete slide deck by providing the complete slide deck as an input. We decided on this approach instead of iteratively generating a summary by inserting the slides one by one, saving the number of calls to the API while maintaining enough detail in the summary.
 
-### Use OpenAI
-If you want to use OpenAI as LLM backend, make sure to set `use_openai` to True and make sure you (externally) set the environment variable `OPENAI_API_KEY` to be your OpenAI API Key.
+When we ask the improved system the same question as earlier in this document, this answer is significantly better than the initial one.
 
-### Use Gemini
-If you want to use Gemini as LLM backend, make sure to set `use_gemini` to True and make sure you (externally) set the environment variable `GOOGLE_API_KEY` to be your Gemini API Key.
+<div style="text-align: center;">
+    <img src="paradigm-shift-rag-answer-improved.png" width=50% alt="The improved answer of the RAG system in relation to the slide">
+</div>
 
-### Use Azure OpenAI
-If you want to use Azure OpenAI as LLM backend, make sure to set `use_azure` to True and make sure you (externally) set the following environment variables:
-- `AZURE_OPENAI_API_KEY`
-- `AZURE_OPENAI_API_VERSION`
-- `AZURE_OPENAI_ENDPOINT`
-- `AZURE_OPENAI_CHAT_DEPLOYMENT_NAME`
+---
 
-## Use Ollama
-If you want to use Ollama as LLM backend, make sure to install Ollama and set `use_ollama` to True. The model to use should be given in `ollama_model`.
+## Evaluation
 
-## RAG Provenance
-One of the biggest, arguably unsolved, challenges of RAG is to do good provenance attribution: tracking which of the source documents retrieved from your database led to the LLM generating its answer (the most). RAG Me Up implements several ways of achieving this, each with its own pros and cons.
+In the following table, we list a set of manually formulated questions related to the course content. For each question we indicated which of the three approaches provided the correct answer. Based on this evaluation we see that the summary approach provides in the majority of the cases the correct answer.
 
-The following environment variables can be set for provenance attribution.
+We also used [Docling](https://ds4sd.github.io/docling/) for this comparison. Docling is an advanced document parser. We wanted to see how an advanced parsing method would compare to our approach. We hypothesised that the slide summary approach would still work better because Docling is still limited to parsing without surrounding context.
 
-- `provenance_method` Can be one of `rerank, attention, similarity, llm`. If `rerank` is `False` and the value of `provenance_method` is either `rerank` or none of the allowed values, provenance attribution is turned completely off
-- `provenance_similarity_llm` If `provenance_method` is set to `similarity`, this model will be used to compute the similarity scores
-- `provenance_include_query` Set to True or False to include the query itself when attributing provenance
-- `provenance_llm_prompt` If `provenance_method` is set to `llm`, this prompt will be used to let the LLM attribute the provenance of each document in isolation.
+|Question number| Question                                                                                                                                                                         | Standard | Summary | Docling |
+|---------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|---------|---------|
+|2              | What is the approach for self-consistency sampling?                                                                                                                              | 0        | 1       | 0       |
+|3              | What are Chain of Thought triples?                                                                                                                                               | 0        | 1       | 0       |
+|4              | Compare the formatting of a traditional few-shot prompt to a chain of thought prompt by an example.                                                                              | 1        | 0       | 1       |
+|5              | What do the authors of "Rethinking the role of demonstrations: What makes in-context learning work?" mean with gold labels and random labels?                                    | 0        | 0       | 0       |
+|6              | What are the four elements of a prompt?                                                                                                                                          | 0        | 0       | 0       |
+|7              | Explain the language model landscape pre GPT-3.                                                                                                                                  | 0        | 1       | 1       |
+|8              | Explain how paradigms shift in Natural Language Processing.                                                                                                                      | 0        | 1       | 1       |
+|9              | What is the 20 Questions game, and how does it relate to concepts in natural language processing?                                                                                | 0        | 0       | 0       |
+|10             | Explain the trade-off between interpretability vs. predictive value in topic modelling by providing a use case which tries to tackle this trade-off.                             | 1        | 1       | 1       |
+|11             | My professor asked the following philosophical question: "What is a topic?" What is the answer to this question?                                                                 | 0        | 1       | 0       |
+|13             | If I would reduce the dimensionality of embeddings and then plot them on a 2D plot and visualize the produced clusters of K-Means and HDBSCAN, how would the plots be different? | 0        | 0       | 1       |
+|14             | Explain the meaning of each of the produced matrices in singular value decomposition.                                                                                            | 1        | 1       | 1       |
+|15             | How did my professor explain the applications of topic models in relation to academic journals archives?                                                                         | 0        | 1       | 0       |
+|16             | What are typical features in NER?                                                                                                                                                | 0        | 1       | 0       |
+|17             | Provide the overview of text analysis techniques as in the research by Banks et al., 2018.                                                                                       | 0        | 0       | 0       |
+|19             | Explain how the error curves for the training and holdout data relate to each other in the sweet spot.                                                                           | 0        | 0       | 0       |
+|20             | Explain the progression of the error curves for the training and holdout data when a model is generalising well.                                                                 | 0        | 0       | 0       |
+|22             | Explain the shape and implications of the kappa curve in a kappa curve plot.                                                                                                     | 0        | 0       | 0       |
+|23             | What are the steps in RLHF and InstructGPT?                                                                                                                                      | 0        | 1       | 1       |
+|24             | Compare auto-encoders to word2vec.                                                                                                                                               | 0        | 1       | 0       |
+|25             | What is remarkable when it comes to the model architecture of an auto-encoder?                                                                                                   | 0        | 1       | 0       |
+|               | **Total**                                                                                                                                                                        | **3**    | **12**  | **7**   |
 
-The different provenance attribution metrics are described below.
+For completeness, we will add the screenshots of the responses of the RAG system as an attachment to the submission. 
 
-### `provenance_method=rerank` (preferred for closed LLMs)
-This uses the reranker as the provenance method. While the reranking is already used when retrieving documents (if reranking is turned on), this only applies the rerankers cross-attention to the documents and the *query*. For provenance attribution, we use the same reranking to apply cross-attention to the *answer* (and potentially the query too).
+---
 
-### `provenance_method=attention` (preferred for OS LLMs)
-This is probably the most accurate way of tracking provenance but it can only be used with OS LLMs that allow to return the attention weights. The way we track provenance is by looking at the actual attention weights (of the last attention layer in the model) for each token from the answer to the document and vice versa, optionally we do the same for the query if `provenance_include_query=True`.
+## Technical Details
 
-### `provenance_method=similarity`
-This method uses a sentence transformer (LM) to get dense vectors for each document as well as for the answer (and potentially query). We then use a cosine similarity to get the similarity of the document vectors to the answer (+ query).
+### Requirements
 
-### `provenance_method=llm`
-The LLM that is used to generate messages is now also used to attribute the provenance of each document in isolation. We use the `provenance_llm_prompt` as the prompt to ask the LLM to perform this task. Note that the outcome of this provenance method is highly influenced by the prompt and the strength of the model. As a good practice, make sure you force the LLM to return numbers on a relatively small scale (eg. score from 1 to 3). Using something like a percentage for each document will likely result in random outcomes.
+Our improvement reders `.pdf` documents as images with the Python package [pdf2image](https://pypi.org/project/pdf2image/) which requires `poppler` for rendering `.pdf` documents as images. For details on how to install this library on your OS, please visit the [pipy page of pdf2image](https://pypi.org/project/pdf2image/). 
 
-## Data configuration
-- `data_directory` The directory that contains your (initial) documents to load into the vector store
-- `file_types` Comma-separated list of file types to load. Supported file types: `PDF, JSON, DOCX, XSLX, PPTX, CSV, XML`
-- `json_schema` If you are loading JSON, this should be the schema (using `jq_schema`). For example, use `.` for the root of a JSON object if your data contains JSON objects only and `.[0]` for the first element in each JSON array if your data contains JSON arrays with one JSON object in them
-- `json_text_content` Whether or not the JSON data should be loaded as textual content or as structured content (in case of a JSON object)
-- `xml_xpath` If you are loading XML, this should be the XPath of the documents to load (the tags that contain your text)
+### General
+In the file `SlideDeckSummarizer.py` we created a class named `SlideDeckSummarizer` which does the following:
+1. It first identifies which `.pdf` documents are likely to be slide decks. This is done calculating the average words per line for each page and then comparing this against a threshold. The rationale behind it is that documents that are not slide decks contain more words per line on average. When the majority of the pages in the document are likely to be slides, the whole document is classified as a slide deck.
+2. After classification, the slide decks are converted to `.jpeg` format and stored on disk in order to prevent memory issues.
+3. Then, all rendered images are inserted into a prompt to Google Gemini and the corresponding `.pdf` document is replaced by a `.txt` file containing a per-slide summary of both the textual and visual elements in the input folder.
 
-## Retrieval configuration
-- `vector_store_uri` RAG Me Up caches your vector store on disk if possible to make loading a next time faster. This is the location where the vector store is stored. Remove this file to force a reload of all your documents
-- `vector_store_k` The number of documents to retrieve from the vector store
-- `rerank` Set to either True or False to enable reranking
-- `rerank_k` The number of documents to keep after reranking. Note that if you use reranking, this should be your final target for `k` and `vector_store_k` should be set (significantly) higher. For example, set `vector_store_k` to 10 and `rerank_k` to 3
-- `rerank_model` The cross encoder reranking retrieval model to use. Sensible defaults are `cross-encoder/ms-marco-TinyBERT-L-2-v2` for speed and `colbert-ir/colbertv2.0` for accuracy (`antoinelouis/colbert-xm` for multilingual). Set this value to  `flashrank` to use the FlashrankReranker.
+The functionalities of the class are consolidated in the public method `SlideDeckSummarizer.SlidedeckSummarizer.transform_slidedecks_and_remove_pdf`. In the `.env` we defined a switch for turning the summarizer on. When switched on, the summarizer is triggered when RAGHelperCloud is initialized.
 
-## LLM parameters
-- `temperature` The chat LLM's temperature. Increase this to create more diverse answers
-- `repetition_penalty` The penalty for repeating outputs in the chat answers. Some models are very sensitive to this parameter and need a value bigger than 1.0 (penalty) while others benefit from inversing it (lower than 1.0)
-- `max_new_tokens` This caps how much tokens the LLM can generate in its answer. More tokens means slower throughput and more memory usage
+---
 
-## Prompt configuration
-- `rag_instruction` An instruction message for the LLM to let it know what to do. Should include a mentioning of it performing RAG and that documents will be given as input context to generate the answer from.
-- `rag_question_initial` The initial question prompt that will be given to the LLM only for the first question a user asks, that is, without chat history
-- `rag_question_followup` This is a follow-up question the user is asking. While the context resulting from the prompt will be populated by RAG from the vector store, if chat history is present, this prompt will be used instead of `rag_question_initial`
+## Limitations
+If we could further improve this work we would decouple the LLM used for generating summaries for a slide deck from the LLM used for user questions answering. This would broaden the usability of the solution since then any LLM can be used for the question answering task. Next, we would integrate the same methodology for `.pptx` files and extent the functionality for added documents while the backend is running.
+Finally, as we learned about position bias of LLMs we would further investigate if creating a slide summary iteratively results in a more qualitative summary than including all images into a single prompt.
 
-### Document retrieval
-- `rag_fetch_new_instruction` RAG Me Up automatically determines whether or not new documents should be fetched from the vector store or whether the user is asking a follow-up question on the already fetched documents by leveraging the same LLM that is used for chat. This environment variable determines the prompt to use to make this decision. Be very sure to instruct your LLM to answer with yes or no only and make sure your LLM is capable enough to follow this instruction
-- `rag_fetch_new_question` The question prompt used in conjunction with `rag_fetch_new_instruction` to decide if new documents should be fetched or not
+---
 
-### Rewriting (self-inflection)
-- `user_rewrite_loop` Set to either True or False to enable the rewriting of the initial query. Note that a rewrite will always occur at most once
-- `rewrite_query_instruction` This is the instruction of the prompt that is used to ask the LLM to judge whether a rewrite is necessary or not. Make sure you force the LLM to answer with yes or no only
-- `rewrite_query_question` This is the actual query part of the prompt that isued to ask the LLM to judge a rewrite
-- `rewrite_query_prompt` If the rewrite loop is on and the LLM judges a rewrite is required, this is the instruction with question asked to the LLM to rewrite the user query into a phrasing more optimized for RAG. Make sure to instruct your model adequately.
+## Check it out yourself
+Our improvement is currently hosted on: https://ragmeup.westeurope.cloudapp.azure.com
+Until credit runs out. There is a login needed, you can find this in our Canvas submission: login.txt
+Also in the canvas submission you will find:
+- the database & pickle for both the gemini summary approach and the ducling approach.
+- the output results from the comparison
 
-### Re2
-- `use_re2` Set to either True or False to enable [Re2 (Re-reading)](https://arxiv.org/abs/2309.06275) which repeats the question, generally improving the quality of the answer generated by the LLM.
-- `re2_prompt` The prompt used in between the question and the repeated question to signal that we are re-asking.
-
-## Document splitting configuration
-- `splitter` The Langchain document splitter to use. Supported splitters are `RecursiveCharacterTextSplitter` and `SemanticChunker`.
-- `chunk_size` The chunk size to use when splitting up documents for `RecursiveCharacterTextSplitter`
-- `chunk_overlap` The chunk overlap for `RecursiveCharacterTextSplitter`
-- `breakpoint_threshold_type` Sets the breakpoint threshold type when using the `SemanticChunker` ([see here](https://python.langchain.com/v0.2/docs/how_to/semantic-chunker/)). Can be one of: percentile, standard_deviation, interquartile, gradient
-- `breakpoint_threshold_amount` The amount to use for the threshold type, in float. Set to `None` to leave default
-- `number_of_chunks` The number of chunks to use for the threshold type, in int. Set to `None` to leave default
-
-# Evaluation
-While RAG evaluation is difficult and subjective to begin with, frameworks such as [Ragas](https://docs.ragas.io/en/stable/) can give some metrics as to how well your RAG pipeline and its prompts are working, allowing us to benchmark one approach over the other quantitatively.
-
-RAG Me Up uses Ragas to evaluate your pipeline. You can run an evaluation based on your `.env` using `python Ragas_eval.py`. The following configuration parameters can be set for evaluation:
-
-- `ragas_sample_size` The amount of document (chunks) to use in evaluation. These are sampled from your data directory after chunking.
-- `ragas_qa_pairs` Ragas works upon questions and ground truth answers. The amount of such pairs to create based on the sampled document chunks is set by this parameter.
-- `ragas_question_instruction` The instruction prompt used to generate the questions of the Ragas input pairs.
-- `ragas_question_query` The query prompt used to generate the questions of the Ragas input pairs.
-- `ragas_answer_instruction` The instruction prompt used to generate the answers of the Ragas input pairs.
-- `ragas_answer_query` The query prompt used to generate the answers of the Ragas input pairs.
-
-# Funding
-We are actively looking for funding to democratize AI and advance its applications. Contact us at info@commandos.ai if you want to invest.
