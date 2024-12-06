@@ -163,7 +163,7 @@ The LLM that is used to generate messages is now also used to attribute the prov
 - `breakpoint_threshold_type` Sets the breakpoint threshold type when using the `SemanticChunker` ([see here](https://python.langchain.com/v0.2/docs/how_to/semantic-chunker/)). Can be one of: percentile, standard_deviation, interquartile, gradient
 - `breakpoint_threshold_amount` The amount to use for the threshold type, in float. Set to `None` to leave default
 - `number_of_chunks` The number of chunks to use for the threshold type, in int. Set to `None` to leave default
-
+  
 # Evaluation
 While RAG evaluation is difficult and subjective to begin with, frameworks such as [Ragas](https://docs.ragas.io/en/stable/) can give some metrics as to how well your RAG pipeline and its prompts are working, allowing us to benchmark one approach over the other quantitatively.
 
@@ -181,10 +181,27 @@ The steps taken in the process of this assignment are as follows:
 - The Original RAGMeUp Repository was cloned to our group’s GitHub account.
 - The documentation was read thoroughly to gain an understanding of the pipeline.
 - The course data (Lecture slides, papers, book chapters) were collected and renamed for interpretation clarity. This renamed data was uploaded into the bot’s data storage, allowing the RAG model to retrieve information from this material.
-- The reranker component of the RAG model was changed from Flashrank to ColBERT.
-- Additional evaluation metrics (BLEU and ROUGE scores) were added to the RAG model to ensure relevant output.
 
-### ColBERT (Contextualized Late Interaction over BERT)
+## Actual adjustments and additions to the RAG components 
+1. Additional evaluation metrics (BLEU and ROUGE scores) were added to the RAG model, ensuring relevant output.
+2. The reranker component of the RAG model was changed from FlashRank to ColBERT.
+
+### 1. Additional Evaluation Metrics (BLEU and ROUGE Scores)
+
+**BLEU and ROUGE scores**
+- **BLEU (Bilingual Evaluation Understudy):**
+BLEU is a precision-based metric that calculates how much of the generated text overlaps with the reference text (ground truth). It focuses on n-gram overlap (phrases of size 1 to 4) and penalizes overly short outputs. A higher BLEU score indicates that the generated response closely matches the ground truth in terms of word choice and structure.
+
+- **ROUGE (Recall-Oriented Understudy for Gisting Evaluation):**
+ROUGE evaluates recall by measuring how much of the reference text is captured in the generated response.
+
+**Latency Measurement**
+Using Python’s _time_ module, we measured:
+- **Retrieval Latency:** Time taken to retrieve relevant documents.
+-**Answer Generation Latency:** Time taken to generate the final response from the model.
+This combination of quality (BLEU and ROUGE) and speed (latency) metrics allowed us to holistically evaluate the model's performance.
+
+### 2. ColBERT (Contextualized Late Interaction over BERT)
 RAG models are complex models, and to optimize their performance, many components need to be optimized. The model used for retrieval is an important component of the RAG model, as it is what sets RAG apart from other models. 
 
 In a RAG model, the reranker selects the set of documents retrieved by the retrieval component to ensure the most relevant information is passed to the generator. It reorders the initial set of retrieved documents to ensure the retrieved documents are relevant for answering the query, essentially giving them a ‘second look’ before sending them to the model. This improves the quality of the generated output by providing the generator with relevant information.
@@ -192,15 +209,19 @@ RAG technology is slow as LLM calls introduce latency. Calling the reranking mod
 
 Various means of changing the reranker component have been attempted, however, the final implementation was performed through RAGatouille. RAGatouille’s focus lies entirely in simplifying the implementation of state-of-the-art methods to optimize RAG models, offering pre-trained ColBERT alongside methods to easily fine-tune them. 
 
-### ROUGE (Recall-Oriented Understudy for Gisting Evaluation) and BLEU (Bilingual Evaluation Understudy) Scores
-BLEU and ROUGE scores were implemented as additional evaluation metrics to better assess the quality of generated responses. 
-BLEU
+### Implications and Limitations
 
-ROUGE scores measure how well a generated text overlaps with reference text in terms of word sequences. These function by comparing the chatbot’s answers against ground truths, returning the overlap in unigrams through the ROUGE-1 score, the overlap in bigrams through the ROUGE-2 score, and the overlap in the longest common subsequence through the ROUGE-L score, allowing it to assess the fluency of the text. The average of these ROUGE scores is returned to display the readability of the generated output.
+#### Implications
+1. Improved Answer Relevance:
+With the inclusion of ColBERT, our RAG pipeline retrieves more relevant documents and does this faster than FlashRank.
 
-BLEU works in a similar manner. It measures how close the generated text is to the reference text considering n-gram precision, but there are some important differences. BLEU calculates precision for multiple n-grams (unigrams, bigrams, trigrams, etc.) and combines them into a single score. It doesn't focus on a specific n-gram but rather evaluates how well the generated text matches the reference across all these n-grams. Alongside this, BLEU applies a brevity penalty to prevent rewarding overly short outputs.
+#### Limitations
+1. NLG Metrics are Imperfect:
+Additional metrics like BERTScore or human evaluation could provide a more nuanced assessment.
 
-Finally, the latency of the bot is assessed by tracking the time that passes between the user submitting a query and the bot outputting a response. This is an important evaluation metric to include when testing the effectiveness of the ColBERT reranker, as it is supposedly faster than most other available rerankers.
+Small Dataset:
+Our evaluation was conducted on a limited dataset of course materials. A larger and more diverse dataset would provide better insights into the model's generalizability.
+
 
 ### Future Directions
 Our primary focus was to improve the speed of the RAG model and improve the relevance of the retrieved documents per query. This was achieved through the implementation of ColBERT and additional evaluation metrics. However, there are many more aspects of the RAG model that could be optimized. One of those aspects is the type of data the model can take for information retrieval. By adding additional data types the model becomes more flexible in which data it can use, simplifying the process of expanding its database. 
@@ -208,17 +229,16 @@ Furthermore, we believe that the display of sources after submitting a query to 
 
 Additionally, we believe that it could be beneficial to the user to see the metadata of the retrieved files, such as filesize, and number of words. This gives a clear indication of the file quickly and concisely, allowing the user to effortlessly select or download the file they wish to delve deeper into without first having to open it. Ease of use should be a priority when working with LLMs and anything that can speed up the process or make the process easier for the user should be considered for implementation.
 
+
+
+
 ### Sources used:
 ColBERT Information: https://www.pondhouse-data.com/blog/advanced-rag-colbert-reranker
 
 RAGatouille: https://github.com/AnswerDotAI/RAGatouille 
 
 RAG From Scratch: https://www.youtube.com/watch?v=cN6S0Ehm7_8 
-![afbeelding](https://github.com/user-attachments/assets/a845673d-f51e-40aa-8f9f-6409422ee99c)
+![image](https://github.com/user-attachments/assets/3f0df668-1013-4e91-8720-d93b9f3cbf5d)
 
 Paper introducing ColBERT: Khattab, O., & Zaharia, M. (2020, April 27). ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction over BERT. arXiv.org. https://arxiv.org/abs/2004.12832
 
-BLEU and ROUGE Score Information: https://medium.com/@sthanikamsanthosh1994/understanding-bleu-and-rouge-score-for-nlp-evaluation-1ab334ecadcb
-
-# Funding
-We are actively looking for funding to democratize AI and advance its applications. Contact us at info@commandos.ai if you want to invest.
