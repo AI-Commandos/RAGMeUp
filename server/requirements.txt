@@ -38,3 +38,8 @@ accelerate==0.34.0
 pydantic==2.7.4
 pydantic_core==2.18.4
 psycopg2-binary==2.9.9
+pandas == 2.2.3
+datasets == 3.1.0
+schedule == 1.2.2
+peft == 0.13.2
+wandb == 0.19.0

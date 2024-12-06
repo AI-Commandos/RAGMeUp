@@ -51,6 +51,15 @@ if any(os.getenv(key) == "True" for key in ["use_openai", "use_gemini", "use_azu
 else:
     logger.info("Instantiating the local RAG helper.")
     raghelper = RAGHelperLocal(logger)
+    
+    # Check if fine-tuned model exists
+    fine_tuning_output_dir = os.getenv('fine_tuning_output_dir', './fine_tuned_model')
+    if os.path.exists(os.path.join(fine_tuning_output_dir, 'pytorch_model.bin')):
+        logger.info("Using fine-tuned model.")
+        # Modify RAGHelperLocal to accept a custom model path
+        raghelper = RAGHelperLocal(logger, model_path=fine_tuning_output_dir)
+    else:
+        raghelper = RAGHelperLocal(logger)
 
 
 @app.route("/add_document", methods=['POST'])
