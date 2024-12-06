@@ -29,11 +29,11 @@ class HomeController @Inject()(
 
   def add() = Action.async { implicit request: Request[AnyContent] =>
     ws.url(s"${config.get[String]("server_url")}/get_documents")
-      .withRequestTimeout(5.minutes)
+      .withRequestTimeout(5 minutes)
       .get()
-      .map { response =>
-        Ok(views.html.add(response.json.as[Seq[String]]))
-      }
+      .map(files => {
+        Ok(views.html.add(files.json.as[Seq[String]]))
+      })
   }
 
   def search() = Action.async { implicit request: Request[AnyContent] =>
@@ -43,18 +43,18 @@ class HomeController @Inject()(
     val docs = (json \ "docs").as[Seq[JsObject]]
 
     ws.url(s"${config.get[String]("server_url")}/chat")
-      .withRequestTimeout(5.minutes)
+      .withRequestTimeout(5 minutes)
       .post(Json.obj(
         "prompt" -> query,
         "history" -> history,
         "docs" -> docs
       ))
-      .map { response =>
+      .map(response => {
         response.status match {
           case 200 => Ok(response.json)
           case _ => InternalServerError("Error: " + response.statusText)
         }
-      }
+      })
   }
 
   def download(file: String) = Action.async { implicit request: Request[AnyContent] =>
@@ -106,7 +106,7 @@ class HomeController @Inject()(
       .map { response =>
         val deleteCount = (response.json.as[JsObject] \ "count").as[Int]
         Redirect(routes.HomeController.add())
-          .flashing("success" -> s"File $file has been deleted ($deleteCount chunks in total).")
+          .flashing("success" -> s"File ${file} has been deleted (${deleteCount} chunks in total).")
       }
   }
 
