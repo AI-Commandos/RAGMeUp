@@ -11,8 +11,8 @@
       </h3>
 
       <div class="input-group mb-3">
-          <!-- Changed id to class -->
-          <input type="text" class="query-input form-control" placeholder="Enter your query on your own documents..." name="query">
+          <!-- Changed id to class back to id -->
+          <input type="text" id="mainQueryInput" class="query-input form-control" placeholder="Enter your query on your own documents..." name="query">
           <button class="btn btn-primary submit-btn" type="submit">
             Go!
           </button>
@@ -251,7 +251,7 @@
     // Function to handle chat submission
     function handleChat() {
         // Disable submit buttons and input fields
-        const query = $('.query-input:visible').val(); 
+        const query = $('#mainQueryInput').val();
 
         $('.submit-btn').prop('disabled', true);
         $('.query-input').prop('disabled', true);
