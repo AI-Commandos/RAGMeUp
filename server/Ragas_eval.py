@@ -3,6 +3,7 @@ import logging
 from dotenv import load_dotenv
 import os
 from random import sample
+import json
 
 from RAGHelper_cloud import RAGHelperCloud
 from RAGHelper import RAGHelper
