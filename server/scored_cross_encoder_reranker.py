@@ -1,4 +1,5 @@
 from __future__ import annotations
+import pandas as pd
 
 import operator
 from typing import Optional, Sequence, Dict, Any
@@ -19,7 +20,7 @@ class FeedbackAwareCrossEncoderReranker(BaseDocumentCompressor):
     """CrossEncoder model to use for scoring similarity between the query and documents."""
     top_n: int = 3
     """Number of documents to return."""
-    feedback_df: Optional[Any] = None
+    # feedback_df: pd.DataFrame
     """DataFrame containing document feedback ratings."""
     feedback_weight: float = 0.5
     """Weight given to feedback ratings in final scoring (0-1)."""
@@ -28,13 +29,13 @@ class FeedbackAwareCrossEncoderReranker(BaseDocumentCompressor):
         arbitrary_types_allowed = True
         extra = "forbid"
 
-    def __init__(self, model: BaseCrossEncoder, feedback_df: pd.DataFrame, feedback_weight: float = 0.5, top_n: int = 3):
+    def __init__(self, model, feedback_db='feedback.db', feedback_weight= 0.5, top_n = 3):
+        super().__init__()
         self.model = model
-        self.feedback_df = Reranker.get_feedback_reranker()
+        self.feedback_db = feedback_db        
         self.feedback_weight = feedback_weight
         self.top_n = top_n
-
-        
+                
 
     def _get_document_feedback_score(self, document: Document) -> float:
         """
@@ -46,7 +47,9 @@ class FeedbackAwareCrossEncoderReranker(BaseDocumentCompressor):
         Returns:
             The average feedback rating for the document, or 0.5 if no rating exists.
         """
-        if self.feedback_df is None:
+        feedback_df = Reranker.get_feedback_reranker()
+        
+        if feedback_df is None:
             print('No feedback data available in get_document_feedback_score')
             return 0.5
 
@@ -54,7 +57,7 @@ class FeedbackAwareCrossEncoderReranker(BaseDocumentCompressor):
         source = document.metadata.get('source', '')
         
         # Find matching rows in the feedback DataFrame
-        matching_rows = self.feedback_df[self.feedback_df['document_id'] == source]
+        matching_rows = feedback_df[feedback_df['document_id'] == source]
         print('matching_rows:', matching_rows)
         
         if matching_rows.empty:
@@ -88,6 +91,7 @@ class FeedbackAwareCrossEncoderReranker(BaseDocumentCompressor):
         for doc, cross_encoder_score in zip(documents, cross_encoder_scores):
             # Get feedback score
             feedback_score = self._get_document_feedback_score(doc)
+            print('feedback_score:', feedback_score)
             
             # Combine scores with weighted average
             combined_score = (
@@ -96,6 +100,7 @@ class FeedbackAwareCrossEncoderReranker(BaseDocumentCompressor):
             )
             
             docs_with_scores.append((doc, combined_score))
+            print('docs_with_scores:', docs_with_scores)
         
         # Sort documents by the combined score in descending order
         result = sorted(docs_with_scores, key=operator.itemgetter(1), reverse=True)
@@ -112,3 +117,31 @@ class FeedbackAwareCrossEncoderReranker(BaseDocumentCompressor):
             }) 
             for (doc, score), (_, cross_encoder_score) in zip(result[:self.top_n], result[:self.top_n])
         ]
+        
+    def main_in_class(self):
+        docs = self.get_feedbcompress_documents()
+        # documents_lst = self.get_documents_reranker()
+        # combined_df = self.combiner(feedback_df, documents_lst)
+        # query = 'What is Word2Vec?'
+        # rerank_df = self.rerank_documents_with_feedback(query, documents_lst, feedback_df, combined_df)
+        print('docs:', docs)
+
+        
+def main():
+    # Example usage
+    try:
+        Encoder_reranker = FeedbackAwareCrossEncoderReranker(
+        model=BaseCrossEncoder,
+        feedback_db='feedback.db',
+        feedback_weight=0.7,
+        top_n=5
+        )
+        Encoder_reranker.main_in_class(
+        )
+    
+    except Exception as e:
+        print(f"Reranking failed: {e}")
+    
+
+if __name__ == "__main__":
+    main()
