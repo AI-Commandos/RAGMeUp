@@ -2,7 +2,7 @@
 
 This project introduces **GraphRAG**, an extension to the [RAG Me Up framework](https://github.com/AI-Commandos/RAGMeUp), by integrating Neo4j as a graph database into the RAG pipeline. GraphRAG leverages graph-based data storage and querying capabilities, enabling improved data relationships and enhanced retrieval.
 
-GraphRAG is created for an assignment of the Natural Language Processing course of JADS by **Tjielke Nabuurs, Jeroen Dortmans and Luuk Jacobs of group 17.** Our main goal of the assignment was to modify one of the components of the RAG pipeline that is used by default by the RAG Me Up repository.
+GraphRAG is created for an assignment of the Natural Language Processing course of JADS by **Tjielke Nabuurs, Jeroen Dortmans and Luuk Jacobs of group 17.** Our main goal of the assignment was to modify the components of the RAG pipeline that is used by default by the RAG Me Up repository.
 
 # Motivation
 
@@ -16,11 +16,12 @@ Especially in production environments, reliability and interpretability are para
 
 # Overview of Changes
 
-We modified the RAG Me Up framework to include a Neo4j-based graph integration as part of the retrieval pipeline. Specifically, we:
+To offer a loose coupling between the existing server and the neo4j database, we create a seperate server that connects to the database, which is accessible to the server using a REST API. The implementation only uses the RagHelperCloud configuration and is tested using the GEMINI API. 
+We modified the RAG Me Up framework to include a Neo4j-based graph integration in the following ways:
 
-1. **Integrated Neo4j** as a new component for data retrieval, allowing the framework to utilize graph-based queries.
-2. **Added a new type of dataset and use-case**, demonstrating how a graph structure could enhance retrival insights from the data.
-3. **Implemented a loader** to import a csv file into a Neo4j graph database, creating a graph structure with nodes and relationships based on the dataset.
+1. **Seperate REST API accessible server for database connection** This create modularity and scalability, making ....
+2. **Added a graph-based pdf loader**, This uses the LLM to extract triplets from the data, which are inputted into the database. The schema can be defined beforehand in the .env or dynamically retrieved from the database
+3. **Implemented a graph-based csv loaders** to import csv's into the database, a seperate csv parser and .. . 
 4. **Implemented Graph based retrieval** where we create cypher queries by combining schema information and the user question. Furthermore, using few shot prompting technique, the LLM will return None when the question can not be relevantly answered using a Cypher query.
 
 ### Implementation Details: Graph-Based Retrieval
@@ -42,40 +43,21 @@ In this project, we extended the default RAG pipeline by integrating Neo4j for g
 4. **Fallback Mechanism**  
    - When the LLM determines a query cannot be answered using the schema, it returns `None` to avoid unnecessary computations or invalid results.
 
+5. **Integration with other retrievers**
+   - as the graph_retriever offers the most enriched data source, when it creates results, it seen as most important and based on the chunk_size (kijk hiervoor naar de code om beter uit te leggen) 
 
-### Why Graph-Based Retrieval?
+### Implementation details: Graph-based document uploading
 
-Graph-based retrieval systems provide a unique advantage for modeling complex relationships in structured data. By integrating Neo4j into the RAG framework, this project achieves:
-- **Improved Data Enrichment**: Query results are enriched with contextual attributes from the graph.
-- **Logical Consistency**: Graph relationships ensure results adhere to defined dependencies.
-- **Enhanced Traceability**: Results are linked to specific nodes and edges in the graph for transparency.
+two new function: add_csv_to_graphdb, add_document_to_graphdb, 
+
+first add_csv_to_graphdb uitleggen
+
+add_document_to_graphdb uitleggen, leg hierbij ook uit dat je met een environment variable kan instellen of je de schema wil definiëren in de .env file of dynamisch wil krijgen uit de database. 
 
 
-# Dataset Overview
 
-The use-case of GraphRAG is developed on a dataset that consists of customer feedback data, collected through an NPS (Net Promoter Score) survey. It includes the following elements:
+# End-to-end functionality
 
-1. **Customer-Type Attribute**:  
-   A classification of customers based on predefined categories, such as demographic groups or whether they are business or individual customers. This attribute helps segment responses to analyze patterns specific to customer types.
+We have created an end-to-end functioning graphdb implementation of RAG, which can upload both csv and pdf files. 
 
-2. **NPS Score (Net Promoter Score)**:  
-   A numerical score (0-10) obtained through the question:  
-   _"On a scale of 0 to 10, how likely are you to recommend [Organization/Brand] to a friend or colleague?"_
 
-   - **Promoters**: Scores of 9–10 indicate highly satisfied customers.
-   - **Passives**: Scores of 7–8 represent neutral customers.
-   - **Detractors**: Scores of 0–6 reflect dissatisfied customers.
-
-3. **Quote of the Feedback**:  
-   Customers’ responses to the follow-up question:  
-   _"Please tell us more about why you wouldn’t recommend [Organization]."_  
-   These responses provide qualitative insights into customer satisfaction and dissatisfaction.
-
-4. **Topics Detected in the Quote**:  
-   Automatically identified themes or topics in the feedback, such as 'Relieving of concerns', or 'Relationship with your point of contact'. Topics are derived using natural language processing (NLP) and help cluster feedback for actionable analysis.
-
-# Applications:
-
-- **Customer Segmentation**: Analyze NPS scores and feedback by customer type to identify unique trends.
-- **Root Cause Analysis**: Use detected topics to pinpoint recurring issues.
-- **Actionable Insights**: Combine numerical scores and textual feedback to prioritize service or product improvements.
