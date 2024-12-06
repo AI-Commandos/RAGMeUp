@@ -242,5 +242,3 @@ RAG Me Up uses Ragas to evaluate your pipeline. You can run an evaluation based 
 - `ragas_answer_instruction` The instruction prompt used to generate the answers of the Ragas input pairs.
 - `ragas_answer_query` The query prompt used to generate the answers of the Ragas input pairs.
 
-
-

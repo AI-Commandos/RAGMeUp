@@ -38,4 +38,7 @@ accelerate==0.34.0
 pydantic==2.7.4
 pydantic_core==2.18.4
 psycopg2-binary==2.9.9
+rouge_score==0.1.2
+sacrebleu==2.4.3
 ragatouille 
+
