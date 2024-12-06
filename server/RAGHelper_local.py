@@ -242,6 +242,13 @@ class RAGHelperLocal(RAGHelper):
         if os.getenv("graph") == "True":
             graph_reply = self.graphrag_chain.run(user_query)
 
+        import json
+        try:
+            graph_response = json.loads(graph_reply)
+        except (json.JSONDecodeError, TypeError):
+            self.logger.warning("Graph reply is not valid JSON. Defaulting to empty graph dictionary.")
+            graph_response = {}
+
         return thread, reply, graph_reply
 
     def _should_fetch_new_documents(self, user_query, history):
