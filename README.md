@@ -12,7 +12,7 @@
 > Huub Van de Voort
 
 ## Our Thinking Process
-To start, we really enjoyed the lectures and the assignments for the course Natural Language Processing (JM2050). Our participation in lectures also inspired the solution we developed. 
+To start, we really enjoyed the SLIDES for the course Natural Language Processing (JM2050).
 
 As E. Tromp briefly already mentioned during the sessions, his lecture materials do not contain much text per slide and this might become an obstacle when incorporating those materials in a Retrieval Augmented Generation (RAG) system. After further investigation we also noticed that the lecture slides of Prof. U. Kaymak also contain many images which highly contribute to the understanding of the course but are not taking into consideration by the AS-IS version of [RAGMeUp](https://github.com/AI-Commandos/RAGMeUp).
 
