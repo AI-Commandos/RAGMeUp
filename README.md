@@ -181,7 +181,7 @@ The steps taken in the process of this assignment are as follows:
 - The Original RAGMeUp Repository was cloned to our group’s GitHub account.
 - The documentation was read thoroughly to gain an understanding of the pipeline.
 - The course data (Lecture slides, papers, book chapters) were collected and renamed for interpretation clarity. This renamed data was uploaded into the bot’s data storage, allowing the RAG model to retrieve information from this material.
-- The reranker component of the RAG model was changed to ColBERT.
+- The reranker component of the RAG model was changed from Flashrank to ColBERT.
 - Additional evaluation metrics (BLEU and ROUGE scores) were added to the RAG model to ensure relevant output.
 
 ### ColBERT (Contextualized Late Interaction over BERT)
