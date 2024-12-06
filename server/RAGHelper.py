@@ -19,6 +19,7 @@ from langchain_milvus.vectorstores import Milvus
 from langchain_postgres.vectorstores import PGVector
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from lxml import etree
+from ragatouille import RAGPretrainedModel
 from PostgresBM25Retriever import PostgresBM25Retriever
 from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
 from tqdm import tqdm
@@ -58,7 +59,7 @@ class RAGHelper:
         self.vector_store_k = int(os.getenv("vector_store_k"))
         self.chunk_size = int(os.getenv("chunk_size"))
         self.chunk_overlap = int(os.getenv("chunk_overlap"))
-        self.breakpoint_threshold_amount = os.getenv('breakpoint_threshold_amount', 'None')
+        self.breakpoint_threshold_amount = int(os.getenv('breakpoint_threshold_amount')) if os.getenv('breakpoint_threshold_amount', 'None') != 'None' else None
         self.number_of_chunks = None if (value := os.getenv('number_of_chunks',
                                                             None)) is None or value.lower() == 'none' else int(value)
         self.breakpoint_threshold_type = os.getenv('breakpoint_threshold_type')
@@ -422,6 +423,10 @@ class RAGHelper:
         if self.rerank_model == "flashrank":
             self.logger.info("Setting up the FlashrankRerank.")
             self.compressor = FlashrankRerank(top_n=self.rerank_k)
+        elif self.rerank_model == "colbert":
+            self.logger.info("Setting up the ColbertRerank.")
+            self.compressor = RAGPretrainedModel.from_pretrained("colbert-ir/colbertv2.0").as_langchain_document_compressor(
+                k=self.rerank_k)
         else:
             self.logger.info("Setting up the ScoredCrossEncoderReranker.")
             self.compressor = ScoredCrossEncoderReranker(
