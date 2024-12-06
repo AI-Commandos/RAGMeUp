@@ -32,7 +32,7 @@ ROUGE scores measure how well a generated text overlaps with reference text in t
 - **BLEU (Bilingual Evaluation Understudy):**
 BLEU works in a similar manner. It measures how close the generated text is to the reference text considering n-gram precision, but there are some important differences. BLEU calculates precision for multiple n-grams (unigrams, bigrams, trigrams, etc.) and combines them into a single score. It doesn't focus on a specific n-gram but rather evaluates how well the generated text matches the reference across all these n-grams. Alongside this, BLEU applies a brevity penalty to prevent rewarding overly short outputs. A higher BLEU score indicates that the generated response closely matches the ground truth in terms of word choice and structure.
 
-**Latency Measurement**
+- **Latency Measurement**
 Finally, the latency of the bot is assessed by tracking the time that passes between the user submitting a query and the bot outputting a response. This is an important evaluation metric to include when testing the effectiveness of the ColBERT reranker, as it is supposedly faster than most other available rerankers.
 
 Using Python’s _time_ module, we measured:
