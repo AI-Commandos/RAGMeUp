@@ -182,18 +182,54 @@ RAG Me Up uses Ragas to evaluate your pipeline. You can run an evaluation based 
 We are actively looking for funding to democratize AI and advance its applications. Contact us at info@commandos.ai if you want to invest.
 
 
-# TODO add readme about GraphRAG
-
-## GraphRag Intergration
+## GraphRAG Integration
 GraphRAG adds graph-based data structures to Retrieval Augmented Generation (RAG) to make it more useful. This lets the system understand and give answers that take into account the connections between different pieces of information. It also lets it retrieve and create responses with more nuanced and relational data.
 
-## Features
-1. Graph-Based Retrieval: This method uses graph structures to find information by looking at how things are connected.
-2. Enhanced Reasoning: Considers context and connections between data points for generating responses.
-3. Visualization: Makes graphs to show the information and relationships that were retrieved.
 
-# Installation 
-1. `sudo apt-get install graphviz` or `pip install pygraphviz` or `brew install graphviz`
-2. `pip install pygraphviz`
-3.  Install requirements.txt
+### Features
+1. Graph-Based Retrieval:
+   - Uses graph traversal algorithms to retrieve information based on relationships between nodes in the graph.
+2. Enhanced Contextual Reasoning:
+   - Considers interconnected data points and context during answer generation.
+3. Visualizations:
+   - Generates graph visualizations to illustrate the relationships between retrieved documents.
+
+
+### How It Works
+1. Graph Creation:
+   - Documents are transformed into nodes and relationships (edges) based on predefined or dynamic criteria.
+2. Graph Traversal:
+   - A query traverses the graph to find the most relevant nodes based on relationships and context.
+3. Graph Reasoning:
+   - A reasoning module interprets the graph structure to refine or justify the response.
+
+
+### GraphRAG Pipeline Integration
+GraphRAG fits into the existing RAG pipeline as follows:
+1. Document Ingestion:
+   - Create a graph representation of the data during the indexing phase.
+2. Query Handling:
+   - Retrieve nodes from the graph based on the query.
+3. Answer Generation:
+   - Combine graph-based context with retrieved documents for nuanced responses.
+
+
+### Installation for GraphRAG
+1. Ensure Graphviz is installed:
+   - `sudo apt-get install graphviz`
+   - or `brew install graphviz` (MacOS)
+2. Install Python dependencies:
+   - `pip install pygraphviz`
+3. Update the `requirements.txt`:
+   - Ensure `pygraphviz` is included.
+
+
+### GraphRAG Retrieval 
+1. After document chunking and embedding, a graph representation of the data is created.
+2. Queries can traverse this graph to identify nodes of interest and their relationships.
+3. The graph-based context is injected into the answer generation process.
+
+
+
+
 
