@@ -2,7 +2,6 @@ from rank_bm25 import BM25Okapi
 import sqlite3
 import pandas as pd
 import os
-# from flask import jsonify
 
 class Reranker:
     def __init__(self, feedback_db='feedback.db', data_directory='data'):
@@ -127,30 +126,8 @@ class Reranker:
         print('retrieved_docs_df:', retrieved_docs_df)
         return retrieved_docs_df
 
-
-    # def rerank_documents_with_feedback(self, query, documents):
-    #     """
-    #     Rerank documents based on BM25 scores and user feedback.
-    #     """
-    #     # Retrieve documents with BM25 scores
-    #     retrieved_docs = self.retrieve_with_bm25(query, documents)
-
-    #     # Fetch feedback scores for the documents
-    #     for doc in retrieved_docs:
-    #         feedback = self.get_feedback()
-    #         feedback_score = sum([f[3] for f in feedback]) if feedback else 0
-    #         doc["feedback_score"] = feedback_score
-
-    #     # Compute relevance scores
-    #     for doc in retrieved_docs:
-    #         doc["relevance_score"] = self.compute_relevance_score(doc["bm25_score"], doc["feedback_score"])
-
-    #     # Sort documents by relevance score
-    #     reranked_docs = sorted(retrieved_docs, key=lambda x: x["relevance_score"], reverse=True)
-
-    #     return reranked_docs    
     
-    def compute_relevance_score(bm25_score_weight, feedback_weight, alpha=0.7, beta=0.3):
+    def compute_relevance_score(self, bm25_score_weight, feedback_weight, alpha=0.7, beta=0.3):
         """
         Compute the relevance score based on BM25 weight and user feedback weight.
         
@@ -163,19 +140,7 @@ class Reranker:
         Returns:
             float: Combined relevance score.
         """
-        print('bm25_score_weight:', bm25_score_weight)
-        print('feedback_weight:', feedback_weight)  
-        print('alpha:', alpha)
-        print('beta:', beta)
-        
-
-        print('alpha type:', type(alpha))
-        print('bm25_score_weight type:', type(bm25_score_weight))
-        print('beta type:', type(beta))
-        print('feedback_weight type:', type(feedback_weight))
-        
-        print('score:', alpha * bm25_score_weight + beta * feedback_weight)
-        
+       
         return alpha * bm25_score_weight + beta * feedback_weight
     
     def rerank_documents_with_feedback(self, query, documents, feedback, combined_df):
@@ -190,30 +155,6 @@ class Reranker:
         Returns:
             list of dict: Reranked documents with relevance scores.
         """
-        
-        # queries = feedback['query'].unique()
-        # print('queries:', queries)
-        # for query in queries:
-        #     print('query:', query)
-        #     feedback_query = feedback.loc[feedback['query'] == query]
-        #     print('feedback_query:', feedback_query)
-        #     bm25 = self.retrieve_with_bm25(query, documents)
-        #     bm25['query'] = query
-        #     if 'bm25_df' not in locals():
-        #         bm25_df = bm25
-        #     else:
-        #         bm25_df = pd.concat([bm25_df, bm25], ignore_index=True)
-        #     print('bm25:', bm25)
-        # print('bm25_df:', bm25_df)
-            
-
-        # # Tokenize documents and query
-        # tokenized_docs = [doc.split() for doc in documents]
-        # bm25 = BM25Okapi(tokenized_docs)
-        # query_tokens = query.split()
-
-        # # Get BM25 scores
-        # bm25_scores = bm25.get_scores(query_tokens)
         
         bm25_df = self.retrieve_with_bm25(query, documents)
         print('bm25_df in rerank_documents etc.:', bm25_df)
@@ -231,34 +172,17 @@ class Reranker:
             print('bm25_score type:', type(bm25_score_reranker))
             relevance_score = self.compute_relevance_score(bm25_score_reranker, feedback_score)
             print('relevance_score:', relevance_score)
+            print('relevance_score type:', type(relevance_score))
             relevance_scores.append(relevance_score)
         combined_df['relevance_score'] = relevance_scores
         print('combined_df after adding relevance_score:', combined_df)
-        # # Compute relevance scores for each document
-        # reranked_docs = []
-        # for i, doc in enumerate(documents):
-        #     # Fetch feedback weight for the document
-        #     feedback_row = feedback.loc[feedback['document_id'] == i]
-        #     feedback_weight = (
-        #         feedback_row['rating'].values[0] * feedback_row['helpfulness'].values[0]
-        #         if not feedback_row.empty else 0
-        #     )
 
-        #     # Compute relevance score
-        #     relevance_score = compute_relevance_score(bm25_scores[i], feedback_weight)
-            
-        #     # Append to results
-        #     reranked_docs.append({
-        #         "document": doc,
-        #         "bm25_score": bm25_scores[i],
-        #         "feedback_score": feedback_weight,
-        #         "relevance_score": relevance_score
-        #     })
 
         # Sort documents by relevance score
-        reranked_docs = sorted(combined_df, key=lambda x: x["relevance_score"], reverse=True)
-        print('reranked_docs:', reranked_docs)
-        return reranked_docs
+        sorted_df = combined_df.sort_values(by='relevance_score', ascending=False)
+        print('sorted_df:', sorted_df)
+ 
+        return sorted_df
 
 
           
@@ -271,7 +195,7 @@ class Reranker:
 
         print(feedback_df)
         print('combined_df', combined_df)
-        print('rerank_df', rerank_df)
+        print('rerank_df:', rerank_df)
         
         
 
