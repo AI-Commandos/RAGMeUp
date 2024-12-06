@@ -184,9 +184,23 @@ def evaluate_pipeline(ragas_data):
     questions = [item['question'] for item in ragas_data]
     answers = [item['answer'] for item in ragas_data]
     ground_truths = [item['ground_truth'] for item in ragas_data]
+    # Initialize BLEU and ROUGE scorer
+    bleu = BLEU()
+    scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
+    # Compute BLEU score
+    bleu_score = bleu.corpus_score(answers, [ground_truths]).score
+    # Compute ROUGE scores for each answer-ground_truth pair and average them
+    rouge_scores = {'rouge1': [], 'rouge2': [], 'rougeL': []}
+    for answer, ground_truth in zip(answers, ground_truths):
+        rouge_result = scorer.score(answer, ground_truth)
+        for key in rouge_scores:
+            rouge_scores[key].append(rouge_result[key].fmeasure)
+    # Average ROUGE scores
+    avg_rouge_scores = {key: sum(values) / len(values) for key, values in rouge_scores.items()}
+    # Combine scores
     readability_scores = {
-        "BLEU": BLEU(answers, ground_truths),  # Replace with library function
-        "ROUGE": rouge_scorer(answers, ground_truths)  # Replace with library function
+        "BLEU": bleu_score,
+        "ROUGE": avg_rouge_scores
     }
 
     # --- Log Results ---
