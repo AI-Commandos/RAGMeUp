@@ -49,7 +49,7 @@ With the inclusion of ColBERT, our RAG pipeline retrieves more relevant document
 Additional metrics like BERTScore or human evaluation could provide a more nuanced assessment.
 
 2. Limited time and knowledge of RAG framework
-With more time and 
+As we had limited time and technical expertise, we faced challenges in fully integrating and visualizing the evaluation metrics. Although we successfully computed the latency and readability metrics, we could not display them in the user interface or a separate visualization, which would have greatly enhanced the interpretability and accessibility of these evaluations. 
 
 
 ### Future Directions
