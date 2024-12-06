@@ -39,35 +39,29 @@ class Reranker:
         os.environ["file_types"] = "txt,csv,pdf,json"
 
         data_directory = os.getenv('data_directory')
-        print('data_directory in get_documents_reranker:', data_directory)
         file_types = os.getenv("file_types", "").split(",")
-        print('file_types:', file_types)
 
         # Filter files based on specified types
         files = [f for f in os.listdir(data_directory)
                 if os.path.isfile(os.path.join(data_directory, f)) and os.path.splitext(f)[1][1:] in file_types]
         
         print('files in get_documents_reranker:', files)
-        print('files type in get_documents_reranker:', type(files))
         
         return files
         
     
     def combiner(self, feedback, documents_lst):
-        # print('feedback in combiner:', feedback)
+        """ Combine the feedback and documents into a single DataFrame."""
+        
+        # Iterate through the feedback DataFrame
         for doc in range(len(feedback['document_id'])):
             document_ids = feedback['document_id'][doc].replace('[', '').replace(']', '').replace(' " ', '').split(',')
-            # print('document_ids:', document_ids)
-            # print('document_ids length:', len(document_ids))
-            
             rating = feedback['rating'][doc]
-            # print('rating:', rating)
-            
+
+            # Iterate through the document_ids
             for doc_id in range(len(document_ids)):
-                # print('document_id:', document_ids[doc_id])
                 document_id = document_ids[doc_id]
                 document_id = document_id.strip('"')
-                # print('document_id:', document_id)
                 
                 # Create a new dataframe with document_id and rating
                 new_row = pd.DataFrame({'document_id': [document_id], 'rating': [rating]})
@@ -82,12 +76,8 @@ class Reranker:
                 else:
                     feedback_rating_df = pd.concat([feedback_rating_df, new_row], ignore_index=True)
 
-        # print('feedback_rating_df:', feedback_rating_df)
-        # print('feedback_rating_df length:', len(feedback_rating_df))
-        
         # Create a dataframe from documents_lst
         documents_df = pd.DataFrame(documents_lst, columns=['document_id'])
-        # print('documents_df:', documents_df)
                     
         # Merge documents_df with feedback_rating_df on 'document_id'
         combined_df = pd.merge(documents_df, feedback_rating_df, on='document_id', how='left')
@@ -96,8 +86,7 @@ class Reranker:
         combined_df['rating'].fillna(0, inplace=True)
         # Ensure the 'rating' column is of integer type
         combined_df['rating'] = combined_df['rating'].astype(int)
-            
-        # print('combined_df:', combined_df)
+
         return combined_df
                 
                             
@@ -157,30 +146,20 @@ class Reranker:
         """
         
         bm25_df = self.retrieve_with_bm25(query, documents)
-        print('bm25_df in rerank_documents etc.:', bm25_df)
         # Merge bm25_df with combined_df on 'document' and 'document_id'
         combined_df = pd.merge(bm25_df, combined_df, left_on='document', right_on='document_id', how='left')
-        print('combined_df after merge with bm_25_df:', combined_df)
 
+        # Compute relevance scores
         relevance_scores = []
         for i in range(len(combined_df)):
             feedback_score = combined_df['rating'][i]
-            print('feedback_score:', feedback_score)
-            print('feedback_score type:', type(feedback_score))
             bm25_score_reranker = combined_df['bm25_score'][i]
-            print('bm25_score:', bm25_score_reranker)
-            print('bm25_score type:', type(bm25_score_reranker))
             relevance_score = self.compute_relevance_score(bm25_score_reranker, feedback_score)
-            print('relevance_score:', relevance_score)
-            print('relevance_score type:', type(relevance_score))
             relevance_scores.append(relevance_score)
         combined_df['relevance_score'] = relevance_scores
-        print('combined_df after adding relevance_score:', combined_df)
-
 
         # Sort documents by relevance score
         sorted_df = combined_df.sort_values(by='relevance_score', ascending=False)
-        print('sorted_df:', sorted_df)
  
         return sorted_df
 
@@ -193,13 +172,13 @@ class Reranker:
         query = query
         rerank_df = self.rerank_documents_with_feedback(query, documents_lst, feedback_df, combined_df)
 
-        print(feedback_df)
-        print('combined_df', combined_df)
-        print('rerank_df:', rerank_df)
+        print('Feedback dataframe:',feedback_df)
+        print('Combined dataframe:', combined_df)
+        print('Sorted datafrme:', rerank_df)
         
         
 
-    
+# The code below is used to test the Reranker class    
 def main():
     # Example usage
     try:

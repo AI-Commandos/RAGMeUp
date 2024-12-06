@@ -12,17 +12,14 @@ from langchain.retrievers.document_compressors.cross_encoder import BaseCrossEnc
 class FeedbackAwareCrossEncoderReranker(BaseDocumentCompressor):
     """Document compressor that uses CrossEncoder for reranking with feedback integration."""
 
-    model: BaseCrossEncoder
-    """CrossEncoder model to use for scoring similarity between the query and documents."""
-    top_n: int = 3
-    """Number of documents to return."""
-    feedback_df: Optional[Any] = None
-    """DataFrame containing document feedback ratings."""
-    feedback_weight: float = 0.5
-    """Weight given to feedback ratings in final scoring (0-1)."""
-    
-    print('Running FeedbackAwareCrossEncoderReranker')
-    print('feedback_df:', feedback_df)
+    def __init__(self, model: BaseCrossEncoder, top_n: int = 3, feedback_df: Optional[Any] = None, feedback_weight: float = 0.5):
+        self.model = model
+        self.top_n = top_n
+        self.feedback_df = feedback_df
+        self.feedback_weight = feedback_weight
+
+        print('Running FeedbackAwareCrossEncoderReranker')
+        print('feedback_df:', self.feedback_df)
 
     class Config:
         arbitrary_types_allowed = True
