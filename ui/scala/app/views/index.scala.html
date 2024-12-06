@@ -275,32 +275,35 @@
             dataType: "json",
 
             success: function(data){
-                $("#loader").hide();
-                $("#mainContainer").remove();
+              console.log("Response Data:", data); 
+              $("#loader").hide();
+              $("#mainContainer").remove();
 
-                if (data['rewritten']) {
-                  const msg = '<span style="color: #ccc; font-style: italic; font-weight: 300;">Your message has been rewritten to this:</span>\n\n' + data['question'];
-                  addMessage(msg, true);
-                }
+              if (data['rewritten']) {
+                const msg = '<span style="color: #ccc; font-style: italic; font-weight: 300;">Your message has been rewritten to this:</span>\n\n' + data['question'];
+                addMessage(msg, true);
+              }
 
-                documents = data['documents'];
-                addMessage(data['reply'], false, data);
+              documents = data['documents'];
+              addMessage(data['reply'], false, data);
 
-                // Check if a graph image is returned
-                if (data['graph']) {
-                    displayGraph(data['graph']);
-                }
+              // Check if a graph image is returned
+              if (data['graph']) {
+                  displayGraph(data['graph']);
+              } else {
+                console.log("No graph data received.");
+              }
 
-                if (documents.length > 0 && data['fetched_new_documents']) {
-                  presentDocuments(documents);
-                }
-                chatHistory = data['history'];
+              if (documents.length > 0 && data['fetched_new_documents']) {
+                presentDocuments(documents);
+              }
+              chatHistory = data['history'];
 
-                $("#inputbar").show();
-                $('.query-input').val('');
-                // Re-enable inputs
-                $('.submit-btn').prop('disabled', false);
-                $('.query-input').prop('disabled', false);
+              $("#inputbar").show();
+              $('.query-input').val('');
+              // Re-enable inputs
+              $('.submit-btn').prop('disabled', false);
+              $('.query-input').prop('disabled', false);
             },
             error: function(xhr, status, error) {
                 $("#loader").hide();

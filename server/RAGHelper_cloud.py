@@ -208,10 +208,10 @@ class RAGHelperCloud(RAGHelper):
 
             try:
                 graph_response = json.loads(graph_reply)
-            except json.JSONDecodeError:
-                self.logger.warning("Graph reply is not valid JSON. Defaulting to empty graph dictionary.")
-                graph_response = {}
-                
+            except (json.JSONDecodeError, TypeError):
+                    self.logger.warning("Graph reply is not valid JSON. Defaulting to empty graph dictionary.")
+                    graph_response = {}
+                    
             return thread, reply, graph_response
 
     def should_fetch_new_documents(self, user_query: str, history: list) -> bool:

@@ -79,28 +79,35 @@ def chat():
         graph_file_path = None
         if graph_response:
             if isinstance(graph_response, dict):
-                try: 
-                # Generate a unique filename for the graph
-                    graph_file_name = f"graph_{uuid.uuid4()}.png"
-                    graph_file_path = os.path.join('static', 'graphs', graph_file_name)
-        
-                # Ensure the 'static/graphs' directory exists
-                    os.makedirs(os.path.dirname(graph_file_path), exist_ok=True)
-        
-                    graph = pgv.AGraph(directed=True)
-                    logger.info(type(graph_response))
-                    for node in graph_response.get('nodes', []):
-                        graph.add_node(node['id'], label=node['label'])
-                    for edge in graph_response.get('edges', []):
-                        graph.add_edge(edge['source'], edge['target'], label=edge['label'])
-                    graph.layout(prog='dot')
-                    graph.draw(graph_file_path)
-                except Exception as e:
-                    logger.error(f"Graph processing error: {e}")
+                # check if we have nodes or edges
+                nodes = graph_response.get('nodes', [])
+                edges = graph_response.get('edges', [])
+                if not nodes and not edges:
+                    logger.info("Graph is empty or no graph data available, skipping graph creation.")
                     graph_file_path = None
+                else:
+                    try:
+                        graph_file_name = f"graph_{uuid.uuid4()}.png"
+                        graph_file_path = os.path.join('static', 'graphs', graph_file_name)
+                        
+                        os.makedirs(os.path.dirname(graph_file_path), exist_ok=True)
+                        
+                        graph = pgv.AGraph(directed=True)
+                        for node in nodes:
+                            graph.add_node(node['id'], label=node['label'])
+                        for edge in edges:
+                            graph.add_edge(edge['source'], edge['target'], label=edge['label'])
+                        graph.layout(prog='dot')
+                        graph.draw(graph_file_path)
+                    except Exception as e:
+                        logger.error(f"Graph processing error: {e}")
+                        graph_file_path = None
             else:
                 logger.info("Graph response is not a dictionary, skipping graph creation.")
                 graph_file_path = None
+        else:
+            logger.info("No graph_response provided.")
+            graph_file_path = None
 
         # Format the documents for the frontend
         new_docs = [
@@ -113,10 +120,8 @@ def chat():
             for doc in docs if 'source' in doc.get('metadata', {})
         ]
 
-        if graph_file_path:
-            graph_url = url_for('static', filename=f'graphs/{graph_file_name}')
-        else:
-            graph_url = None
+        graph_url = url_for('static', filename=f'graphs/{os.path.basename(graph_file_path)}') if graph_file_path else None
+
 
         # Build response dictionary
         response_dict = {
