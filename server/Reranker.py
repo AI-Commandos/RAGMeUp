@@ -106,7 +106,7 @@ class Reranker:
     #     return reranked_docs
    
     
-def combiner(self, feedback, documents_lst):
+    def combiner(self, feedback, documents_lst):
         # print('feedback in combiner:', feedback)
         for doc in range(len(feedback['document_id'])):
             document_ids = feedback['document_id'][doc].replace('[', '').replace(']', '').replace("'", "").split(',')
@@ -142,11 +142,10 @@ def combiner(self, feedback, documents_lst):
         # Merge feedback_rating_df with documents_df on document_id
         combined_df = feedback_rating_df.merge(documents_df, on='document_id', how='inner')
         print('combined_df:', combined_df)
-        return combined_df
-                
-       
         
-    
+        return combined_df
+                    
+          
     def main_reranker(self):
         feedback_df = self.get_feedback_reranker()
         documents_lst = self.get_documents_reranker()
