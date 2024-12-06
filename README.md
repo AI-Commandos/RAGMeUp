@@ -110,15 +110,25 @@ This function processes non-CSV documents (e.g., PDFs) and uploads their extract
 
 We have developed GraphRAG with a local Neo4j database that is hosted through Neo4j desktop.
 
-Therefore, to setup such Neo4j database connection one must download Neo4j desktop and run it to host Neo4j locally.
+step 1. Therefore, to setup such Neo4j database connection one must download Neo4j desktop and run it to host Neo4j locally.
 
-When also the neo4j server.py is running locally, the `Graph_whisperer` class in the neo4j server initilizes a database connection with the locally hosted database through Neo4j desktop. Ngrok is used to expose the neo4j server such that it can be accessed by the RAG Me Up server.
+step 2. set your environment variables for running the neo4j server.py. You have to:
+   - define the ngrok authentication token in the variable `ngrok_token`.
+   - define the location of the neo4j desktop uri, if you use neo4j desktop, this is: bolt://localhost:7687
+   - your Neo4j username
+   - your neo4j password
 
-### configuration of environment variables
+step 3. run the neo4j server.py file and save the ngrok tunnel address. 
 
-Make sure to adapt the following in your `.env` file:
+step 4. Set your environment variables for the RAGMeUp server
+   - Your public ngrok url should be stored in the variable `neo4j_location`.
+   - Define `use_gemini` as True such that the `RAGHelperCloud` class can use Gemini as LLM.
+   - Adapt `GOOGLE_API_KEY` for your Gemini athentication.
 
-- define the ngrok authentication token in the variable `ngrok_token`.
-- Your public ngrok url should be stored in the variable `neo4j_location`.
-- Define `use_gemini` as True such that the `RAGHelperCloud` class can use Gemini as LLM.
-- Adapt `GOOGLE_API_KEY` for your Gemini athentication.
+step 5. Run server.py, we run this in the Ubuntu WSL. 
+
+step 6. OPTIONAL: Possible changes you can make to the environment variables to improve your results:
+   - max_document_limit, this is the maximum amount of document chunks that will be outputted by the retrieval
+   - rag_retrieval_instruction, retrieval_few_shot, rag_retrieval_question to improve the llm prompt 
+   - neo4j_insert_instruction, neo4j_insert_schema, neo4j_insert_data_only, neo4j_insert_few_shot to change the document upload llm prompt
+   - dynamic_neo4j_schema, if set to True it will fetch the schema from the neo4j server, if set to False, it will use the llm instruction of neo4j_insert_data_only. When you define a schema here, the llm will use the schema. If you leave schema open, the llm will dynamically create new nodes and relationships. 
