@@ -85,21 +85,25 @@ if isinstance(evalset["true_doc_ids"].iloc[0], str):
 for modelname in test_models:
 
   # Compute the count of intersecting IDs
-  evalset[f'{modelname}_n_docs_identified'] = evalset.apply(
+  n_docs_colname = f'{modelname}_n_docs_identified'
+  evalset[n_docs_colname] = evalset.apply(
       lambda row: len(set(row["true_doc_ids"]) & set(row[f"{modelname}_doc_ids"])),
       axis=1,
   )
 
-  evalset[f'{modelname}_n_docs_identified_top_{k}'] = evalset.apply(
+  n_docs_top_k_colname = f'{modelname}_n_docs_identified_top_{k}'
+  evalset[n_docs_top_k_colname] = evalset.apply(
       lambda row: len(set(row["true_doc_ids"]) & set(row[f"{modelname}_doc_ids"][:k])),
       axis=1,
   )
 
-  evalset[f'{modelname}_recall'] = evalset[f'{modelname}_n_docs_identified'] / evalset['true_doc_ids'].apply(len)
-  evalset[f'{modelname}_recall_top_{k}'] = evalset[f'{modelname}_n_docs_identified'] / evalset['true_doc_ids'].apply(len)
+  recall_colname = f'{modelname}_recall'
+  recall_top_k_colname = f'{modelname}_recall_top_{k}'
+  evalset[recall_colname] = evalset[n_docs_colname] / evalset['true_doc_ids'].apply(len)
+  evalset[recall_top_k_colname] = evalset[n_docs_top_k_colname] / evalset['true_doc_ids'].apply(len)
 
-  mean_recall = evalset[f'{modelname}_recall'].mean()
-  mean_recall_top_k = evalset[f'{modelname}_recall_top_{k}'].mean()
+  mean_recall = evalset[recall_colname].mean()
+  mean_recall_top_k = evalset[recall_top_k_colname].mean()
   print(f'Model {modelname} has a recall of {mean_recall}')
   print(f'Model {modelname} has a recall-top-{k} of {mean_recall_top_k}')
 
