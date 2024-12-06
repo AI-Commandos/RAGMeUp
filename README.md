@@ -26,7 +26,7 @@ RAG technology is slow as LLM calls introduce latency. Calling the reranking mod
 
 Various means of changing the reranker component have been attempted, however, the final implementation was performed through RAGatouille. RAGatouille’s focus lies entirely in simplifying the implementation of state-of-the-art methods to optimize RAG models, offering pre-trained ColBERT alongside methods to easily fine-tune them. 
 
-**ROUGE and BLEU Scores**
+## ROUGE and BLEU Scores
 BLEU and ROUGE scores were implemented as additional evaluation metrics to better assess the quality of generated responses.
 
 - **ROUGE (Recall-Oriented Understudy for Gisting Evaluation):**
