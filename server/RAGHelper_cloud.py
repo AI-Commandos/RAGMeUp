@@ -41,7 +41,7 @@ class RAGHelperCloud(RAGHelper):
         self.logger = logger
         self.llm = self.initialize_llm()
         self.embeddings = self.initialize_embeddings()
-        self.slide_deck_summarizer = SlideDeckSummarizer(self.data_dir, self.llm)
+        self.slide_deck_summarizer = SlideDeckSummarizer(self.data_dir)
 
         # Transform the pdf documents that are slide decks
         self.logger.info("Transforming slide decks.")
