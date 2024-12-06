@@ -159,7 +159,7 @@ class RAGHelperCloud(RAGHelper):
         prompt = ChatPromptTemplate.from_messages(thread)
 
         # Create llm chain
-        llm_chain = prompt | self.llm
+        llm_chain = prompt | self.llm | StrOutputParser()
 
         if fetch_new_documents:
             context_retriever = self.ensemble_retriever if self.rerank else self.rerank_retriever
@@ -168,24 +168,25 @@ class RAGHelperCloud(RAGHelper):
                 "context": context_retriever | RAGHelper.format_documents,
                 "question": RunnablePassthrough()
             }
-            llm_chain = prompt | self.llm | StrOutputParser()
+            
             rag_chain = (
                 retriever_chain
                 | RunnablePassthrough.assign(
                     answer=lambda x: llm_chain.invoke(
                         {"docs": x["docs"], "context": x["context"], "question": x["question"]}
-                    ))
+                    ).get("text", "No answer available.")
+                )
                 | combine_results
             )
         else:
             retriever_chain = {"question": RunnablePassthrough()}
-            llm_chain = prompt | self.llm | StrOutputParser()
             rag_chain = (
                 retriever_chain
                 | RunnablePassthrough.assign(
                     answer=lambda x: llm_chain.invoke(
                         {"question": x["question"]}
-                    ))
+                    ).get("text", "No answer available.")
+                )
                 | combine_results
             )
 

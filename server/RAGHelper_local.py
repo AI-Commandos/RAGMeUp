@@ -216,6 +216,25 @@ class RAGHelperLocal(RAGHelper):
         
         reply = self._invoke_rag_chain(user_query, llm_chain)
 
+        if isinstance(reply, dict):
+            # If we got 'text' but no 'answer', copy 'text' to 'answer'
+            if 'answer' not in reply:
+                if 'text' in reply:
+                    reply['answer'] = reply['text']
+                else:
+                    reply['answer'] = "No answer available."
+        else:
+            # If reply is just a string
+            reply = {"answer": reply}
+
+        # Ensure other keys
+        if 'question' not in reply:
+            reply['question'] = user_query
+        if 'docs' not in reply:
+            reply['docs'] = []
+        if 'context' not in reply:
+            reply['context'] = ""
+
         if fetch_new_documents:
             self._track_provenance(user_query, reply, thread)
             
@@ -283,7 +302,7 @@ class RAGHelperLocal(RAGHelper):
         """Track the provenance of the LLM response and annotate documents with provenance scores."""
         provenance_method = os.getenv("provenance_method")
         if provenance_method in ['rerank', 'attention', 'similarity', 'llm']:
-            answer = self._extract_reply(reply)
+            answer = reply['answer']
             new_history = [{"role": msg["role"], "content": msg["content"].format_map(reply)} for msg in thread]
             new_history.append({"role": "assistant", "content": answer})
             context = RAGHelper.format_documents(reply['docs']).split("\n\n<NEWDOC>\n\n")
