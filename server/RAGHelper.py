@@ -424,6 +424,7 @@ class RAGHelper:
             self.logger.info("Setting up the FlashrankRerank.")
             self.compressor = FlashrankRerank(top_n=self.rerank_k)
         else:
+            print("else statement, will run ScoredCrossEncoderReranker")
             self.logger.info("Setting up the ScoredCrossEncoderReranker.") # provided by the course
             self.compressor = ScoredCrossEncoderReranker(
             # self.logger.info("Setting up the FeedbackAwareCrossEncoderReranker.") # our own implementation

@@ -119,7 +119,7 @@ class FeedbackAwareCrossEncoderReranker(BaseDocumentCompressor):
         ]
         
     def main_in_class(self):
-        docs = self.get_feedbcompress_documents()
+        docs = self.compress_documents()
         # documents_lst = self.get_documents_reranker()
         # combined_df = self.combiner(feedback_df, documents_lst)
         # query = 'What is Word2Vec?'
