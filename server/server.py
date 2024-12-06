@@ -64,64 +64,26 @@ def chat():
 
         # Call RAG helper for interaction
         new_history, response, graph_response = raghelper.handle_user_interaction(prompt, history)
-        
-        print('hoi')
-        print(response)
-        print(graph_response)
-        print()
-        print()
+        if not docs or 'docs' in response:
+            docs = response['docs']
 
          # Validate response structure
         if not isinstance(response, dict) or 'answer' not in response:
             raise ValueError("Invalid response format from RAG helper.")
 
-        # Process graph response if available
-        graph_file_path = None
-        if graph_response:
-            if isinstance(graph_response, dict):
-                # check if we have nodes or edges
-                nodes = graph_response.get('nodes', [])
-                edges = graph_response.get('edges', [])
-                if not nodes and not edges:
-                    logger.info("Graph is empty or no graph data available, skipping graph creation.")
-                    graph_file_path = None
-                else:
-                    try:
-                        graph_file_name = f"graph_{uuid.uuid4()}.png"
-                        graph_file_path = os.path.join('static', 'graphs', graph_file_name)
-                        
-                        os.makedirs(os.path.dirname(graph_file_path), exist_ok=True)
-                        
-                        graph = pgv.AGraph(directed=True)
-                        for node in nodes:
-                            graph.add_node(node['id'], label=node['label'])
-                        for edge in edges:
-                            graph.add_edge(edge['source'], edge['target'], label=edge['label'])
-                        graph.layout(prog='dot')
-                        graph.draw(graph_file_path)
-                    except Exception as e:
-                        logger.error(f"Graph processing error: {e}")
-                        graph_file_path = None
-            else:
-                logger.info("Graph response is not a dictionary, skipping graph creation.")
-                graph_file_path = None
-        else:
-            logger.info("No graph_response provided.")
-            graph_file_path = None
-
         # Format the documents for the frontend
-        new_docs = [
-            {
-                's': doc.get('metadata', {}).get('source', 'Unknown'),
-                'c': doc.get('page_content', ''),
-                **({'pk': doc.get('metadata', {}).get('pk')} if 'pk' in doc.get('metadata', {}) else {}),
-                **({'provenance': float(doc.get('metadata', {}).get('provenance'))} if 'provenance' in doc.get('metadata', {}) else {})
-            }
-            for doc in docs if 'source' in doc.get('metadata', {})
-        ]
-
-        graph_url = url_for('static', filename=f'graphs/{os.path.basename(graph_file_path)}') if graph_file_path else None
-
+        
+        fetched_new_documents = False
+        if not original_docs or 'docs' in response:
+            fetched_new_documents = True
+            new_docs = [{
+                's': doc.metadata['source'],
+                'c': doc.page_content,
+                **({'pk': doc.metadata['pk']} if 'pk' in doc.metadata else {}),
+                **({'provenance': float(doc.metadata['provenance'])} if 'provenance' in doc.metadata and doc.metadata['provenance'] is not None else {})
+            } for doc in docs if 'source' in doc.metadata]
+        else:
+            new_docs = docs
 
         # Build response dictionary
         response_dict = {
@@ -130,8 +92,8 @@ def chat():
             "documents": new_docs,
             "rewritten": False,
             "question": prompt,
-            "fetched_new_documents": not original_docs,
-            "graph": graph_url
+            "fetched_new_documents": fetched_new_documents,
+            "graph_reply": graph_response.get('answer', 'No answer available.')
         }
 
         # Handle rewritten questions

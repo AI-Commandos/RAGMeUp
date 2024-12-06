@@ -205,12 +205,8 @@ class RAGHelperCloud(RAGHelper):
         graph_reply = ""
         if os.getenv("graph") == "True":
             graph_reply = self.graphrag_chain.run(user_query)
-
-            try:
-                graph_response = json.loads(graph_reply)
-            except (json.JSONDecodeError, TypeError):
-                    self.logger.warning("Graph reply is not valid JSON. Defaulting to empty graph dictionary.")
-                    graph_response = {}
+            
+            graph_response = {'answer': graph_reply}
                     
             return thread, reply, graph_response
 

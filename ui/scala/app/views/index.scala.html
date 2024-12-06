@@ -28,7 +28,7 @@
 <div class="offset-md-1 col-md-10 chatinput" id="chatinputcontainer">
   <div id="inputbar" class="input-group" style="display: none">
     <!-- Changed id to class -->
-    <input type="text" class="query-input form-control" placeholder="" name="query">
+    <input type="text" id="mainQueryInput" class="query-input form-control" placeholder="" name="query">
     <button class="btn btn-primary submit-btn" type="submit">
       Go!
     </button>
@@ -251,7 +251,7 @@
     // Function to handle chat submission
     function handleChat() {
         // Disable submit buttons and input fields
-        const query = $('#mainQueryInput').val();
+        let query = $('#mainQueryInput').val();
 
         $('.submit-btn').prop('disabled', true);
         $('.query-input').prop('disabled', true);
@@ -286,6 +286,10 @@
 
               documents = data['documents'];
               addMessage(data['reply'], false, data);
+
+              if (data['graph_reply']) {
+                addMessage("The knowledge graph says:\n" + data['graph_reply'], false, data);
+              }
 
               // Check if a graph image is returned
               if (data['graph']) {
