@@ -186,11 +186,11 @@ class Reranker:
 
 
           
-    def main_reranker(self, query):
+    def main_reranker(self):
         feedback_df = self.get_feedback_reranker()
         documents_lst = self.get_documents_reranker()
         combined_df = self.combiner(feedback_df, documents_lst)
-        query = query
+        query = 'What is Word2Vec?'
         rerank_df = self.rerank_documents_with_feedback(query, documents_lst, feedback_df, combined_df)
 
         print(feedback_df)

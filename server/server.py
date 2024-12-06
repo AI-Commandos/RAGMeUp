@@ -9,11 +9,6 @@ import sqlite3
 
 from Reranker import Reranker
 
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
-
-
 def load_bashrc():
     """
     Load environment variables from the user's .bashrc file.
@@ -163,7 +158,6 @@ def get_documents():
         JSON response containing the list of files.
     """   
     data_dir = os.getenv('data_directory')
-    print('data_dir in get_documents server.py:', data_dir)
     file_types = os.getenv("file_types", "").split(",")
 
     # Filter files based on specified types
@@ -192,11 +186,7 @@ def get_document():
     data_dir = os.getenv('data_directory')
     file_path = os.path.join(data_dir, filename)
 
-    print(f"Received request for filename: {filename}")  # Debug print
-    print(f"Constructed file path: {file_path}")         # Debug print
-
     if not os.path.exists(file_path):
-        print("File not found.")  # Debug print
         return jsonify({"error": "File not found"}), 404
     
    

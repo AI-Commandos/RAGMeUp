@@ -19,7 +19,6 @@ from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_huggingface.llms import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
-from Reranker import Reranker
 
 
 class RAGHelperLocal(RAGHelper):
@@ -214,10 +213,6 @@ class RAGHelperLocal(RAGHelper):
 
         if fetch_new_documents:
             self._track_provenance(user_query, reply, thread)
-            
-        # rerank documents
-        if os.getenv("rerank") == "True":
-            Reranker().main_reranker(user_query)
 
         return thread, reply
 

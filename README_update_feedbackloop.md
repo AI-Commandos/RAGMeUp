@@ -103,9 +103,33 @@ The feedback data is collected once a feedback button is clicked, and sent to th
 
 The database was initially created in the Google Colab notebook, and then saved to a Google Drive folder. Saving it in Google Drive ensures the feedback is saved even when the server is shut down. Before starting the server, the copy of the feedback database stored in Google Drive is loaded in the notebook. After the server is closed, the updated feedback database can be copied to Google Drive again.
 
-## Document retrieval
 
 ## Reranker
+
+To enhance the relevance of the document, the reranker was updated with the feedback retrieved by the user. In this section the process of implementing the user feedback in the reranker is explained. 
+
+### 1. Feedback and Document Retrieval
+To be able to implement the user feedback into the reranker, the data is retrieve from the `feedback.db` database and put into a dataframe. To combine the feedback with the documents also the documents need to be retrieved. This is done in a similar way as in the `server.py` from the original framework. 
+
+### 2. Combining documents and their feedback
+Next, there is a dataframe created which contains all the unique documents available. If there was feedback available for a document in the dataframe the feedback score got added, if there were multiple feedback values available they got added up. If there was no rating present the feedback score was put as 0. This got but into one dataframe.
+
+### 3. Calculating Relevance Score
+Now that there is a dataframe with all the documents and their feedback score. We need to order them to get the most relevant documents. To do this a relevance score was calculated using the following formula: 
+Relevance Score = α ⋅ BM25 Weight+ β ⋅ User Feedback Weight 
+
+            bm25_score_weight (float): The BM25 relevance score for a document.
+            feedback_weight (float): The user feedback weight for a document.
+            alpha (float): Weight of BM25 in the relevance formula.
+            beta (float): Weight of user feedback in the relevance formula.
+
+With α = 0.7 and β = 0.3, since we think the BM25 relevance score for a document is more important.  
+The BM25 Weight is calculated  for each document based on the query asked using `rank_bm25` . 
+User Feedback Weight is determined by the adding up the overal received feedback of all user for that particual document. 
+
+After the relevance score is calculated it is added to the dataframe. Based on the relevance score the dataframe is sorted on the relevance score to get the highest score on top. 
+
+
 
 ## Chat LLM
 To enhance the relevance and performance of the Chat LLM, a fine-tuning mechanism was implemented that integrates user feedback. This document explains the workflow and implementation details.
