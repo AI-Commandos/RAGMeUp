@@ -107,6 +107,14 @@ for modelname in test_models:
   print(f'Model {modelname} has a recall of {mean_recall}')
   print(f'Model {modelname} has a recall-top-{k} of {mean_recall_top_k}')
 
+# Add true doc contexts column
+with open(testset_path + 'rag_chunks.pickle', "rb") as file:
+    rag_chunks = pickle.load(file)
+
+evalset['true_doc_contexts'] = evalset['true_doc_ids'].apply(
+    lambda ids: [doc.page_content for doc in rag_chunks if doc.metadata['id'] in ids]
+    )
+
 evalset.to_excel('eval_data.xlsx', index=False)
 
 
@@ -115,6 +123,8 @@ evalset.to_excel('eval_data.xlsx', index=False)
 if eval_ragas:
     ragas_data = evalset.copy()
     ragas_cols = ['question', 'ground_truth', 'answer', 'contexts']
+    
+    # get cols of first specified model
     answer_col = [col for col in ragas_data.columns if col.endswith('answer')][0]
     context_col = [col for col in ragas_data.columns if col.endswith('doc_ids')][1]
 
