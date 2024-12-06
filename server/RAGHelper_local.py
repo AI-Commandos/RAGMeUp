@@ -1,6 +1,7 @@
 import os
 import re
 import torch
+import json
 from provenance import (
     compute_attention,
     compute_rerank_provenance,
@@ -241,15 +242,13 @@ class RAGHelperLocal(RAGHelper):
         graph_reply = ""
         if os.getenv("graph") == "True":
             graph_reply = self.graphrag_chain.run(user_query)
-
-        import json
-        try:
-            graph_response = json.loads(graph_reply)
-        except (json.JSONDecodeError, TypeError):
-            self.logger.warning("Graph reply is not valid JSON. Defaulting to empty graph dictionary.")
-            graph_response = {}
-
-        return thread, reply, graph_reply
+            try:
+                graph_response = json.loads(graph_reply)
+            except json.JSONDecodeError:
+                self.logger.warning("Graph reply is not valid JSON. Defaulting to empty graph dictionary.")
+                graph_response = {}
+                
+            return thread, reply, graph_response
 
     def _should_fetch_new_documents(self, user_query, history):
         """Determine whether to fetch new documents based on the user's query and conversation history."""
