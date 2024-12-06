@@ -2,7 +2,7 @@ import hashlib
 import os
 import pickle
 
-from server.ResponseCitationVerifier import ResponseVerifier
+from ResponseCitationVerifier import ResponseVerifier
 
 from langchain.retrievers import (ContextualCompressionRetriever,
                                   EnsembleRetriever)
@@ -22,9 +22,10 @@ from langchain_postgres.vectorstores import PGVector
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from lxml import etree
 from PostgresBM25Retriever import PostgresBM25Retriever
+from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
 from tqdm import tqdm
 
-from server.CitationAwareReranker import CitationAwareReranker
+from CitationAwareReranker import CitationAwareReranker
 
 
 class RAGHelper:
