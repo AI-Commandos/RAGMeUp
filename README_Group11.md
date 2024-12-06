@@ -2,7 +2,9 @@
 
 ## Made by:
 **Elano Beer - 2065718 - ([e.h.u.beer@tilburguniversity.edu](mailto::e.h.u.beer@tilburguniversity.edu))**
+
 **Lars van Rijckevorsel - 2065745 - ([l.p.a.vanrijckevorsel@tilburguniversity.edu](mailto::l.p.a.vanrijckevorsel@tilburguniversity.edu))**
+
 **Wouter Mulder - 2065914 ([mailto::w.mulder@tilburguniversity.edu](mailto::w.mulder@tilburguniversity.edu))**
 
 ## Idea
