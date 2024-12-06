@@ -20,7 +20,7 @@ class FeedbackAwareCrossEncoderReranker(BaseDocumentCompressor):
     """CrossEncoder model to use for scoring similarity between the query and documents."""
     top_n: int = 3
     """Number of documents to return."""
-    # feedback_df: pd.DataFrame
+    # encoder_feedback_df: pd.DataFrame
     """DataFrame containing document feedback ratings."""
     feedback_weight: float = 0.5
     """Weight given to feedback ratings in final scoring (0-1)."""
@@ -47,9 +47,9 @@ class FeedbackAwareCrossEncoderReranker(BaseDocumentCompressor):
         Returns:
             The average feedback rating for the document, or 0.5 if no rating exists.
         """
-        feedback_df = Reranker.get_feedback_reranker()
+        encoder_feedback_df = Reranker.get_feedback_reranker()
         
-        if feedback_df is None:
+        if encoder_feedback_df is None:
             print('No feedback data available in get_document_feedback_score')
             return 0.5
 
@@ -57,7 +57,7 @@ class FeedbackAwareCrossEncoderReranker(BaseDocumentCompressor):
         source = document.metadata.get('source', '')
         
         # Find matching rows in the feedback DataFrame
-        matching_rows = feedback_df[feedback_df['document_id'] == source]
+        matching_rows = encoder_feedback_df[encoder_feedback_df['document_id'] == source]
         print('matching_rows:', matching_rows)
         
         if matching_rows.empty:
