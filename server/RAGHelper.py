@@ -17,7 +17,7 @@ from langchain_community.retrievers import BM25Retriever
 from langchain_core.documents.base import Document
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_milvus.vectorstores import Milvus
-from langchain_postgres.vectorstores import PGVector
+# from langchain_postgres.vectorstores import PGVector
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from lxml import etree
 from PostgresBM25Retriever import PostgresBM25Retriever
@@ -73,7 +73,8 @@ class RAGHelper:
         
         self.table_db = os.getenv("table_db_uri")
         self.table_dir = os.getenv("table_directory")
-
+        print("BOoooyaaah")
+        print(self.data_dir)
         
 
     @staticmethod
@@ -352,21 +353,21 @@ class RAGHelper:
         """Initializes the Milvus vector store."""
         self.logger.info("Setting up Milvus Vector DB.")
         self.db = Milvus.from_documents(
-            [], self.embeddings,
+            [Document(page_content="")], self.embeddings,
             drop_old=not self.vector_store_initial_load,
             connection_args={"uri": self.vector_store_uri},
             collection_name=self.vector_store_collection,
         )
 
-    def _initialize_postgres(self):
-        """Initializes the Postgres vector store."""
-        self.logger.info(f"Setting up PGVector DB.")
-        self.db = PGVector(
-            embeddings=self.embeddings,
-            collection_name=self.vector_store_collection,
-            connection=self.vector_store_uri,
-            use_jsonb=True
-        )
+    # def _initialize_postgres(self):
+    #     """Initializes the Postgres vector store."""
+    #     self.logger.info(f"Setting up PGVector DB.")
+    #     self.db = PGVector(
+    #         embeddings=self.embeddings,
+    #         collection_name=self.vector_store_collection,
+    #         connection=self.vector_store_uri,
+    #         use_jsonb=True
+    #     )
 
     def _initialize_vector_store(self):
         """Initializes the vector store based on the specified type (Milvus or Postgres)."""
