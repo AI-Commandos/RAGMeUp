@@ -106,28 +106,65 @@ The database was initially created in the Google Colab notebook, and then saved 
 
 ## Reranker
 
-To enhance the relevance of the document, the reranker was updated with the feedback retrieved by the user. In this section the process of implementing the user feedback in the reranker is explained. 
+The Reranker improves document relevance by integrating user feedback into the ranking process. This README outlines how user feedback is incorporated and used to rerank documents.
+
+---
 
 ### 1. Feedback and Document Retrieval
-To be able to implement the user feedback into the reranker, the data is retrieve from the `feedback.db` database and put into a dataframe. To combine the feedback with the documents also the documents need to be retrieved. This is done in a similar way as in the `server.py` from the original framework. 
 
-### 2. Combining documents and their feedback
-Next, there is a dataframe created which contains all the unique documents available. If there was feedback available for a document in the dataframe the feedback score got added, if there were multiple feedback values available they got added up. If there was no rating present the feedback score was put as 0. This got but into one dataframe.
+The Reranker retrieves user feedback from the `feedback.db` database. This feedback includes fields like `query`, `answer`, `document_id`, and `rating`, which represent user evaluations of document relevance.
+
+In addition, the Reranker retrieves all available documents from the `data` directory. The documents are filtered based on supported file types (`txt`, `csv`, `pdf`, `json`) to ensure only relevant files are considered.
+
+### 2. Combining Documents and Feedback
+
+A unified dataframe is created to merge all unique documents with their feedback scores. The logic works as follows:
+- Each document in the dataset is checked for corresponding feedback ratings.
+- If feedback is available, the ratings are summed up for that document. 
+- If no feedback is present, the rating defaults to 0.
+
+This results in a single dataframe where each document is associated with its cumulative feedback score, or 0 if no feedback exists.
+
 
 ### 3. Calculating Relevance Score
-Now that there is a dataframe with all the documents and their feedback score. We need to order them to get the most relevant documents. To do this a relevance score was calculated using the following formula: 
-Relevance Score = α ⋅ BM25 Weight+ β ⋅ User Feedback Weight 
+To order the documents by relevance, a combined relevance score is calculated for each document using the formula:
 
-            bm25_score_weight (float): The BM25 relevance score for a document.
-            feedback_weight (float): The user feedback weight for a document.
-            alpha (float): Weight of BM25 in the relevance formula.
-            beta (float): Weight of user feedback in the relevance formula.
+Relevance Score
+=
+𝛼
+⋅
+BM25 Weight
++
+𝛽
+⋅
+Feedback Weight
+Relevance Score=α⋅BM25 Weight+β⋅Feedback Weight
+Parameters:
 
-With α = 0.7 and β = 0.3, since we think the BM25 relevance score for a document is more important.  
-The BM25 Weight is calculated  for each document based on the query asked using `rank_bm25` . 
-User Feedback Weight is determined by the adding up the overal received feedback of all user for that particual document. 
+BM25 Weight: The BM25 relevance score calculated based on the query and document content.
+Feedback Weight: The cumulative user feedback rating for the document.
+α (alpha): Weight for BM25 (set to 0.7).
+β (beta): Weight for user feedback (set to 0.3).
+These weights prioritize BM25 because it provides a robust measure of text relevance to the query, while feedback adds user-specific insights.
 
-After the relevance score is calculated it is added to the dataframe. Based on the relevance score the dataframe is sorted on the relevance score to get the highest score on top. 
+### 3. Calculating Relevance Scores
+
+To rank documents effectively, the Reranker calculates a Relevance Score for each document by combining the BM25 Weight and the User Feedback Weight. This is done using the following formula:
+
+**Relevance Score = α ⋅ BM25 Weight + β ⋅ Feedback Weight**
+
+Parameters:
+- **BM25 Weight**: The relevance score for a document based on the BM25 algorithm, which uses term frequency and inverse document frequency to measure query-document similarity.
+- **Feedback Weight**: The cumulative user feedback rating for a document.
+- **α (alpha)**: The weight given to BM25 scores (default: 0.7).
+- **β (beta)**: The weight given to user feedback scores (default: 0.3).
+
+These weights prioritize BM25 because it provides a robust measure of text relevance to the query, while feedback adds user-specific insights.
+
+### 4. Sorting and Output
+After computing the relevance scores for all documents, the dataframe is sorted in descending order of relevance score. The top-ranked documents are considered the most relevant.
+
+## Remarks on the Chat LLM Fine Tuner
 
 
 

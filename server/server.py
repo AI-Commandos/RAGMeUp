@@ -3,11 +3,9 @@ import logging
 from dotenv import load_dotenv
 import os
 from RAGHelper_cloud import RAGHelperCloud
-from RAGHelper_local import RAGHelperLocal
+from server.RAGHelper_local import RAGHelperLocal
 from pymilvus import Collection, connections
 import sqlite3
-
-from Reranker import Reranker
 
 def load_bashrc():
     """
