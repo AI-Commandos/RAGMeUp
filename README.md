@@ -49,8 +49,10 @@ In this project, we extended the default RAG pipeline by integrating Neo4j for g
 
    - When the LLM determines a query cannot be answered using the schema, it returns `None` to avoid unnecessary computations or invalid results.
 
-5. **Integration with other retrievers**
-   - as the graph_retriever offers the most enriched data source, when it creates results, it seen as most important and based on the chunk_size (kijk hiervoor naar de code om beter uit te leggen)
+5. **Integration with Other Retrievers**
+
+   - Prioritizes graph-based results from the `graph_retriever` as the most enriched and reliable source of information, setting it as document 0.
+   - Dynamically calculates available space using 'chunk_size' after processing graph documents, filling the remaining capacity with documents from the other retrievers.
 
 ### Implementation details: Graph-based document uploading
 
