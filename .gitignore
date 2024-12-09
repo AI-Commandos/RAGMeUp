@@ -127,6 +127,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+colbertv2.0
 
 # Spyder project settings
 .spyderproject

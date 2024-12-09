@@ -38,3 +38,6 @@ accelerate==0.34.0
 pydantic==2.7.4
 pydantic_core==2.18.4
 psycopg2-binary==2.9.9
+llama-index==0.10.68
+llama-index-core==0.10.68.post1
+llama-index-postprocessor-colbert-rerank==0.1.3
