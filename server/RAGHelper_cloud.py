@@ -12,6 +12,7 @@ from provenance import (DocumentSimilarityAttribution,
                         compute_llm_provenance_cloud,
                         compute_rerank_provenance)
 from RAGHelper import RAGHelper
+from SlideDeckSummarizer import SlideDeckSummarizer
 
 
 def combine_results(inputs: dict) -> dict:
@@ -40,6 +41,12 @@ class RAGHelperCloud(RAGHelper):
         self.logger = logger
         self.llm = self.initialize_llm()
         self.embeddings = self.initialize_embeddings()
+        self.slide_deck_summarizer = SlideDeckSummarizer(self.data_dir)
+
+        # Transform the pdf documents that are slide decks
+        self.logger.info("Transforming slide decks.")
+        if os.getenv("use_slide_deck_summarizer") == "True":
+            self.slide_deck_summarizer.transform_slidedecks_and_remove_pdf()
 
         # Load the data
         self.load_data()
