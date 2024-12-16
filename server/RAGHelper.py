@@ -1,558 +1,273 @@
-import hashlib
+from flask import Flask, request, jsonify, send_file
+import logging
+from dotenv import load_dotenv
 import os
-import pickle
-
-from ResponseCitationVerifier import ResponseVerifier
-
-from langchain.retrievers import (ContextualCompressionRetriever,
-                                  EnsembleRetriever)
-from langchain.retrievers.document_compressors import FlashrankRerank
-from langchain_community.cross_encoders import HuggingFaceCrossEncoder
-from langchain_community.document_loaders import (CSVLoader, DirectoryLoader,
-                                                  Docx2txtLoader, JSONLoader,
-                                                  PyPDFDirectoryLoader,
-                                                  PyPDFLoader, TextLoader,
-                                                  UnstructuredExcelLoader,
-                                                  UnstructuredPowerPointLoader)
-from langchain_community.retrievers import BM25Retriever
-from langchain_core.documents.base import Document
-from langchain_experimental.text_splitter import SemanticChunker
-from langchain_milvus.vectorstores import Milvus
-from langchain_postgres.vectorstores import PGVector
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from lxml import etree
-from PostgresBM25Retriever import PostgresBM25Retriever
-from ScoredCrossEncoderReranker import ScoredCrossEncoderReranker
-from tqdm import tqdm
-
-from CitationAwareReranker import CitationAwareReranker
+from RAGHelper_cloud import RAGHelperCloud
+from RAGHelper_local import RAGHelperLocal
+from pymilvus import Collection, connections
+from werkzeug.utils import secure_filename
 
 
-class RAGHelper:
+def load_bashrc():
     """
-    A helper class to manage retrieval-augmented generation (RAG) processes,
-    including data loading, chunking, vector storage, and retrieval.
+    Load environment variables from the user's .bashrc file.
+
+    This function looks for the .bashrc file in the user's home directory
+    and loads any environment variables defined with the 'export' command
+    into the current environment.
     """
+    bashrc_path = os.path.expanduser("~/.bashrc")
+    if os.path.exists(bashrc_path):
+        with open(bashrc_path) as f:
+            for line in f:
+                if line.startswith("export "):
+                    key, value = line.strip().replace("export ", "").split("=", 1)
+                    value = value.strip(' "\'')
+                    os.environ[key] = value
 
-    def __init__(self, logger):
-        """
-        Initializes the RAGHelper class and loads environment variables.
-        """
-        self.logger = logger
-        self.chunked_documents = []
-        self.embeddings = None  # Placeholder for embeddings; set during initialization
-        self.text_splitter = None
-        self.db = None
-        self.sparse_retriever = None
-        self.ensemble_retriever = None
-        self.rerank_retriever = None
-        self._batch_size = 1000
-        # Load environment variables
-        self.vector_store_sparse_uri = os.getenv('vector_store_sparse_uri')
-        self.vector_store_uri = os.getenv('vector_store_uri')
-        self.document_chunks_pickle = os.getenv('document_chunks_pickle')
-        self.data_dir = os.getenv('data_directory')
-        self.file_types = os.getenv("file_types").split(",")
-        self.splitter_type = os.getenv('splitter')
-        self.vector_store = os.getenv("vector_store")
-        self.vector_store_initial_load = os.getenv("vector_store_initial_load") == "True"
-        self.rerank = os.getenv("rerank") == "True"
-        self.rerank_model = os.getenv("rerank_model")
-        self.rerank_k = int(os.getenv("rerank_k"))
-        self.vector_store_k = int(os.getenv("vector_store_k"))
-        self.chunk_size = int(os.getenv("chunk_size"))
-        self.chunk_overlap = int(os.getenv("chunk_overlap"))
-        self.breakpoint_threshold_amount = os.getenv('breakpoint_threshold_amount', 'None')
-        self.number_of_chunks = None if (value := os.getenv('number_of_chunks',
-                                                            None)) is None or value.lower() == 'none' else int(value)
-        self.breakpoint_threshold_type = os.getenv('breakpoint_threshold_type')
-        self.vector_store_collection = os.getenv("vector_store_collection")
-        self.xml_xpath = os.getenv("xml_xpath")
-        self.json_text_content = os.getenv("json_text _content", "false").lower() == 'true'
-        self.json_schema = os.getenv("json_schema")
 
-        self.logger = logger
-        self.citation_verifier = None
-        self.citation_verification = os.getenv('citation_verification', 'True').lower() == 'true'
+# Initialize Flask application
+app = Flask(__name__)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-    @staticmethod
-    def format_documents(docs):
-        """
-        Formats the documents for better readability.
+# Disable parallelism in tokenizers to avoid warnings
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-        Args:
-            docs (list): List of Document objects.
+# Load environment variables from .env file
+load_bashrc()
+load_dotenv()
 
-        Returns:
-            str: Formatted string representation of documents.
-        """
-        doc_strings = []
-        for i, doc in enumerate(docs):
-            metadata_string = ", ".join([f"{md}: {doc.metadata[md]}" for md in doc.metadata.keys()])
-            doc_strings.append(f"Document {i} content: {doc.page_content}\nDocument {i} metadata: {metadata_string}")
-        return "\n\n<NEWDOC>\n\n".join(doc_strings)
+# Instantiate the RAG Helper class based on the environment configuration
+if any(os.getenv(key) == "True" for key in ["use_openai", "use_gemini", "use_azure", "use_ollama"]):
+    logger.info("Instantiating the cloud RAG helper.")
+    raghelper = RAGHelperCloud(logger)
+else:
+    logger.info("Instantiating the local RAG helper.")
+    raghelper = RAGHelperLocal(logger)
 
-    def _load_chunked_documents(self):
-        """Loads previously chunked documents from a pickle file."""
-        with open(self.document_chunks_pickle, 'rb') as f:
-            self.logger.info("Loading chunked documents.")
-            self.chunked_documents = pickle.load(f)
 
-    def _load_json_files(self):
-        """
-        Loads JSON files from the data directory.
+@app.route("/add_document", methods=['POST'])
+def add_document():
+    """
+    Add a document to the RAG helper.
 
-        Returns:
-            list: A list of loaded Document objects from JSON files.
-        """
-        text_content = self.json_text_content
-        loader_kwargs = {
-            'jq_schema': self.json_schema,
-            'text_content': text_content
-        }
-        loader = DirectoryLoader(
-            path=self.data_dir,
-            glob="*.json",
-            loader_cls=JSONLoader,
-            loader_kwargs=loader_kwargs,
-            recursive=True,
-            show_progress=True,
-        )
-        return loader.load()
+    This endpoint expects a JSON payload containing the filename of the document to be added.
+    It then invokes the addDocument method of the RAG helper to store the document.
 
-    def _load_xml_files(self):
-        """
-        Loads XML files from the data directory and extracts relevant elements.
+    Returns:
+        JSON response with the filename and HTTP status code 200.
+    """
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part in the request"}), 400
 
-        Returns:
-            list: A list of Document objects created from XML elements.
-        """
-        loader = DirectoryLoader(
-            path=self.data_dir,
-            glob="*.xml",
-            loader_cls=TextLoader,
-            recursive=True,
-            show_progress=True,
-        )
-        xmldocs = loader.load()
-        newdocs = []
-        for index, doc in enumerate(xmldocs):
-            try:
-                xmltree = etree.fromstring(doc.page_content.encode('utf-8'))
-                elements = xmltree.xpath(self.xml_xpath)
-                elements = [etree.tostring(element, pretty_print=True).decode() for element in elements]
-                metadata = doc.metadata
-                metadata['index'] = index
-                newdocs += [Document(page_content=content, metadata=metadata) for content in elements]
-            except Exception as e:
-                self.logger.error(f"Error processing XML document: {e}")
-        return newdocs
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
 
-    @staticmethod
-    def _filter_metadata(docs, filters=None):
-        """
-        Filters the metadata of documents by retaining only specified keys.
+    if file:
+        filename = secure_filename(file.filename)
 
-        Parameters
-        ----------
-        docs : list
-            A list of document objects, where each document contains a metadata dictionary.
-        filters : list, optional
-            A list of metadata keys to retain (default is ["source"]).
+        logger.info(f"Adding document {filename}")
+        data_dir = os.getenv("data_directory")
+        location = f"{data_dir}/{file.filename}"
 
-        Returns
-        -------
-        list
-            The modified list of documents with filtered metadata.
+        # Copy over file
+        file.save(location)
+        raghelper.add_document(location)
+    else:
+        return jsonify({"error": "File is required"}), 400
 
-        Raises
-        ------
-        ValueError
-            If docs is not a list or if filters is not a list.
-        """
-        if not isinstance(docs, list):
-            raise ValueError("Expected 'docs' to be a list.")
-        if filters is None:
-            filters = ["source"]
-        elif not isinstance(filters, list):
-            raise ValueError("Expected 'filters' to be a list.")
+    return jsonify({"filename": filename}), 200
 
-        # Filter metadata for each document
-        for doc in docs:
-            doc.metadata = {key: doc.metadata.get(key) for key in filters if key in doc.metadata}
+@app.route("/query", methods=['POST'])
+def query():
+    try:
+        data = request.get_json()
 
-        return docs
-
-    def _load_documents(self):
-        """
-        Loads documents from specified file types in the data directory.
-
-        Returns:
-            list: A list of loaded Document objects.
-        """
-        docs = []
-        for file_type in self.file_types:
-            try:
-                self.logger.info(f"Loading {file_type} document(s)....")
-                if file_type == "pdf":
-                    loader = PyPDFDirectoryLoader(self.data_dir)
-                    docs += loader.load()
-                elif file_type == "json":
-                    docs += self._load_json_files()
-                elif file_type == "txt":
-                    loader = DirectoryLoader(
-                        path=self.data_dir,
-                        glob="*.txt",
-                        loader_cls=TextLoader,
-                        recursive=True,
-                        show_progress=True,
-                    )
-                    docs += loader.load()
-                elif file_type == "csv":
-                    loader = DirectoryLoader(
-                        path=self.data_dir,
-                        glob="*.csv",
-                        loader_cls=CSVLoader,
-                        recursive=True,
-                        show_progress=True,
-                    )
-                    docs += loader.load()
-                elif file_type == "docx":
-                    loader = DirectoryLoader(
-                        path=self.data_dir,
-                        glob="*.docx",
-                        loader_cls=Docx2txtLoader,
-                        recursive=True,
-                        show_progress=True,
-                    )
-                    docs += loader.load()
-                elif file_type == "xlsx":
-                    loader = DirectoryLoader(
-                        path=self.data_dir,
-                        glob="*.xlsx",
-                        loader_cls=UnstructuredExcelLoader,
-                        recursive=True,
-                        show_progress=True,
-                    )
-                    docs += loader.load()
-                elif file_type == "pptx":
-                    loader = DirectoryLoader(
-                        path=self.data_dir,
-                        glob="*.pptx",
-                        loader_cls=UnstructuredPowerPointLoader,
-                        recursive=True,
-                        show_progress=True,
-                    )
-                    docs += loader.load()
-                elif file_type == "xml":
-                    docs += self._load_xml_files()
-            except Exception as e:
-                print(f"Error loading {file_type} files: {e}")
-
-        return self._filter_metadata(docs)
-
-    def _load_json_document(self, filename):
-        """Load JSON documents with specific parameters"""
-        return JSONLoader(
-            file_path=filename,
-            jq_schema=self.json_schema,
-            text_content=self.json_text_content
+        # Get response from RAG helper
+        (new_history, response) = raghelper.handle_user_interaction(
+            data['query'],
+            data.get('history', [])
         )
 
-    def _load_document(self, filename):
-        """Load documents from the specified file based on its extension."""
-        file_type = filename.lower().split('.')[-1]
-        loaders = {
-            'pdf': PyPDFLoader,
-            'json': self._load_json_document,
-            'txt': TextLoader,
-            'csv': CSVLoader,
-            'docx': Docx2txtLoader,
-            'xlsx': UnstructuredExcelLoader,
-            'pptx': UnstructuredPowerPointLoader
-        }
-        self.logger.info(f"Loading {file_type} document....")
-        if file_type in loaders:
-            docs = loaders[file_type](filename).load()
-            return self._filter_metadata(docs)
-        else:
-            raise ValueError(f"Unsupported file type: {file_type}")
+        # Handle citation verification errors if any
+        if response.get('error') == 'citation_verification_failed':
+            return jsonify({
+                'error': 'Invalid or ambiguous citations detected',
+                'details': response.get('details', {})
+            }), 400
 
-    def _create_recursive_text_splitter(self):
-        """
-        Creates an instance of RecursiveCharacterTextSplitter.
+        return jsonify(response), 200
 
-        Returns:
-            RecursiveCharacterTextSplitter: A configured text splitter instance.
-        """
-        return RecursiveCharacterTextSplitter(
-            chunk_size=self.chunk_size,
-            chunk_overlap=self.chunk_overlap,
-            length_function=len,
-            keep_separator=True,
-            separators=[
-                "\n \n", "\n\n", "\n", ".", "!", "?", " ",
-                ",", "\u200b", "\uff0c", "\u3001", "\uff0e", "\u3002", ""
-            ],
-        )
+    except Exception as e:
+        logger.error(f"Error processing query: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
-    def _create_semantic_chunker(self):
-        """
-        Creates an instance of SemanticChunker.
+@app.route("/chat", methods=['POST'])
+def chat():
+    """
+    Handle chat interactions with the RAG system.
 
-        Returns:
-            SemanticChunker: A configured semantic chunker instance.
-        """
-        return SemanticChunker(
-            self.embeddings,
-            breakpoint_threshold_type=self.breakpoint_threshold_type,
-            breakpoint_threshold_amount=self.breakpoint_threshold_amount,
-            number_of_chunks=self.number_of_chunks
-        )
+    This endpoint processes the user's prompt, retrieves relevant documents,
+    and returns the assistant's reply along with conversation history.
 
-    def _initialize_text_splitter(self):
-        """Initialize the text splitter based on the environment settings."""
-        self.logger.info(f"Initializing {self.splitter_type} splitter.")
-        if self.splitter_type == 'RecursiveCharacterTextSplitter':
-            self.text_splitter = self._create_recursive_text_splitter()
-        elif self.splitter_type == 'SemanticChunker':
-            self.text_splitter = self._create_semantic_chunker()
+    Returns:
+        JSON response containing the assistant's reply, history, documents, and other metadata.
+    """
+    json_data = request.get_json()
+    prompt = json_data.get('prompt')
+    history = json_data.get('history', [])
+    original_docs = json_data.get('docs', [])
+    docs = original_docs
 
-    def _split_documents(self, docs):
-        """
-        Splits documents into chunks.
+    # Get the LLM response
+    (new_history, response) = raghelper.handle_user_interaction(prompt, history)
+    if not docs or 'docs' in response:
+        docs = response['docs']
 
-        Args:
-            docs (list): A list of loaded Document objects.
-        """
-        self._initialize_text_splitter()
-        self.logger.info("Chunking document(s).")
-        chunked_documents = [
-            Document(page_content=doc.page_content,
-                     metadata={**doc.metadata, 'id': hashlib.md5(doc.page_content.encode()).hexdigest()})
-            for doc in self.text_splitter.split_documents(docs)
-        ]
-        return chunked_documents
+    # Handle citation verification errors if any
+    if response.get('error') == 'citation_verification_failed':
+        return jsonify({
+            'error': 'Invalid or ambiguous citations detected',
+            'details': response.get('details', {})
+        }), 400
 
-    def _split_and_store_documents(self, docs):
-        """
-        Splits documents into chunks and stores them as a pickle file.
+    if len(docs) == 0 or 'docs' in response:
+        docs = response['docs']
 
-        Args:
-            docs (list): A list of loaded Document objects.
-        """
-        self.chunked_documents = self._split_documents(docs)
-        # Store the chunked documents
-        self.logger.info("Storing chunked document(s).")
-        with open(self.document_chunks_pickle, 'wb') as f:
-            pickle.dump(self.chunked_documents, f)
+    # Break up the response for local LLMs
+    if isinstance(raghelper, RAGHelperLocal):
+        end_string = os.getenv("llm_assistant_token")
+        reply = response['text'][response['text'].rindex(end_string) + len(end_string):]
 
-    def _initialize_milvus(self):
-        """Initializes the Milvus vector store."""
-        self.logger.info("Setting up Milvus Vector DB.")
-        self.db = Milvus.from_documents(
-            [], self.embeddings,
-            drop_old=not self.vector_store_initial_load,
-            connection_args={"uri": self.vector_store_uri},
-            collection_name=self.vector_store_collection,
-        )
+        # Get updated history
+        new_history = [{"role": msg["role"], "content": msg["content"].format_map(response)} for msg in new_history]
+        new_history.append({"role": "assistant", "content": reply})
+    else:
+        # Populate history for other LLMs
+        new_history = [{"role": msg[0], "content": msg[1].format_map(response)} for msg in new_history]
+        new_history.append({"role": "assistant", "content": response['answer']})
+        reply = response['answer']
 
-    def _initialize_postgres(self):
-        """Initializes the Postgres vector store."""
-        self.logger.info(f"Setting up PGVector DB.")
-        self.db = PGVector(
-            embeddings=self.embeddings,
-            collection_name=self.vector_store_collection,
-            connection=self.vector_store_uri,
-            use_jsonb=True
-        )
+    # Format documents
+    fetched_new_documents = False
+    if not original_docs or 'docs' in response:
+        fetched_new_documents = True
+        new_docs = [{
+            's': doc.metadata['source'],
+            'c': doc.page_content,
+            **({'pk': doc.metadata['pk']} if 'pk' in doc.metadata else {}),
+            **({'provenance': float(doc.metadata['provenance'])} if 'provenance' in doc.metadata and doc.metadata[
+                'provenance'] is not None else {}),
+            **({'citation_verification': response.get('citation_verification',
+                                                      {})} if 'citation_verification' in response else {})
+        } for doc in docs if 'source' in doc.metadata]
+    else:
+        new_docs = docs
 
-    def _initialize_vector_store(self):
-        """Initializes the vector store based on the specified type (Milvus or Postgres)."""
-        if self.vector_store == "milvus":
-            self._initialize_milvus()
-        elif self.vector_store == "postgres":
-            self._initialize_postgres()
-        else:
-            raise ValueError(
-                "Only 'milvus' or 'postgres' are supported as vector stores! Please set vector_store in your "
-                "environment variables.")
-        if self.vector_store_initial_load:
-            self.logger.info("Loading data from existing store.")
-            # Add the documents 1 by 1, so we can track progress
-            with tqdm(total=len(self.chunked_documents), desc="Vectorizing documents") as pbar:
-                for i in range(0, len(self.chunked_documents), self._batch_size):
-                    # Slice the documents for the current batch
-                    batch = self.chunked_documents[i:i + self._batch_size]
-                    # Prepare documents and their IDs for batch insertion
-                    documents = [d for d in batch]
-                    ids = [d.metadata["id"] for d in batch]
+    # Build the response dictionary
+    response_dict = {
+        "reply": reply,
+        "history": new_history,
+        "documents": new_docs,
+        "rewritten": False,
+        "question": prompt,
+        "fetched_new_documents": fetched_new_documents
+    }
 
-                    # Add the batch of documents to the database
-                    self.db.add_documents(documents, ids=ids)
+    # Check for rewritten question
+    if os.getenv("use_rewrite_loop") == "True" and prompt != response['question']:
+        response_dict["rewritten"] = True
+        response_dict["question"] = response['question']
+    # Add citation verification results if present
+    if 'citation_verification' in response:
+        result['citation_verification'] = response['citation_verification']
 
-                    # Update the progress bar by the size of the batch
-                    pbar.update(len(batch))
+    return jsonify(response_dict), 200
 
-    def _initialize_bm25retriever(self):
-        """Initializes in memory BM25Retriever."""
-        self.logger.info("Initializing BM25Retriever.")
-        self.sparse_retriever = BM25Retriever.from_texts(
-            [x.page_content for x in self.chunked_documents],
-            metadatas=[x.metadata for x in self.chunked_documents]
-        )
 
-    def _initialize_postgresbm25retriever(self):
-        """Initializes in memory PostgresBM25Retriever."""
-        self.logger.info("Initializing PostgresBM25Retriever.")
-        self.sparse_retriever = PostgresBM25Retriever(connection_uri=self.vector_store_sparse_uri,
-                                                      table_name="sparse_vectors", k=self.vector_store_k)
-        if self.vector_store_initial_load == "True":
-            self.logger.info("Loading data from existing store into the PostgresBM25Retriever.")
-            with tqdm(total=len(self.chunked_documents), desc="Vectorizing documents") as pbar:
-                for d in self.chunked_documents:
-                    self.sparse_retriever.add_documents([d], ids=[d.metadata["id"]])
-                    pbar.update(1)
+@app.route("/get_documents", methods=['GET'])
+def get_documents():
+    """
+    Retrieve a list of documents from the data directory.
 
-    def _initialize_retrievers(self):
-        """Initializes the sparse retriever, ensemble retriever, and rerank retriever."""
-        if self.vector_store == "milvus":
-            self._initialize_bm25retriever()
-        elif self.vector_store == "postgres":
-            self._initialize_postgresbm25retriever()
-        else:
-            raise ValueError(
-                "Only 'milvus' or 'postgres' are supported as vector stores! Please set vector_store in your "
-                "environment variables.")
+    This endpoint checks the configured data directory and returns a list of files
+    that match the specified file types.
 
-    def _initialize_reranker(self):
-        """Initialize the reranking model based on environment settings."""
-        if os.getenv("rerank") == "True":
-            if os.getenv("rerank_model") == "flashrank":
-                self.logger.info("Setting up the FlashrankRerank.")
-                self.compressor = FlashrankRerank(top_n=int(os.getenv("rerank_k")))
-            else:
-                self.logger.info("Setting up the CitationAwareReranker.")
-                self.compressor = CitationAwareReranker(
-                    model=HuggingFaceCrossEncoder(model_name="cross-encoder/ms-marco-TinyBERT-L-2-v2"),
-                    top_n=int(os.getenv("rerank_k"))
-                )
+    Returns:
+        JSON response containing the list of files.
+    """
+    data_dir = os.getenv('data_directory')
+    file_types = os.getenv("file_types", "").split(",")
 
-            self.logger.info("Setting up the ContextualCompressionRetriever.")
-            self.rerank_retriever = ContextualCompressionRetriever(
-                base_compressor=self.compressor,
-                base_retriever=self.ensemble_retriever
-            )
+    # Filter files based on specified types
+    files = [f for f in os.listdir(data_dir)
+             if os.path.isfile(os.path.join(data_dir, f)) and os.path.splitext(f)[1][1:] in file_types]
 
-    def _setup_retrievers(self):
-        """Sets up the retrievers based on specified configurations."""
-        self._initialize_retrievers()
-        # Set up the vector retriever
-        self.logger.info("Setting up the Vector Retriever.")
-        retriever = self.db.as_retriever(
-            search_type="mmr", search_kwargs={'k': self.vector_store_k}
-        )
-        self.logger.info("Setting up the hybrid retriever.")
-        self.ensemble_retriever = EnsembleRetriever(
-            retrievers=[self.sparse_retriever, retriever], weights=[0.5, 0.5]
-        )
-        if self.rerank:
-            self._initialize_reranker()
+    return jsonify(files)
 
-    def _update_chunked_documents(self, new_chunks):
-        """Update the chunked documents list and store them."""
-        if self.vector_store == 'milvus':
-            if not self.chunked_documents:
-                if os.path.exists(self.document_chunks_pickle):
-                    self.logger.info("documents chunk pickle exists, loading it.")
-                    self._load_chunked_documents()
-            self.chunked_documents += new_chunks
-            with open(f"{self.vector_store_uri}_sparse.pickle", 'wb') as f:
-                pickle.dump(self.chunked_documents, f)
 
-    def _add_to_vector_database(self, new_chunks):
-        """Add the new document chunks to the vector database."""
-        if not self.db:
-            self._initialize_vector_store()
+@app.route("/get_document", methods=['POST'])
+def get_document():
+    """
+    Retrieve a specific document from the data directory.
 
-        documents = [d for d in new_chunks]
-        ids = [d.metadata["id"] for d in new_chunks]
-        self.db.add_documents(documents, ids=ids)
+    This endpoint expects a JSON payload containing the filename of the document to retrieve.
+    If the document exists, it is sent as a file response.
 
-        if self.vector_store == "postgres":
-            self.sparse_retriever.add_documents(new_chunks, ids)
-        else:
-            # Recreate the in-memory store
-            self._initialize_bm25retriever()
-            # Update full retriever too
-        retriever = self.db.as_retriever(
-            search_type="mmr",
-            search_kwargs={'k': self.vector_store_k}
-        )
-        self.ensemble_retriever = EnsembleRetriever(
-            retrievers=[self.sparse_retriever, retriever],
-            weights=[0.5, 0.5]
-        )
+    Returns:
+        JSON response with the error message and HTTP status code 404 if not found,
+        otherwise sends the file as an attachment.
+    """
+    json_data = request.get_json()
+    filename = json_data.get('filename')
+    data_dir = os.getenv('data_directory')
+    file_path = os.path.join(data_dir, filename)
 
-    def _parse_cv(self, doc):
-        """Extract skills from the CV document."""
-        # Implement your skill extraction logic here
-        return []
+    if not os.path.exists(file_path):
+        return jsonify({"error": "File not found"}), 404
 
-    def load_data(self):
-        """
-        Loads data from various file types and chunks it into an ensemble retriever.
-        """
-        if os.path.exists(self.document_chunks_pickle):
-            self.logger.info("documents chunk pickle exists, reusing it.")
-            self._load_chunked_documents()
-        else:
-            self.logger.info("loading the documents for the first time.")
-            docs = self._load_documents()
-            self.logger.info("chunking the documents.")
-            self._split_and_store_documents(docs)
+    return send_file(file_path,
+                     mimetype='application/octet-stream',
+                     as_attachment=True,
+                     download_name=filename)
 
-        self._initialize_vector_store()
-        self._setup_retrievers()
 
-    def add_document(self, filename):
-        """
-        Load documents from various file types, extract metadata,
-        split the documents into chunks, and store them in a vector database.
+@app.route("/delete", methods=['POST'])
+def delete_document():
+    """
+    Delete a specific document from the data directory and the Milvus vector store.
 
-        Parameters:
-            filename (str): The name of the file to be loaded.
+    This endpoint expects a JSON payload containing the filename of the document to delete.
+    It removes the document from the Milvus collection and the filesystem.
 
-        Raises:
-            ValueError: If the file type is unsupported.
-        """
-        new_docs = self._load_document(filename)
+    Returns:
+        JSON response with the count of deleted documents.
+    """
+    json_data = request.get_json()
+    filename = json_data.get('filename')
+    data_dir = os.getenv('data_directory')
+    file_path = os.path.join(data_dir, filename)
 
-        self.logger.info("chunking the documents.")
-        new_chunks = self._split_documents(new_docs)
+    if not os.path.exists(file_path):
+        return jsonify({"error": "File not found"}), 404
 
-        self._update_chunked_documents(new_chunks)
+    # Remove from Milvus
+    connections.connect(uri=os.getenv('vector_store_uri'))
+    collection = Collection("LangChainCollection")
+    collection.load()
+    result = collection.delete(f'source == "{file_path}"')
+    collection.release()
 
-        # Add new chunks to the vector database
-        self._add_to_vector_database(new_chunks)
+    # Remove from disk too
+    os.remove(file_path)
 
-    def initialize_citation_verifier(self):
-        """Initialize the citation verifier if enabled."""
-        if self.citation_verification:
-            self.logger.info("Initializing citation verifier")
-            self.citation_verifier = ResponseVerifier()
+    # Reinitialize BM25
+    raghelper.loadData()
 
-    def verify_response_citations(self, response, docs):
-        """Verify citations in response against source documents."""
-        if not self.citation_verification or not self.citation_verifier:
-            return response, {}
+    return jsonify({"count": result.delete_count})
 
-        try:
-            modified_response, verification_results = self.citation_verifier.verify_response(
-                response,
-                docs
-            )
-            return modified_response, verification_results
-        except Exception as e:
-            self.logger.error(f"Error verifying citations: {str(e)}")
-            return response, {"error": str(e)}
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0")

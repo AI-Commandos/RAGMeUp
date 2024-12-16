@@ -119,6 +119,15 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -152,6 +161,3 @@ cython_debug/
 ui/scala/.bsp/
 ui/scala/.idea/
 ui/react-ui/backend/node_modules/
-
-server/*data.db*
-server/*.pickle

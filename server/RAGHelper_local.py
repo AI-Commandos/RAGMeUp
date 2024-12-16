@@ -217,18 +217,15 @@ class RAGHelperLocal(RAGHelper):
             # Extract answer part
             end_string = os.getenv("llm_assistant_token")
             answer = reply['text'][reply['text'].rindex(end_string) + len(end_string):]
-            print(answer)
             # Verify citations
             modified_answer, verification_results = self.verify_response_citations(
                 answer,
                 reply['docs']
             )
-            print(modified_answer)
 
             # Update response
             reply['text'] = reply['text'][:reply['text'].rindex(end_string) + len(end_string)] + modified_answer
             reply['citation_verification'] = verification_results
-            print(reply)
 
         if fetch_new_documents:
             self._track_provenance(user_query, reply, thread)

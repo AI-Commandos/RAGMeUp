@@ -164,6 +164,45 @@ The LLM that is used to generate messages is now also used to attribute the prov
 - `breakpoint_threshold_amount` The amount to use for the threshold type, in float. Set to `None` to leave default
 - `number_of_chunks` The number of chunks to use for the threshold type, in int. Set to `None` to leave default
 
+## Hybrid Citation-Aware Reranking & Citation Verification
+
+The **Hybrid Citation-Aware Reranking & Citation Verification** feature enhances RAG Me Up's ability to handle legal and regulatory documentation. This feature improves citation management and verification, ensuring accurate and contextually relevant responses for queries involving legal references.
+
+### Key Features
+1. **Hybrid Citation-Aware Reranking**:
+   - Combines semantic understanding with citation awareness for more precise document retrieval.
+   - Balances semantic similarity, citation matching, and contextual relevance to generate optimal rankings.
+   - Employs weighted scoring mechanisms to prioritize consistent citation relevance.
+
+2. **Response Citation Verification**:
+   - Detects and verifies citations using advanced pattern matching and semantic comparison.
+   - Highlights citation validity:
+     - Correct citations: `Article 6(1) [source.pdf]`
+     - Context mismatches: `Article 6(1) [⚠️ Context mismatch, see source.pdf]`
+     - Invalid citations: `⚠️ [Invalid citation: Article 6(1)]`
+   - Provides clear attribution and warnings for hallucinated or misused references.
+
+3. **Accurate Query Handling**:
+   - Enables precise and well-referenced answers to queries such as "What does Article 6(1) say about data processing?".
+   - Enhances the framework’s utility for legal and academic use cases.
+
+### Configuration
+The feature can be activated and customized in the `.env` file with the following parameters:
+```env
+# Citation Aware Reranking
+citation_weight=0.3                    # Weight between semantic and citation scores
+citation_exact_match_weight=0.4        # Weight for exact citation matches
+citation_context_weight=0.3            # Weight for context similarity
+citation_proximity_weight=0.3          # Weight for proximity scoring
+vector_store_k=10                      # Number of documents to retrieve
+rerank_k=5                             # Number of documents after reranking
+
+# Verification
+citation_verification=True             # Enable verification system
+citation_similarity_threshold=0.7      # Threshold for context matching
+```
+Currently, the feature is optimized for legal and regulatory documents by looking for article matches. The citation-aware reranking and verification system can be further customized to suit specific use cases.
+
 # Evaluation
 While RAG evaluation is difficult and subjective to begin with, frameworks such as [Ragas](https://docs.ragas.io/en/stable/) can give some metrics as to how well your RAG pipeline and its prompts are working, allowing us to benchmark one approach over the other quantitatively.
 
