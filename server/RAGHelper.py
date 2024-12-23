@@ -1,18 +1,28 @@
 import hashlib
 import os
 import pickle
+import requests
+import base64
+import csv
+import json
+import re
 
-from langchain.retrievers import (ContextualCompressionRetriever,
-                                  EnsembleRetriever)
+from langchain.retrievers import ContextualCompressionRetriever, EnsembleRetriever
 from langchain.retrievers.document_compressors import FlashrankRerank
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
-from langchain_community.document_loaders import (CSVLoader, DirectoryLoader,
-                                                  Docx2txtLoader, JSONLoader,
-                                                  PyPDFDirectoryLoader,
-                                                  PyPDFLoader, TextLoader,
-                                                  UnstructuredExcelLoader,
-                                                  UnstructuredPowerPointLoader)
+from langchain_community.document_loaders import (
+    CSVLoader,
+    DirectoryLoader,
+    Docx2txtLoader,
+    JSONLoader,
+    PyPDFDirectoryLoader,
+    PyPDFLoader,
+    TextLoader,
+    UnstructuredExcelLoader,
+    UnstructuredPowerPointLoader,
+)
 from langchain_community.retrievers import BM25Retriever
+from langchain.prompts import ChatPromptTemplate
 from langchain_core.documents.base import Document
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_milvus.vectorstores import Milvus
@@ -44,14 +54,16 @@ class RAGHelper:
         self.rerank_retriever = None
         self._batch_size = 1000
         # Load environment variables
-        self.vector_store_sparse_uri = os.getenv('vector_store_sparse_uri')
-        self.vector_store_uri = os.getenv('vector_store_uri')
-        self.document_chunks_pickle = os.getenv('document_chunks_pickle')
-        self.data_dir = os.getenv('data_directory')
+        self.vector_store_sparse_uri = os.getenv("vector_store_sparse_uri")
+        self.vector_store_uri = os.getenv("vector_store_uri")
+        self.document_chunks_pickle = os.getenv("document_chunks_pickle")
+        self.data_dir = os.getenv("data_directory")
         self.file_types = os.getenv("file_types").split(",")
-        self.splitter_type = os.getenv('splitter')
+        self.splitter_type = os.getenv("splitter")
         self.vector_store = os.getenv("vector_store")
-        self.vector_store_initial_load = os.getenv("vector_store_initial_load") == "True"
+        self.vector_store_initial_load = (
+            os.getenv("vector_store_initial_load") == "True"
+        )
         self.rerank = os.getenv("rerank") == "True"
         self.rerank_model = os.getenv("rerank_model")
         self.rerank_k = int(os.getenv("rerank_k"))
@@ -64,8 +76,13 @@ class RAGHelper:
         self.breakpoint_threshold_type = os.getenv('breakpoint_threshold_type')
         self.vector_store_collection = os.getenv("vector_store_collection")
         self.xml_xpath = os.getenv("xml_xpath")
-        self.json_text_content = os.getenv("json_text _content", "false").lower() == 'true'
+        self.json_text_content = (
+            os.getenv("json_text _content", "false").lower() == "true"
+        )
         self.json_schema = os.getenv("json_schema")
+        self.neo4j = os.getenv("neo4j_location")
+        self.add_docs_to_neo4j = os.getenv("file_upload_using_llm")
+        self.dynamic_neo4j_schema = os.getenv("dynamic_neo4j_schema") == "True"
 
     @staticmethod
     def format_documents(docs):
@@ -80,13 +97,17 @@ class RAGHelper:
         """
         doc_strings = []
         for i, doc in enumerate(docs):
-            metadata_string = ", ".join([f"{md}: {doc.metadata[md]}" for md in doc.metadata.keys()])
-            doc_strings.append(f"Document {i} content: {doc.page_content}\nDocument {i} metadata: {metadata_string}")
+            metadata_string = ", ".join(
+                [f"{md}: {doc.metadata[md]}" for md in doc.metadata.keys()]
+            )
+            doc_strings.append(
+                f"Document {i} content: {doc.page_content}\nDocument {i} metadata: {metadata_string}"
+            )
         return "\n\n<NEWDOC>\n\n".join(doc_strings)
 
     def _load_chunked_documents(self):
         """Loads previously chunked documents from a pickle file."""
-        with open(self.document_chunks_pickle, 'rb') as f:
+        with open(self.document_chunks_pickle, "rb") as f:
             self.logger.info("Loading chunked documents.")
             self.chunked_documents = pickle.load(f)
 
@@ -98,10 +119,7 @@ class RAGHelper:
             list: A list of loaded Document objects from JSON files.
         """
         text_content = self.json_text_content
-        loader_kwargs = {
-            'jq_schema': self.json_schema,
-            'text_content': text_content
-        }
+        loader_kwargs = {"jq_schema": self.json_schema, "text_content": text_content}
         loader = DirectoryLoader(
             path=self.data_dir,
             glob="*.json",
@@ -130,12 +148,18 @@ class RAGHelper:
         newdocs = []
         for index, doc in enumerate(xmldocs):
             try:
-                xmltree = etree.fromstring(doc.page_content.encode('utf-8'))
+                xmltree = etree.fromstring(doc.page_content.encode("utf-8"))
                 elements = xmltree.xpath(self.xml_xpath)
-                elements = [etree.tostring(element, pretty_print=True).decode() for element in elements]
+                elements = [
+                    etree.tostring(element, pretty_print=True).decode()
+                    for element in elements
+                ]
                 metadata = doc.metadata
-                metadata['index'] = index
-                newdocs += [Document(page_content=content, metadata=metadata) for content in elements]
+                metadata["index"] = index
+                newdocs += [
+                    Document(page_content=content, metadata=metadata)
+                    for content in elements
+                ]
             except Exception as e:
                 self.logger.error(f"Error processing XML document: {e}")
         return newdocs
@@ -171,7 +195,9 @@ class RAGHelper:
 
         # Filter metadata for each document
         for doc in docs:
-            doc.metadata = {key: doc.metadata.get(key) for key in filters if key in doc.metadata}
+            doc.metadata = {
+                key: doc.metadata.get(key) for key in filters if key in doc.metadata
+            }
 
         return docs
 
@@ -248,20 +274,20 @@ class RAGHelper:
         return JSONLoader(
             file_path=filename,
             jq_schema=self.json_schema,
-            text_content=self.json_text_content
+            text_content=self.json_text_content,
         )
 
     def _load_document(self, filename):
         """Load documents from the specified file based on its extension."""
-        file_type = filename.lower().split('.')[-1]
+        file_type = filename.lower().split(".")[-1]
         loaders = {
-            'pdf': PyPDFLoader,
-            'json': self._load_json_document,
-            'txt': TextLoader,
-            'csv': CSVLoader,
-            'docx': Docx2txtLoader,
-            'xlsx': UnstructuredExcelLoader,
-            'pptx': UnstructuredPowerPointLoader
+            "pdf": PyPDFLoader,
+            "json": self._load_json_document,
+            "txt": TextLoader,
+            "csv": CSVLoader,
+            "docx": Docx2txtLoader,
+            "xlsx": UnstructuredExcelLoader,
+            "pptx": UnstructuredPowerPointLoader,
         }
         self.logger.info(f"Loading {file_type} document....")
         if file_type in loaders:
@@ -283,8 +309,20 @@ class RAGHelper:
             length_function=len,
             keep_separator=True,
             separators=[
-                "\n \n", "\n\n", "\n", ".", "!", "?", " ",
-                ",", "\u200b", "\uff0c", "\u3001", "\uff0e", "\u3002", ""
+                "\n \n",
+                "\n\n",
+                "\n",
+                ".",
+                "!",
+                "?",
+                " ",
+                ",",
+                "\u200b",
+                "\uff0c",
+                "\u3001",
+                "\uff0e",
+                "\u3002",
+                "",
             ],
         )
 
@@ -299,15 +337,15 @@ class RAGHelper:
             self.embeddings,
             breakpoint_threshold_type=self.breakpoint_threshold_type,
             breakpoint_threshold_amount=self.breakpoint_threshold_amount,
-            number_of_chunks=self.number_of_chunks
+            number_of_chunks=self.number_of_chunks,
         )
 
     def _initialize_text_splitter(self):
         """Initialize the text splitter based on the environment settings."""
         self.logger.info(f"Initializing {self.splitter_type} splitter.")
-        if self.splitter_type == 'RecursiveCharacterTextSplitter':
+        if self.splitter_type == "RecursiveCharacterTextSplitter":
             self.text_splitter = self._create_recursive_text_splitter()
-        elif self.splitter_type == 'SemanticChunker':
+        elif self.splitter_type == "SemanticChunker":
             self.text_splitter = self._create_semantic_chunker()
 
     def _split_documents(self, docs):
@@ -320,8 +358,13 @@ class RAGHelper:
         self._initialize_text_splitter()
         self.logger.info("Chunking document(s).")
         chunked_documents = [
-            Document(page_content=doc.page_content,
-                     metadata={**doc.metadata, 'id': hashlib.md5(doc.page_content.encode()).hexdigest()})
+            Document(
+                page_content=doc.page_content,
+                metadata={
+                    **doc.metadata,
+                    "id": hashlib.md5(doc.page_content.encode()).hexdigest(),
+                },
+            )
             for doc in self.text_splitter.split_documents(docs)
         ]
         return chunked_documents
@@ -336,14 +379,15 @@ class RAGHelper:
         self.chunked_documents = self._split_documents(docs)
         # Store the chunked documents
         self.logger.info("Storing chunked document(s).")
-        with open(self.document_chunks_pickle, 'wb') as f:
+        with open(self.document_chunks_pickle, "wb") as f:
             pickle.dump(self.chunked_documents, f)
 
     def _initialize_milvus(self):
         """Initializes the Milvus vector store."""
         self.logger.info("Setting up Milvus Vector DB.")
         self.db = Milvus.from_documents(
-            [], self.embeddings,
+            [],
+            self.embeddings,
             drop_old=not self.vector_store_initial_load,
             connection_args={"uri": self.vector_store_uri},
             collection_name=self.vector_store_collection,
@@ -356,7 +400,7 @@ class RAGHelper:
             embeddings=self.embeddings,
             collection_name=self.vector_store_collection,
             connection=self.vector_store_uri,
-            use_jsonb=True
+            use_jsonb=True,
         )
 
     def _initialize_vector_store(self):
@@ -368,14 +412,17 @@ class RAGHelper:
         else:
             raise ValueError(
                 "Only 'milvus' or 'postgres' are supported as vector stores! Please set vector_store in your "
-                "environment variables.")
+                "environment variables."
+            )
         if self.vector_store_initial_load:
             self.logger.info("Loading data from existing store.")
             # Add the documents 1 by 1, so we can track progress
-            with tqdm(total=len(self.chunked_documents), desc="Vectorizing documents") as pbar:
+            with tqdm(
+                total=len(self.chunked_documents), desc="Vectorizing documents"
+            ) as pbar:
                 for i in range(0, len(self.chunked_documents), self._batch_size):
                     # Slice the documents for the current batch
-                    batch = self.chunked_documents[i:i + self._batch_size]
+                    batch = self.chunked_documents[i : i + self._batch_size]
                     # Prepare documents and their IDs for batch insertion
                     documents = [d for d in batch]
                     ids = [d.metadata["id"] for d in batch]
@@ -389,19 +436,27 @@ class RAGHelper:
     def _initialize_bm25retriever(self):
         """Initializes in memory BM25Retriever."""
         self.logger.info("Initializing BM25Retriever.")
+
         self.sparse_retriever = BM25Retriever.from_texts(
             [x.page_content for x in self.chunked_documents],
-            metadatas=[x.metadata for x in self.chunked_documents]
+            metadatas=[x.metadata for x in self.chunked_documents],
         )
 
     def _initialize_postgresbm25retriever(self):
         """Initializes in memory PostgresBM25Retriever."""
         self.logger.info("Initializing PostgresBM25Retriever.")
-        self.sparse_retriever = PostgresBM25Retriever(connection_uri=self.vector_store_sparse_uri,
-                                                      table_name="sparse_vectors", k=self.vector_store_k)
+        self.sparse_retriever = PostgresBM25Retriever(
+            connection_uri=self.vector_store_sparse_uri,
+            table_name="sparse_vectors",
+            k=self.vector_store_k,
+        )
         if self.vector_store_initial_load == "True":
-            self.logger.info("Loading data from existing store into the PostgresBM25Retriever.")
-            with tqdm(total=len(self.chunked_documents), desc="Vectorizing documents") as pbar:
+            self.logger.info(
+                "Loading data from existing store into the PostgresBM25Retriever."
+            )
+            with tqdm(
+                total=len(self.chunked_documents), desc="Vectorizing documents"
+            ) as pbar:
                 for d in self.chunked_documents:
                     self.sparse_retriever.add_documents([d], ids=[d.metadata["id"]])
                     pbar.update(1)
@@ -415,7 +470,8 @@ class RAGHelper:
         else:
             raise ValueError(
                 "Only 'milvus' or 'postgres' are supported as vector stores! Please set vector_store in your "
-                "environment variables.")
+                "environment variables."
+            )
 
     def _initialize_reranker(self):
         """Initialize the reranking model based on environment settings."""
@@ -426,7 +482,7 @@ class RAGHelper:
             self.logger.info("Setting up the ScoredCrossEncoderReranker.")
             self.compressor = ScoredCrossEncoderReranker(
                 model=HuggingFaceCrossEncoder(model_name=self.rerank_model),
-                top_n=self.rerank_k
+                top_n=self.rerank_k,
             )
         self.logger.info("Setting up the ContextualCompressionRetriever.")
         self.rerank_retriever = ContextualCompressionRetriever(
@@ -439,7 +495,7 @@ class RAGHelper:
         # Set up the vector retriever
         self.logger.info("Setting up the Vector Retriever.")
         retriever = self.db.as_retriever(
-            search_type="mmr", search_kwargs={'k': self.vector_store_k}
+            search_type="mmr", search_kwargs={"k": self.vector_store_k}
         )
         self.logger.info("Setting up the hybrid retriever.")
         self.ensemble_retriever = EnsembleRetriever(
@@ -450,13 +506,13 @@ class RAGHelper:
 
     def _update_chunked_documents(self, new_chunks):
         """Update the chunked documents list and store them."""
-        if self.vector_store == 'milvus':
+        if self.vector_store == "milvus":
             if not self.chunked_documents:
                 if os.path.exists(self.document_chunks_pickle):
                     self.logger.info("documents chunk pickle exists, loading it.")
                     self._load_chunked_documents()
             self.chunked_documents += new_chunks
-            with open(f"{self.vector_store_uri}_sparse.pickle", 'wb') as f:
+            with open(f"{self.vector_store_uri}_sparse.pickle", "wb") as f:
                 pickle.dump(self.chunked_documents, f)
 
     def _add_to_vector_database(self, new_chunks):
@@ -475,24 +531,21 @@ class RAGHelper:
             self._initialize_bm25retriever()
             # Update full retriever too
         retriever = self.db.as_retriever(
-            search_type="mmr",
-            search_kwargs={'k': self.vector_store_k}
+            search_type="mmr", search_kwargs={"k": self.vector_store_k}
         )
         self.ensemble_retriever = EnsembleRetriever(
-            retrievers=[self.sparse_retriever, retriever],
-            weights=[0.5, 0.5]
+            retrievers=[self.sparse_retriever, retriever], weights=[0.5, 0.5]
         )
 
     def _parse_cv(self, doc):
         """Extract skills from the CV document."""
         # Implement your skill extraction logic here
         return []
-    
+
     def _deduplicate_chunks(self):
         """Ensure there are no duplicate entries in the data."""
-        self.chunked_documents = list({
-                doc.metadata["id"]: doc for doc in self.chunked_documents
-            }.values()
+        self.chunked_documents = list(
+            {doc.metadata["id"]: doc for doc in self.chunked_documents}.values()
         )
 
     def load_data(self):
@@ -512,6 +565,150 @@ class RAGHelper:
         self._initialize_vector_store()
         self._setup_retrievers()
 
+    def add_csv_to_graphdb(self, filename):
+        path = os.path.join(self.data_dir, filename)
+        url_add_instance = f"{self.neo4j}/add_instances"
+        try:
+            self.logger.info("Uploading csv instances using json")
+            with open(path, mode="r", encoding="utf-8") as csvfile:
+                reader = csv.DictReader(csvfile, delimiter=";")
+                self.logger.info(
+                    reader.fieldnames
+                )  # This can be changed to a format you have to follow and then the csv will always upload
+                payloads = []
+                for row in reader:
+                    payloads.append(
+                        {
+                            "query": "MERGE (q:Quote {text: $quoteText}) "
+                            "MERGE (t:Topic {name: $topicName}) "
+                            "MERGE (q)-[:IS_PART_OF]->(t)",
+                            "parameters": {
+                                "quoteText": row.get("quote"),
+                                "topicName": row.get("topics"),
+                            },
+                        }
+                    )
+            self.logger.info(f"JSON is: {payloads}")
+            self.logger.info(f"URL is: {url_add_instance}")
+            response = requests.post(url=url_add_instance, json=payloads)
+            self.logger.info(
+                f"Succesfully loaded {len(payloads)} records into payloads"
+            )
+        except:
+            self.logger.info(f"server responded with: {response.text}")
+
+    def get_llm(self):
+        """Accessor method to get the LLM. Subclasses can override this."""
+        return None
+
+    def escape_curly_braces_in_query(self, json_string):
+        # Function to escape braces in the matched 'query' string
+        def escape_braces(match):
+            query_content = match.group(1)
+            escaped_content = query_content.replace("{", "\\\\{").replace("}", "\\\\}")
+            return '"query": "' + escaped_content + '"'
+
+        # Regular expression to find 'query' fields
+        pattern = r'"query":\s*"([^"]*)"'
+        return re.sub(pattern, escape_braces, json_string)
+
+    def add_document_to_graphdb(self, page_content, metadata):
+        llm = self.get_llm()
+        if llm is None:
+            self.logger.error("LLM is not available in RAGHelper.")
+            return None
+        if metadata.get("source").lower().split(".")[-1] == "pdf":
+            try:
+                if self.dynamic_neo4j_schema == True:
+                    schema_response = requests.get(url=self.neo4j + "/schema")
+                    if schema_response.status_code != 200:
+                        self.logger.info(
+                            "Failed to retrieve schema from the graph database."
+                        )
+                        return None
+                    schema = schema_response.json()
+                    # schema = "\n".join([f"{key}: {value}" for key, value in schema.items()])
+
+                    # Construct schema text for the prompt
+                    schema_text = self.format_schema_for_prompt(schema)
+
+                    self.logger.info(f"this is the text: {schema_text}")
+
+                    retrieval_question = (
+                        os.getenv("neo4j_insert_schema")
+                        .replace("{schema}", schema_text)
+                        .replace("{data}", page_content)
+                    )
+                else:
+                    retrieval_question = os.getenv("neo4j_insert_data_only").replace(
+                        "{data}", page_content
+                    )
+
+                # Load prompt components from .env
+                retrieval_instruction = os.getenv("neo4j_insert_instruction")
+                retrieval_few_shot = os.getenv("neo4j_insert_few_shot")
+
+                retrieval_instruction = retrieval_instruction.replace(
+                    "{", "{{"
+                ).replace("}", "}}")
+                retrieval_few_shot = retrieval_few_shot.replace("{", "{{").replace(
+                    "}", "}}"
+                )
+                retrieval_question = retrieval_question.replace("{", "{{").replace(
+                    "}", "}}"
+                )
+
+                # Combine into a single prompt
+                retrieval_thread = [
+                    ("system", retrieval_instruction + "\n\n" + retrieval_few_shot),
+                    ("human", retrieval_question),
+                ]
+
+                rag_prompt = ChatPromptTemplate.from_messages(retrieval_thread)
+                self.logger.info("Initializing retrieval for RAG.")
+
+                # Create an LLM chain
+                llm_chain = rag_prompt | llm
+                # Invoke the LLM chain and get the response
+                try:
+                    llm_response = llm_chain.invoke({})
+                    # self.logger.info(f"llm response is: {llm_response}")
+                    response_text = self.extract_response_content(llm_response).strip()
+                    self.logger.info(f"The LLM response is: {response_text}")
+
+                    # Escape the curly braces in 'query' strings
+                    escaped_data = self.escape_curly_braces_in_query(response_text)
+
+                    # Now parse the JSON
+                    try:
+                        json_data = json.loads(escaped_data)
+                        print("Parsed JSON data:", json_data)
+                    except json.JSONDecodeError as e:
+                        print("Error parsing JSON:", e)
+
+                    def unescape_curly_braces(json_data):
+                        for item in json_data:
+                            item["query"] = (
+                                item["query"].replace("\\{", "{").replace("\\}", "}")
+                            )
+                        return json_data
+
+                    json_data = unescape_curly_braces(json_data)
+
+                    response = requests.post(
+                        url=self.neo4j + "/add_instances", json=json_data
+                    )
+                    self.logger.info(f"{response}")
+                    if response == "<Response [200]>":
+                        self.logger.info(
+                            f"Succesfully loaded {len(json_data)} records into payloads"
+                        )
+                except Exception as e:
+                    self.logger.error(f"Error during LLM invocation: {e}")
+                    return None
+            except Exception as e:
+                self.logger.error(f"Error adding document to the graph database: {e}")
+
     def add_document(self, filename):
         """
         Load documents from various file types, extract metadata,
@@ -523,7 +720,13 @@ class RAGHelper:
         Raises:
             ValueError: If the file type is unsupported.
         """
+        if filename.lower().split(".")[-1] == "csv":
+            self.add_csv_to_graphdb(filename)
         new_docs = self._load_document(filename)
+        self.logger.info("adding documents to graphdb.")
+        if self.add_docs_to_neo4j:
+            for doc in new_docs:
+                self.add_document_to_graphdb(doc.page_content, doc.metadata)
 
         self.logger.info("chunking the documents.")
         new_chunks = self._split_documents(new_docs)
